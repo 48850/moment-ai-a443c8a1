@@ -14,12 +14,8 @@ import type { ScheduleBlock } from "@/lib/types";
 export interface ScheduleStateSlice {
   day_plan: ScheduleBlock[];
   day_plan_a_snapshot: ScheduleBlock[];
-  week_plan: unknown[];
-  assumptions: string[];
-  confidence: number;
-  last_plan_generated_at: string;
   reform_note?: string;
-  relationships: unknown[];
+  [key: string]: unknown;
 }
 
 export interface HomeStateSlice {
