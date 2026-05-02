@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -11,10 +12,17 @@ import Chat from "./pages/app/Chat";
 import Plan from "./pages/app/Plan";
 import Mission from "./pages/app/Mission";
 import Tasks from "./pages/app/Tasks";
+import { useStateStore } from "./stores/state-store";
 
 const queryClient = new QueryClient();
 
-const App = () => (
+const App = () => {
+  const hydrate = useStateStore((s) => s.hydrate);
+  const isHydrated = useStateStore((s) => s.isHydrated);
+  useEffect(() => {
+    if (!isHydrated) hydrate();
+  }, [isHydrated, hydrate]);
+  return (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
@@ -35,6 +43,7 @@ const App = () => (
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;

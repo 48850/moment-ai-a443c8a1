@@ -176,6 +176,7 @@ export const FEEDBACK_OPTIONS = [
 export const executionFeedbackItemSchema = z.object({
   id: z.string(),
   task_id: z.string(),
+  task_title: z.string().default(""),
   /** Empty string when feedback was given before task completion. */
   completed_at: z.string().default(""),
   feedback: z.enum(FEEDBACK_OPTIONS),

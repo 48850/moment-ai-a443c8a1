@@ -1,6 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Send } from "lucide-react";
-import { chatMock, type ChatMessage, type ScheduleBlock } from "@/lib/mockData";
+import { useStateStore } from "@/stores/state-store";
+import type { ScheduleBlock } from "@/lib/types";
+
+type ChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  renderedResponse?: { type: "day_plan"; blocks: ScheduleBlock[] } | null;
+};
 
 const DayPlanRenderer = ({ blocks, onSendMessage }: { blocks: ScheduleBlock[]; onSendMessage: (t: string) => void }) => {
   const [note, setNote] = useState("");
@@ -11,10 +19,9 @@ const DayPlanRenderer = ({ blocks, onSendMessage }: { blocks: ScheduleBlock[]; o
       </div>
       <ul className="divide-y divide-border">
         {blocks.map((b) => (
-          <li key={b.id} className={`flex items-center gap-3 px-3 py-2 text-xs ${b.decisive ? "border-l-2 border-l-primary" : ""}`}>
+          <li key={b.id} className="flex items-center gap-3 px-3 py-2 text-xs">
             <span className="w-20 font-mono text-muted-foreground">{b.start_time}</span>
             <span className="flex-1">{b.title}</span>
-            {b.decisive && <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[9px] text-primary">best next</span>}
           </li>
         ))}
       </ul>
@@ -56,10 +63,28 @@ const TypingDots = () => (
 );
 
 const Chat = () => {
-  const [messages, setMessages] = useState<ChatMessage[]>(chatMock);
+  const state = useStateStore((s) => s.state);
+  const initialMessages = useMemo<ChatMessage[]>(
+    () => [
+      { id: "m1", role: "assistant", content: `Hey ${state?.profile.display_name ?? "there"} — what's on your mind today?` },
+      { id: "m2", role: "user", content: "I'm anxious about the Stanford opener. Can't pick a line." },
+      {
+        id: "m3",
+        role: "assistant",
+        content: "That's the right thing to be anxious about. Let's commit to one 25-minute sprint after school. Here's today's plan:",
+        renderedResponse: { type: "day_plan", blocks: state?.schedule_state.day_plan ?? [] },
+      },
+    ],
+    [state?.profile.display_name, state?.schedule_state.day_plan],
+  );
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMessages(initialMessages);
+  }, [initialMessages]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
