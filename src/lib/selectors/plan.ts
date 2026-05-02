@@ -11,7 +11,7 @@ export interface PlanViewModel {
 }
 
 export function selectPlanViewModel(state: MomentState): PlanViewModel {
-  const home = state.home ?? { active_plan: "plan_a" as const };
+  const home = { active_plan: state.home?.active_plan ?? ("plan_a" as const) };
   const sched = {
     day_plan: (state.schedule_state.day_plan ?? []) as ScheduleBlock[],
     day_plan_a_snapshot: (state.schedule_state.day_plan_a_snapshot ?? []) as ScheduleBlock[],
