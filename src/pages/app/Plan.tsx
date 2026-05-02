@@ -1,35 +1,72 @@
 import { useState } from "react";
 import { RefreshCw, Loader2 } from "lucide-react";
-import { planMock, type ScheduleBlock } from "@/lib/mockData";
+import { useStateStore } from "@/stores/state-store";
+import { selectPlanViewModel } from "@/lib/selectors/plan";
+import type { ScheduleBlock } from "@/lib/types";
 
-const typeStyles: Record<ScheduleBlock["type"], string> = {
+const typeStyles: Record<string, string> = {
   study: "bg-primary/15 text-primary border-primary/30",
+  goal_work: "bg-primary/15 text-primary border-primary/30",
   exercise: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
   commute: "bg-secondary text-muted-foreground border-border",
   buffer: "bg-secondary text-muted-foreground border-border",
-  fixed: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+  fixed_commitment: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+  meal: "bg-secondary text-muted-foreground border-border",
+  recovery: "bg-secondary text-muted-foreground border-border",
+  wind_down: "bg-secondary text-muted-foreground border-border",
 };
 
 const Plan = () => {
-  const [blocks] = useState<ScheduleBlock[]>(planMock.scheduleBlocks);
-  const [activePlan, setActivePlan] = useState<"plan_a" | "plan_b">(planMock.activePlan);
-  const [hasPlanB, setHasPlanB] = useState(planMock.hasPlanB);
+  const state = useStateStore((s) => s.state);
+  const dispatch = useStateStore((s) => s.dispatch);
   const [reformOpen, setReformOpen] = useState(false);
   const [reformNote, setReformNote] = useState("");
   const [reforming, setReforming] = useState(false);
-  const [reformError, setReformError] = useState<string | null>(null);
+
+  if (!state) return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
+  const vm = selectPlanViewModel(state);
+
+  const setActivePlan = (plan: "plan_a" | "plan_b") => {
+    dispatch({ type: "home/setPlan", payload: plan });
+  };
 
   const onReform = () => {
     if (!reformNote.trim()) return;
     setReforming(true);
-    setReformError(null);
+    // Deterministic local reform: drop linked tasks tagged too_vague/too_big and
+    // prepend a "Revised" placeholder block so the user sees an immediate change.
     setTimeout(() => {
+      const recentBad = new Set(
+        (state.execution_feedback ?? [])
+          .filter((f) => f.feedback === "too_vague" || f.feedback === "too_big")
+          .map((f) => f.task_id),
+      );
+      const basePlan = state.schedule_state.day_plan;
+      const reformed: ScheduleBlock[] = [
+        {
+          id: `reform-${Date.now()}`,
+          title: `Revised: ${reformNote.trim()}`,
+          type: "goal_work",
+          start_time: "16:00",
+          end_time: "16:30",
+          duration_minutes: 30,
+          priority: 1,
+          is_fixed: false,
+          source: "quick_reform",
+          goal_link: state.active_goal?.statement ?? "",
+          fallback_version: "",
+          status: "upcoming",
+        },
+        ...basePlan.filter((b) => !(b.linked_task_ids ?? []).some((id) => recentBad.has(id))),
+      ];
+      dispatch({
+        type: "plan/reform",
+        payload: { reformed_plan: reformed, reform_note: reformNote.trim() },
+      });
       setReforming(false);
-      setHasPlanB(true);
-      setActivePlan("plan_b");
       setReformOpen(false);
       setReformNote("");
-    }, 900);
+    }, 500);
   };
 
   return (
@@ -39,13 +76,14 @@ const Plan = () => {
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">Today's plan</h1>
       </div>
 
-      {/* Plan A/B switcher */}
-      {hasPlanB && (
+      {vm.hasPlanB && (
         <div className="inline-flex rounded-lg border border-border bg-card p-1">
           <button
             onClick={() => setActivePlan("plan_a")}
             className={`rounded-md px-3 py-1.5 text-xs transition-colors ${
-              activePlan === "plan_a" ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"
+              vm.activePlan === "plan_a"
+                ? "bg-secondary text-foreground"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Plan A (original)
@@ -53,7 +91,9 @@ const Plan = () => {
           <button
             onClick={() => setActivePlan("plan_b")}
             className={`rounded-md px-3 py-1.5 text-xs transition-colors ${
-              activePlan === "plan_b" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              vm.activePlan === "plan_b"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Plan B (reformed)
@@ -61,27 +101,38 @@ const Plan = () => {
         </div>
       )}
 
-      {/* Schedule */}
       <section className="overflow-hidden rounded-2xl border border-border bg-card">
-        <ul className="divide-y divide-border">
-          {blocks.map((b) => (
-            <li
-              key={b.id}
-              className={`flex items-center gap-4 px-4 py-3 ${b.status === "completed" ? "opacity-50" : ""} ${
-                b.decisive ? "border-l-2 border-l-primary" : ""
-              }`}
-            >
-              <span className="w-24 shrink-0 font-mono text-xs text-muted-foreground">
-                {b.start_time}–{b.end_time}
-              </span>
-              <span className="flex-1 text-sm">{b.title}</span>
-              <span className={`rounded-full border px-2 py-0.5 text-[10px] lowercase ${typeStyles[b.type]}`}>{b.type}</span>
-            </li>
-          ))}
-        </ul>
+        {vm.scheduleBlocks.length === 0 ? (
+          <div className="px-4 py-8 text-center text-sm text-muted-foreground">No schedule yet.</div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {vm.scheduleBlocks.map((b) => {
+              const isDecisive = (b.linked_task_ids ?? []).includes("t-essay-opener");
+              return (
+                <li
+                  key={b.id}
+                  className={`flex items-center gap-4 px-4 py-3 ${
+                    b.status === "completed" ? "opacity-50" : ""
+                  } ${isDecisive ? "border-l-2 border-l-primary" : ""}`}
+                >
+                  <span className="w-24 shrink-0 font-mono text-xs text-muted-foreground">
+                    {b.start_time}–{b.end_time}
+                  </span>
+                  <span className="flex-1 text-sm">{b.title}</span>
+                  <span
+                    className={`rounded-full border px-2 py-0.5 text-[10px] lowercase ${
+                      typeStyles[b.type] ?? "bg-secondary text-muted-foreground border-border"
+                    }`}
+                  >
+                    {b.type.replace("_", " ")}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </section>
 
-      {/* Quick Reform */}
       <section className="rounded-2xl border border-border bg-card/50 p-4">
         {!reformOpen ? (
           <div className="flex items-center justify-between">
@@ -98,16 +149,20 @@ const Plan = () => {
         ) : (
           <div>
             <div className="text-sm">What feels unrealistic?</div>
-            <div className="mt-1 text-xs text-muted-foreground">Your original plan will be preserved as Plan A.</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Your original plan will be preserved as Plan A.
+            </div>
             <input
               value={reformNote}
               onChange={(e) => setReformNote(e.target.value)}
               placeholder="e.g. Cut study session to 30 min, I'm low energy"
               className="mt-3 w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none"
             />
-            {reformError && <div className="mt-2 text-xs text-amber-400">{reformError}</div>}
             <div className="mt-3 flex justify-end gap-2">
-              <button onClick={() => setReformOpen(false)} className="rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground">
+              <button
+                onClick={() => setReformOpen(false)}
+                className="rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+              >
                 Cancel
               </button>
               <button
@@ -123,15 +178,18 @@ const Plan = () => {
         )}
       </section>
 
-      {/* Unscheduled */}
-      {planMock.unscheduledTasks.length > 0 && (
+      {vm.unscheduledTasks.length > 0 && (
         <section className="rounded-2xl border border-border bg-card p-4">
-          <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Unscheduled</div>
+          <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Unscheduled
+          </div>
           <ul className="space-y-2">
-            {planMock.unscheduledTasks.map((t) => (
+            {vm.unscheduledTasks.map((t) => (
               <li key={t.id} className="flex items-center justify-between text-sm">
                 <span>{t.title}</span>
-                <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">{t.estimated_minutes}m</span>
+                <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
+                  {t.estimated_minutes}m
+                </span>
               </li>
             ))}
           </ul>

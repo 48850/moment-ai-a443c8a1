@@ -1,27 +1,38 @@
 import { useMemo, useState } from "react";
 import { Check } from "lucide-react";
-import { homeMock, planMock, type Task } from "@/lib/mockData";
+import { useStateStore } from "@/stores/state-store";
 
 type Filter = "all" | "pending" | "completed";
 
-const allTasksSeed: Task[] = [
-  ...homeMock.tasks,
-  ...planMock.unscheduledTasks,
-  { id: "x1", title: "Read 'Why Stanford' supplement examples (3)", status: "pending", estimated_minutes: 20 },
-  { id: "x2", title: "Update activities list with robotics state result", status: "completed", estimated_minutes: 15 },
-];
-
 const Tasks = () => {
-  const [tasks, setTasks] = useState<Task[]>(allTasksSeed);
+  const state = useStateStore((s) => s.state);
+  const dispatch = useStateStore((s) => s.dispatch);
   const [filter, setFilter] = useState<Filter>("all");
 
+  const tasks = state?.tasks ?? [];
+
   const visible = useMemo(
-    () => tasks.filter((t) => (filter === "all" ? true : t.status === filter)),
+    () =>
+      tasks.filter((t) => {
+        if (filter === "all") return true;
+        if (filter === "completed") return t.status === "done";
+        return t.status !== "done" && t.status !== "skipped";
+      }),
     [tasks, filter],
   );
 
-  const toggle = (id: string) =>
-    setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, status: t.status === "completed" ? "pending" : "completed" } : t)));
+  if (!state)
+    return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
+
+  const toggle = (id: string) => {
+    const t = tasks.find((x) => x.id === id);
+    if (!t) return;
+    if (t.status === "done") {
+      dispatch({ type: "task/update", payload: { id, changes: { status: "pending", completed_at: "" } } });
+    } else {
+      dispatch({ type: "task/complete", payload: { id, completed_at: new Date().toISOString() } });
+    }
+  };
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
@@ -45,23 +56,35 @@ const Tasks = () => {
       </div>
 
       <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
-        {visible.map((t) => (
-          <li key={t.id}>
-            <button onClick={() => toggle(t.id)} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-secondary/50">
-              <span
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
-                  t.status === "completed" ? "border-primary bg-primary text-primary-foreground" : "border-border"
-                }`}
+        {visible.map((t) => {
+          const done = t.status === "done";
+          return (
+            <li key={t.id}>
+              <button
+                onClick={() => toggle(t.id)}
+                className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-secondary/50"
               >
-                {t.status === "completed" && <Check className="h-3 w-3" strokeWidth={3} />}
-              </span>
-              <span className={`flex-1 text-sm ${t.status === "completed" ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                {t.title}
-              </span>
-              <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">{t.estimated_minutes}m</span>
-            </button>
-          </li>
-        ))}
+                <span
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+                    done ? "border-primary bg-primary text-primary-foreground" : "border-border"
+                  }`}
+                >
+                  {done && <Check className="h-3 w-3" strokeWidth={3} />}
+                </span>
+                <span
+                  className={`flex-1 text-sm ${
+                    done ? "text-muted-foreground line-through" : "text-foreground"
+                  }`}
+                >
+                  {t.title}
+                </span>
+                <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
+                  {t.estimated_minutes}m
+                </span>
+              </button>
+            </li>
+          );
+        })}
         {visible.length === 0 && (
           <li className="px-4 py-8 text-center text-sm text-muted-foreground">Nothing here yet.</li>
         )}
