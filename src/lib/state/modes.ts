@@ -22,8 +22,8 @@ const ALL_WRITABLE: (keyof MomentState)[] = [
    "tasks",
    "reflections",
    "alignment",
-   "home",
-   "forge_state",
+    "home",
+    "execution_feedback",
 ];
 
 /**
