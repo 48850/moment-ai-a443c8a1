@@ -216,11 +216,11 @@ export function compilePursuitModel(
   };
 }
 // --- Internal helpers ---
-function buildIndex<T extends { id: string }>(items?: T[]): Map<string, T> {
+function buildIndex<T extends { id?: string }>(items?: T[]): Map<string, T> {
   const map = new Map<string, T>();
   if (!items) return map;
   for (const item of items) {
-     map.set(item.id, item);
+    if (item.id) map.set(item.id, item);
   }
   return map;
 }
