@@ -63,10 +63,28 @@ const TypingDots = () => (
 );
 
 const Chat = () => {
-  const [messages, setMessages] = useState<ChatMessage[]>(chatMock);
+  const state = useStateStore((s) => s.state);
+  const initialMessages = useMemo<ChatMessage[]>(
+    () => [
+      { id: "m1", role: "assistant", content: `Hey ${state?.profile.display_name ?? "there"} — what's on your mind today?` },
+      { id: "m2", role: "user", content: "I'm anxious about the Stanford opener. Can't pick a line." },
+      {
+        id: "m3",
+        role: "assistant",
+        content: "That's the right thing to be anxious about. Let's commit to one 25-minute sprint after school. Here's today's plan:",
+        renderedResponse: { type: "day_plan", blocks: state?.schedule_state.day_plan ?? [] },
+      },
+    ],
+    [state?.profile.display_name, state?.schedule_state.day_plan],
+  );
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMessages(initialMessages);
+  }, [initialMessages]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
