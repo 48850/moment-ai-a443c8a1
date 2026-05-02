@@ -9,6 +9,8 @@ import { AppShell } from "./components/app/AppShell";
 import Dashboard from "./pages/app/Dashboard";
 import Chat from "./pages/app/Chat";
 import Plan from "./pages/app/Plan";
+import Mission from "./pages/app/Mission";
+import Tasks from "./pages/app/Tasks";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +26,8 @@ const App = () => (
             <Route index element={<Dashboard />} />
             <Route path="chat" element={<Chat />} />
             <Route path="plan" element={<Plan />} />
+            <Route path="mission" element={<Mission />} />
+            <Route path="tasks" element={<Tasks />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
