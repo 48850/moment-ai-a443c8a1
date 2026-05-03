@@ -48,4 +48,9 @@ export type MomentAction =
   | { type: "forge/generate_candidates" }
   | { type: "forge/toggle_feature"; payload: { id: string } }
   | { type: "forge/instantiate" }
+  | { type: "forge/set_ai_candidates"; payload: { candidates: import("@/lib/types").FeatureCandidate[] } }
+  | { type: "forge/update_module"; payload: { id: string; changes: Partial<import("@/lib/types").GeneratedModuleManifest> } }
+  | { type: "forge/archive_module"; payload: { id: string } }
+  | { type: "forge/delete_module"; payload: { id: string } }
+  | { type: "forge/log_entry"; payload: { module_id: string; entry: import("@/lib/types").ModuleEntry } }
   | { type: "forge/reset" };
