@@ -1,28 +1,13 @@
-import { useState } from "react";
 import { Check, Clock, Sparkles } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { selectHomeViewModel } from "@/lib/selectors/home";
-import { FEEDBACK_OPTIONS } from "@/lib/state/schema";
-import type { ExecutionFeedbackItem } from "@/lib/types";
 import { JourneyConstellation } from "@/components/app/JourneyConstellation";
-
-const FEEDBACK_LABELS: Record<(typeof FEEDBACK_OPTIONS)[number], string> = {
-  easy: "Easy",
-  hard: "Hard",
-  too_vague: "Too vague",
-  too_big: "Too big",
-  valuable: "Valuable",
-  not_relevant: "Not relevant",
-  need_help: "Need help",
-  do_differently: "Do differently",
-};
+import { FeedbackChips } from "@/components/app/FeedbackChips";
+import { PatternBanner } from "@/components/app/PatternBanner";
 
 const Dashboard = () => {
   const state = useStateStore((s) => s.state);
   const dispatch = useStateStore((s) => s.dispatch);
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [picked, setPicked] = useState<(typeof FEEDBACK_OPTIONS)[number] | null>(null);
-  const [note, setNote] = useState("");
 
   if (!state) return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
 
@@ -39,29 +24,6 @@ const Dashboard = () => {
     }
   };
 
-  const onDecisive = () => {
-    if (!dm) return;
-    dispatch({ type: "task/complete", payload: { id: dm.id, completed_at: new Date().toISOString() } });
-    setFeedbackOpen(true);
-  };
-
-  const submitFeedback = () => {
-    if (!picked || !dm) return;
-    const item: ExecutionFeedbackItem = {
-      id: crypto.randomUUID(),
-      task_id: dm.id,
-      task_title: dm.title,
-      completed_at: new Date().toISOString(),
-      feedback: picked,
-      note,
-      created_at: new Date().toISOString(),
-    };
-    dispatch({ type: "feedback/add", payload: item });
-    setFeedbackOpen(false);
-    setPicked(null);
-    setNote("");
-  };
-
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
@@ -71,6 +33,8 @@ const Dashboard = () => {
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">Here's the one move that matters most right now.</p>
       </div>
+
+      <PatternBanner />
 
       <JourneyConstellation state={state} />
 
@@ -88,57 +52,15 @@ const Dashboard = () => {
             <Clock className="h-3 w-3" /> about {dm.estimatedMinutes} min
           </div>
 
-          {!feedbackOpen && (
+          <div className="mt-5 flex flex-wrap items-center gap-2">
             <button
-              onClick={onDecisive}
-              className="mt-5 w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              onClick={() => onComplete(dm.id)}
+              className="flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
               Done ✓
             </button>
-          )}
-
-          {feedbackOpen && (
-            <div className="mt-5 rounded-xl border border-border bg-card p-4">
-              <div className="text-xs text-muted-foreground">How did that go?</div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {FEEDBACK_OPTIONS.map((o) => (
-                  <button
-                    key={o}
-                    onClick={() => setPicked(o)}
-                    className={`rounded-full border px-3 py-1 text-xs transition-colors ${
-                      picked === o
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-secondary text-foreground hover:border-primary/60"
-                    }`}
-                  >
-                    {FEEDBACK_LABELS[o]}
-                  </button>
-                ))}
-              </div>
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Optional note…"
-                rows={2}
-                className="mt-3 w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-              />
-              <div className="mt-3 flex justify-end gap-2">
-                <button
-                  onClick={() => setFeedbackOpen(false)}
-                  className="rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  Skip
-                </button>
-                <button
-                  onClick={submitFeedback}
-                  disabled={!picked}
-                  className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
-                >
-                  Submit
-                </button>
-              </div>
-            </div>
-          )}
+            <FeedbackChips source="home" targetId={dm.id} taskId={dm.id} taskTitle={dm.title} />
+          </div>
         </section>
       )}
 
@@ -166,29 +88,25 @@ const Dashboard = () => {
           {vm.tasks.map((t) => {
             const done = t.status === "done";
             return (
-              <li key={t.id}>
-                <button
-                  onClick={() => onComplete(t.id)}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-secondary/50"
-                >
-                  <span
+              <li key={t.id} className="px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => onComplete(t.id)}
                     className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
                       done ? "border-primary bg-primary text-primary-foreground" : "border-border"
                     }`}
+                    aria-label={done ? "Mark incomplete" : "Mark complete"}
                   >
                     {done && <Check className="h-3 w-3" strokeWidth={3} />}
-                  </span>
-                  <span
-                    className={`flex-1 text-sm ${
-                      done ? "text-muted-foreground line-through" : "text-foreground"
-                    }`}
-                  >
+                  </button>
+                  <span className={`flex-1 text-sm ${done ? "text-muted-foreground line-through" : "text-foreground"}`}>
                     {t.title}
                   </span>
                   <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
                     {t.estimated_minutes}m
                   </span>
-                </button>
+                  <FeedbackChips source="task" targetId={t.id} taskId={t.id} taskTitle={t.title} compact />
+                </div>
               </li>
             );
           })}
