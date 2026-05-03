@@ -155,7 +155,7 @@ const Plan = () => {
         body: {
           goal: goalText,
           why: state.active_goal?.why_it_matters ?? "",
-          context: state.active_goal?.success_signal ?? "",
+          context: state.active_goal?.reality_gap ?? "",
         },
       });
       if (error) throw error;
