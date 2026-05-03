@@ -314,6 +314,99 @@ export const useStateStore = create<StateStore>((set, get) => ({
       case "system/set_mode":
         next = { ...s, system_state: { ...s.system_state, current_mode: action.payload } };
         break;
+
+      case "forge/start_interview": {
+        const questions = buildInterviewQuestions(s.pursuit_model);
+        const seeded: ForgeInterviewAnswer[] = questions.map((q) => ({
+          id: q.id,
+          question_key: q.question_key,
+          question_text: q.question_text,
+          answer_text: "",
+          source: "user",
+        }));
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            interview_answers: seeded,
+            compiler_status: "interviewing",
+          },
+        };
+        break;
+      }
+      case "forge/answer": {
+        const { question_key, question_text, answer_text } = action.payload;
+        const existing = s.forge_state.interview_answers ?? [];
+        const idx = existing.findIndex((a) => a.question_key === question_key);
+        const answers =
+          idx >= 0
+            ? existing.map((a, i) => (i === idx ? { ...a, answer_text } : a))
+            : [
+                ...existing,
+                {
+                  id: crypto.randomUUID(),
+                  question_key,
+                  question_text,
+                  answer_text,
+                  source: "user" as const,
+                },
+              ];
+        next = { ...s, forge_state: { ...s.forge_state, interview_answers: answers } };
+        break;
+      }
+      case "forge/generate_candidates": {
+        const candidates = generateFeatureCandidates(s.pursuit_model);
+        const top = selectTopFeatures(candidates);
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            candidate_features: candidates,
+            selected_feature_ids: top,
+            compiler_status: "ranking",
+          },
+        };
+        break;
+      }
+      case "forge/toggle_feature": {
+        const sel = new Set(s.forge_state.selected_feature_ids ?? []);
+        if (sel.has(action.payload.id)) sel.delete(action.payload.id);
+        else sel.add(action.payload.id);
+        next = {
+          ...s,
+          forge_state: { ...s.forge_state, selected_feature_ids: Array.from(sel) },
+        };
+        break;
+      }
+      case "forge/instantiate": {
+        const modules = instantiateModuleManifests(
+          s.forge_state.selected_feature_ids ?? [],
+          s.forge_state.candidate_features ?? [],
+        );
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            generated_modules: modules,
+            compiler_status: "instantiated",
+            last_generated_at: now(),
+          },
+        };
+        break;
+      }
+      case "forge/reset": {
+        next = {
+          ...s,
+          forge_state: {
+            interview_answers: [],
+            candidate_features: [],
+            selected_feature_ids: [],
+            generated_modules: [],
+            compiler_status: "idle",
+          },
+        };
+        break;
+      }
     }
 
     next = touch(next);
