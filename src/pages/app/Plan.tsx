@@ -1,17 +1,20 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { RefreshCw, Loader2, Compass } from "lucide-react";
+import { RefreshCw, Loader2, Compass, Sparkles, Sun, CalendarDays, CalendarRange, Telescope } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 import { useStateStore } from "@/stores/state-store";
 import { selectPlanViewModel } from "@/lib/selectors/plan";
 import { Constellation } from "@/components/app/Constellation";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import type { MomentState, ScheduleBlock } from "@/lib/types";
 
+/* ----- pursuit tiles (kept) ----- */
 interface PursuitTile {
   kind: "workstream" | "capability" | "evidence" | "risk";
   name: string;
   detail: string;
 }
-
 function selectPursuitPreview(state: MomentState | null): PursuitTile[] {
   const pm = state?.pursuit_model;
   if (!pm) return [];
@@ -32,15 +35,10 @@ function selectPursuitPreview(state: MomentState | null): PursuitTile[] {
   }
   return tiles.slice(0, 3);
 }
-
-const TILE_LABEL: Record<PursuitTile["kind"], string> = {
-  workstream: "Workstream", capability: "Capability", evidence: "Signal", risk: "Risk",
-};
+const TILE_LABEL: Record<PursuitTile["kind"], string> = { workstream: "Workstream", capability: "Capability", evidence: "Signal", risk: "Risk" };
 const TILE_TONE: Record<PursuitTile["kind"], string> = {
-  workstream: "border-primary/40",
-  capability: "border-accent/40",
-  evidence: "border-primary/40",
-  risk: "border-destructive/40",
+  workstream: "border-primary/40", capability: "border-accent/40",
+  evidence: "border-primary/40", risk: "border-destructive/40",
 };
 
 const typeStyles: Record<string, string> = {
@@ -55,25 +53,66 @@ const typeStyles: Record<string, string> = {
   wind_down: "bg-secondary text-muted-foreground border-border",
 };
 
+/* ----- AI plan types ----- */
+type Horizon = "days" | "weeks" | "months" | "years";
+
+interface DayItem { title: string; detail: string; when: string; estimated_minutes: number }
+interface WeekItem { title: string; detail: string; week_range: string; outcome: string }
+interface MonthItem { title: string; detail: string; month: string; milestone: string }
+interface YearItem { title: string; detail: string; year: string; identity: string }
+
+interface AiPlan {
+  days: DayItem[];
+  weeks: WeekItem[];
+  months: MonthItem[];
+  years: YearItem[];
+  guiding_principle: string;
+}
+
+const HORIZONS: { id: Horizon; label: string; sub: string; icon: typeof Sun }[] = [
+  { id: "days", label: "Days", sub: "this week", icon: Sun },
+  { id: "weeks", label: "Weeks", sub: "next 4-8", icon: CalendarDays },
+  { id: "months", label: "Months", sub: "milestones", icon: CalendarRange },
+  { id: "years", label: "Years", sub: "who you become", icon: Telescope },
+];
+
+const STORAGE_KEY = "moment.aiPlan.v1";
+
+function loadCachedPlan(goal: string): AiPlan | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed.goal === goal && parsed.plan) return parsed.plan as AiPlan;
+  } catch { /* ignore */ }
+  return null;
+}
+function saveCachedPlan(goal: string, plan: AiPlan) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ goal, plan, at: Date.now() }));
+  } catch { /* ignore */ }
+}
+
 const Plan = () => {
   const state = useStateStore((s) => s.state);
   const dispatch = useStateStore((s) => s.dispatch);
   const [reformOpen, setReformOpen] = useState(false);
   const [reformNote, setReformNote] = useState("");
   const [reforming, setReforming] = useState(false);
+  const [horizon, setHorizon] = useState<Horizon>("days");
+
+  const goalText = state?.active_goal?.statement ?? "";
+  const [aiPlan, setAiPlan] = useState<AiPlan | null>(() => goalText ? loadCachedPlan(goalText) : null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   if (!state) return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
   const vm = selectPlanViewModel(state);
 
-  const setActivePlan = (plan: "plan_a" | "plan_b") => {
-    dispatch({ type: "home/setPlan", payload: plan });
-  };
+  const setActivePlan = (plan: "plan_a" | "plan_b") => dispatch({ type: "home/setPlan", payload: plan });
 
   const onReform = () => {
     if (!reformNote.trim()) return;
     setReforming(true);
-    // Deterministic local reform: drop linked tasks tagged too_vague/too_big and
-    // prepend a "Revised" placeholder block so the user sees an immediate change.
     setTimeout(() => {
       const recentBad = new Set(
         (state.execution_feedback ?? [])
@@ -98,168 +137,305 @@ const Plan = () => {
         },
         ...basePlan.filter((b) => !(b.linked_task_ids ?? []).some((id) => recentBad.has(id))),
       ];
-      dispatch({
-        type: "plan/reform",
-        payload: { reformed_plan: reformed, reform_note: reformNote.trim() },
-      });
+      dispatch({ type: "plan/reform", payload: { reformed_plan: reformed, reform_note: reformNote.trim() } });
       setReforming(false);
       setReformOpen(false);
       setReformNote("");
     }, 500);
   };
 
+  const generatePlan = async () => {
+    if (!goalText) {
+      toast.error("Set a goal first to generate a plan.");
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-plan", {
+        body: {
+          goal: goalText,
+          why: state.active_goal?.why_it_matters ?? "",
+          context: state.active_goal?.reality_gap ?? "",
+        },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const plan = (data as any).plan as AiPlan;
+      setAiPlan(plan);
+      saveCachedPlan(goalText, plan);
+      toast.success("Plan generated across all horizons");
+    } catch (e: any) {
+      toast.error(e?.message || "Couldn't generate plan");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const tiles = selectPursuitPreview(state);
+
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <div className="text-xs text-muted-foreground">/ plan</div>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Today, mapped out</h1>
+    <div className="mx-auto max-w-3xl space-y-6">
+      {/* Header */}
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <div className="text-xs text-muted-foreground">/ plan</div>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Your arc, mapped</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            From today to the person you're becoming. Powered by AI from your goal.
+          </p>
+        </div>
+        <button
+          onClick={generatePlan}
+          disabled={aiLoading || !goalText}
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+        >
+          {aiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+          {aiPlan ? "Regenerate" : "Generate plan"}
+        </button>
       </div>
 
-      {vm.hasPlanB && (
-        <div className="inline-flex rounded-lg border border-border bg-card p-1">
-          <button
-            onClick={() => setActivePlan("plan_a")}
-            className={`rounded-md px-3 py-1.5 text-xs transition-colors ${
-              vm.activePlan === "plan_a"
-                ? "bg-secondary text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Original
-          </button>
-          <button
-            onClick={() => setActivePlan("plan_b")}
-            className={`rounded-md px-3 py-1.5 text-xs transition-colors ${
-              vm.activePlan === "plan_b"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Adjusted
-          </button>
+      {!goalText && (
+        <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          Set a goal in <Link to="/app/mission" className="text-primary underline">Mission</Link> to unlock your AI-powered plan.
         </div>
       )}
 
-      <section className="overflow-hidden rounded-2xl border border-border bg-card">
-        {vm.scheduleBlocks.length === 0 ? (
-          <div className="px-4 py-8 text-center text-sm text-muted-foreground">Nothing planned yet.</div>
-        ) : (
-          <ul className="divide-y divide-border">
-            {vm.scheduleBlocks.map((b) => {
-              const isDecisive = (b.linked_task_ids ?? []).includes("t-essay-opener");
-              return (
-                <li
-                  key={b.id}
-                  className={`flex items-center gap-4 px-4 py-3 ${
-                    b.status === "completed" ? "opacity-50" : ""
-                  } ${isDecisive ? "border-l-2 border-l-primary" : ""}`}
-                >
-                  <span className="w-24 shrink-0 font-mono text-xs text-muted-foreground">
-                    {b.start_time}–{b.end_time}
-                  </span>
-                  <span className="flex-1 text-sm">{b.title}</span>
-                  <span
-                    className={`rounded-full border px-2 py-0.5 text-[10px] lowercase ${
-                      typeStyles[b.type] ?? "bg-secondary text-muted-foreground border-border"
-                    }`}
-                  >
-                    {b.type.replace("_", " ")}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
-
-      {vm.scheduleBlocks.length > 0 && (
-        <Constellation blocks={vm.scheduleBlocks as ScheduleBlock[]} decisiveMoveTitle={vm.scheduleBlocks[0]?.title} />
+      {/* Guiding principle */}
+      {aiPlan?.guiding_principle && (
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-card to-accent/10 p-4"
+        >
+          <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
+            <Sparkles className="h-3 w-3" /> guiding principle
+          </div>
+          <p className="mt-2 text-sm leading-snug text-foreground">{aiPlan.guiding_principle}</p>
+        </motion.div>
       )}
 
-      {(() => {
-        const tiles = selectPursuitPreview(state);
-        if (tiles.length === 0) return null;
-        return (
-          <section className="rounded-2xl border border-border bg-card p-4">
-            <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              <Compass className="h-3.5 w-3.5 text-primary" /> Pursuit anchors
-            </div>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {tiles.map((t, i) => (
-                <Link
-                  key={i}
-                  to="/app/mission"
-                  className={`rounded-lg border bg-background/40 p-2.5 transition-colors hover:bg-secondary/60 ${TILE_TONE[t.kind]}`}
-                >
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                    {TILE_LABEL[t.kind]}
-                  </p>
-                  <p className="mt-0.5 truncate text-sm font-medium text-foreground">{t.name}</p>
-                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{t.detail}</p>
-                </Link>
-              ))}
-            </div>
-          </section>
-        );
-      })()}
-
-      <section className="rounded-2xl border border-border bg-card/50 p-4">
-        {!reformOpen ? (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <RefreshCw className="h-4 w-4" /> Day not feeling right?
-            </div>
+      {/* Horizon tabs */}
+      <div className="grid grid-cols-4 gap-2">
+        {HORIZONS.map((h) => {
+          const Icon = h.icon;
+          const active = horizon === h.id;
+          return (
             <button
-              onClick={() => setReformOpen(true)}
-              className="rounded-md px-3 py-1.5 text-xs text-foreground hover:bg-secondary"
+              key={h.id}
+              onClick={() => setHorizon(h.id)}
+              className={`group relative flex flex-col items-start gap-1 rounded-xl border px-3 py-2.5 text-left transition-all ${
+                active
+                  ? "border-primary bg-primary/10 shadow-[0_0_0_1px_hsl(var(--primary)/0.2)]"
+                  : "border-border bg-card hover:border-primary/40"
+              }`}
             >
-              Adjust it
+              <Icon className={`h-4 w-4 ${active ? "text-primary" : "text-muted-foreground"}`} />
+              <span className={`text-sm font-medium ${active ? "text-foreground" : "text-foreground/80"}`}>
+                {h.label}
+              </span>
+              <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
+                {h.sub}
+              </span>
             </button>
-          </div>
-        ) : (
-          <div>
-            <div className="text-sm">What's not working?</div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              We'll keep your original plan so you can switch back anytime.
-            </div>
-            <input
-              value={reformNote}
-              onChange={(e) => setReformNote(e.target.value)}
-              placeholder="e.g. I'm low energy — cut study to 30 min"
-              className="mt-3 w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-            />
-            <div className="mt-3 flex justify-end gap-2">
-              <button
-                onClick={() => setReformOpen(false)}
-                className="rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={onReform}
-                disabled={reforming || !reformNote.trim()}
-                className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
-              >
-                {reforming && <Loader2 className="h-3 w-3 animate-spin" />}
-                {reforming ? "Adjusting…" : "Adjust my day"}
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
+          );
+        })}
+      </div>
 
-      {vm.unscheduledTasks.length > 0 && (
+      {/* Horizon content */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={horizon}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.2 }}
+          className="space-y-4"
+        >
+          {horizon === "days" && (
+            <>
+              {/* Plan A/B switch */}
+              {vm.hasPlanB && (
+                <div className="inline-flex rounded-lg border border-border bg-card p-1">
+                  <button
+                    onClick={() => setActivePlan("plan_a")}
+                    className={`rounded-md px-3 py-1.5 text-xs transition-colors ${
+                      vm.activePlan === "plan_a" ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Original
+                  </button>
+                  <button
+                    onClick={() => setActivePlan("plan_b")}
+                    className={`rounded-md px-3 py-1.5 text-xs transition-colors ${
+                      vm.activePlan === "plan_b" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Adjusted
+                  </button>
+                </div>
+              )}
+
+              {/* Today schedule */}
+              <section className="overflow-hidden rounded-2xl border border-border bg-card">
+                <div className="border-b border-border bg-secondary/30 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+                  Today's schedule
+                </div>
+                {vm.scheduleBlocks.length === 0 ? (
+                  <div className="px-4 py-8 text-center text-sm text-muted-foreground">Nothing planned yet.</div>
+                ) : (
+                  <ul className="divide-y divide-border">
+                    {vm.scheduleBlocks.map((b) => (
+                      <li key={b.id} className={`flex items-center gap-4 px-4 py-3 ${b.status === "completed" ? "opacity-50" : ""}`}>
+                        <span className="w-24 shrink-0 font-mono text-xs text-muted-foreground">
+                          {b.start_time}–{b.end_time}
+                        </span>
+                        <span className="flex-1 text-sm">{b.title}</span>
+                        <span className={`rounded-full border px-2 py-0.5 text-[10px] lowercase ${typeStyles[b.type] ?? "bg-secondary text-muted-foreground border-border"}`}>
+                          {b.type.replace("_", " ")}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+
+              {/* AI day-list */}
+              {aiPlan?.days?.length ? (
+                <HorizonList
+                  title="This week's moves"
+                  items={aiPlan.days.map((d, i) => ({
+                    key: `day-${i}`,
+                    badge: d.when,
+                    title: d.title,
+                    detail: d.detail,
+                    meta: `${d.estimated_minutes} min`,
+                  }))}
+                />
+              ) : null}
+
+              {vm.scheduleBlocks.length > 0 && (
+                <Constellation blocks={vm.scheduleBlocks as ScheduleBlock[]} decisiveMoveTitle={vm.scheduleBlocks[0]?.title} />
+              )}
+            </>
+          )}
+
+          {horizon === "weeks" && (
+            aiPlan?.weeks?.length ? (
+              <HorizonList
+                title="Weekly outcomes"
+                items={aiPlan.weeks.map((w, i) => ({
+                  key: `wk-${i}`,
+                  badge: w.week_range,
+                  title: w.title,
+                  detail: w.detail,
+                  meta: `→ ${w.outcome}`,
+                }))}
+              />
+            ) : <EmptyHorizon onGenerate={generatePlan} loading={aiLoading} hasGoal={!!goalText} label="weekly outcomes" />
+          )}
+
+          {horizon === "months" && (
+            aiPlan?.months?.length ? (
+              <HorizonList
+                title="Monthly milestones"
+                items={aiPlan.months.map((m, i) => ({
+                  key: `mo-${i}`,
+                  badge: m.month,
+                  title: m.title,
+                  detail: m.detail,
+                  meta: `🏁 ${m.milestone}`,
+                }))}
+              />
+            ) : <EmptyHorizon onGenerate={generatePlan} loading={aiLoading} hasGoal={!!goalText} label="monthly milestones" />
+          )}
+
+          {horizon === "years" && (
+            aiPlan?.years?.length ? (
+              <HorizonList
+                title="Who you become"
+                items={aiPlan.years.map((y, i) => ({
+                  key: `yr-${i}`,
+                  badge: y.year,
+                  title: y.title,
+                  detail: y.detail,
+                  meta: `★ ${y.identity}`,
+                }))}
+              />
+            ) : <EmptyHorizon onGenerate={generatePlan} loading={aiLoading} hasGoal={!!goalText} label="long-horizon arc" />
+          )}
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Pursuit tiles */}
+      {tiles.length > 0 && (
         <section className="rounded-2xl border border-border bg-card p-4">
-          <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Unscheduled
+          <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <Compass className="h-3.5 w-3.5 text-primary" /> Pursuit anchors
           </div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {tiles.map((t, i) => (
+              <Link
+                key={i}
+                to="/app/mission"
+                className={`rounded-lg border bg-background/40 p-2.5 transition-colors hover:bg-secondary/60 ${TILE_TONE[t.kind]}`}
+              >
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{TILE_LABEL[t.kind]}</p>
+                <p className="mt-0.5 truncate text-sm font-medium text-foreground">{t.name}</p>
+                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{t.detail}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Reform */}
+      {horizon === "days" && (
+        <section className="rounded-2xl border border-border bg-card/50 p-4">
+          {!reformOpen ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <RefreshCw className="h-4 w-4" /> Day not feeling right?
+              </div>
+              <button onClick={() => setReformOpen(true)} className="rounded-md px-3 py-1.5 text-xs text-foreground hover:bg-secondary">
+                Adjust it
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div className="text-sm">What's not working?</div>
+              <div className="mt-1 text-xs text-muted-foreground">We'll keep your original plan so you can switch back anytime.</div>
+              <input
+                value={reformNote}
+                onChange={(e) => setReformNote(e.target.value)}
+                placeholder="e.g. I'm low energy — cut study to 30 min"
+                className="mt-3 w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+              />
+              <div className="mt-3 flex justify-end gap-2">
+                <button onClick={() => setReformOpen(false)} className="rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground">
+                  Cancel
+                </button>
+                <button
+                  onClick={onReform}
+                  disabled={reforming || !reformNote.trim()}
+                  className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+                >
+                  {reforming && <Loader2 className="h-3 w-3 animate-spin" />}
+                  {reforming ? "Adjusting…" : "Adjust my day"}
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      {horizon === "days" && vm.unscheduledTasks.length > 0 && (
+        <section className="rounded-2xl border border-border bg-card p-4">
+          <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Unscheduled</div>
           <ul className="space-y-2">
             {vm.unscheduledTasks.map((t) => (
               <li key={t.id} className="flex items-center justify-between text-sm">
                 <span>{t.title}</span>
-                <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
-                  {t.estimated_minutes}m
-                </span>
+                <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">{t.estimated_minutes}m</span>
               </li>
             ))}
           </ul>
@@ -268,5 +444,64 @@ const Plan = () => {
     </div>
   );
 };
+
+/* ----- helpers ----- */
+
+interface HorizonItem { key: string; badge: string; title: string; detail: string; meta?: string }
+
+const HorizonList = ({ title, items }: { title: string; items: HorizonItem[] }) => (
+  <section className="overflow-hidden rounded-2xl border border-border bg-card">
+    <div className="border-b border-border bg-secondary/30 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+      {title}
+    </div>
+    <ul className="divide-y divide-border">
+      {items.map((it, i) => (
+        <motion.li
+          key={it.key}
+          initial={{ opacity: 0, x: -6 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: i * 0.04 }}
+          className="px-4 py-3"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-primary">
+                  {it.badge}
+                </span>
+                <h3 className="text-sm font-semibold leading-snug">{it.title}</h3>
+              </div>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{it.detail}</p>
+              {it.meta && (
+                <p className="mt-1.5 text-xs font-medium text-foreground/80">{it.meta}</p>
+              )}
+            </div>
+          </div>
+        </motion.li>
+      ))}
+    </ul>
+  </section>
+);
+
+const EmptyHorizon = ({
+  onGenerate, loading, hasGoal, label,
+}: { onGenerate: () => void; loading: boolean; hasGoal: boolean; label: string }) => (
+  <div className="rounded-2xl border border-dashed border-border p-8 text-center">
+    <Sparkles className="mx-auto h-5 w-5 text-primary" />
+    <p className="mt-3 text-sm text-muted-foreground">
+      No {label} yet. {hasGoal ? "Generate to map this horizon." : "Set a goal to unlock this."}
+    </p>
+    {hasGoal && (
+      <button
+        onClick={onGenerate}
+        disabled={loading}
+        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-medium text-primary-foreground disabled:opacity-50"
+      >
+        {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+        Generate plan
+      </button>
+    )}
+  </div>
+);
 
 export default Plan;
