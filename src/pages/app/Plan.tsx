@@ -73,7 +73,7 @@ const Plan = () => {
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <div className="text-xs text-muted-foreground">/ plan</div>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Today's plan</h1>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Today, mapped out</h1>
       </div>
 
       {vm.hasPlanB && (
@@ -86,7 +86,7 @@ const Plan = () => {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Plan A (original)
+            Original
           </button>
           <button
             onClick={() => setActivePlan("plan_b")}
@@ -96,14 +96,14 @@ const Plan = () => {
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            Plan B (reformed)
+            Adjusted
           </button>
         </div>
       )}
 
       <section className="overflow-hidden rounded-2xl border border-border bg-card">
         {vm.scheduleBlocks.length === 0 ? (
-          <div className="px-4 py-8 text-center text-sm text-muted-foreground">No schedule yet.</div>
+          <div className="px-4 py-8 text-center text-sm text-muted-foreground">Nothing planned yet.</div>
         ) : (
           <ul className="divide-y divide-border">
             {vm.scheduleBlocks.map((b) => {
@@ -137,25 +137,25 @@ const Plan = () => {
         {!reformOpen ? (
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <RefreshCw className="h-4 w-4" /> Quick Reform
+              <RefreshCw className="h-4 w-4" /> Day not feeling right?
             </div>
             <button
               onClick={() => setReformOpen(true)}
               className="rounded-md px-3 py-1.5 text-xs text-foreground hover:bg-secondary"
             >
-              Adjust plan
+              Adjust it
             </button>
           </div>
         ) : (
           <div>
-            <div className="text-sm">What feels unrealistic?</div>
+            <div className="text-sm">What's not working?</div>
             <div className="mt-1 text-xs text-muted-foreground">
-              Your original plan will be preserved as Plan A.
+              We'll keep your original plan so you can switch back anytime.
             </div>
             <input
               value={reformNote}
               onChange={(e) => setReformNote(e.target.value)}
-              placeholder="e.g. Cut study session to 30 min, I'm low energy"
+              placeholder="e.g. I'm low energy — cut study to 30 min"
               className="mt-3 w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none"
             />
             <div className="mt-3 flex justify-end gap-2">
@@ -171,7 +171,7 @@ const Plan = () => {
                 className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
               >
                 {reforming && <Loader2 className="h-3 w-3 animate-spin" />}
-                {reforming ? "Reforming…" : "Reform to Plan B"}
+                {reforming ? "Adjusting…" : "Adjust my day"}
               </button>
             </div>
           </div>

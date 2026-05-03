@@ -42,4 +42,10 @@ export type MomentAction =
   | { type: "pursuit/patch_risk"; payload: { id: string; changes: Partial<PursuitRisk> } }
   | { type: "pursuit/patch_evidence_signal"; payload: { id: string; last_value: string; last_checked_at: string } }
   | { type: "pursuit/recompile" }
-  | { type: "system/set_mode"; payload: AppMode };
+  | { type: "system/set_mode"; payload: AppMode }
+  | { type: "forge/start_interview" }
+  | { type: "forge/answer"; payload: { question_key: string; question_text: string; answer_text: string } }
+  | { type: "forge/generate_candidates" }
+  | { type: "forge/toggle_feature"; payload: { id: string } }
+  | { type: "forge/instantiate" }
+  | { type: "forge/reset" };
