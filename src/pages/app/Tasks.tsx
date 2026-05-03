@@ -38,7 +38,7 @@ const Tasks = () => {
     <div className="mx-auto max-w-2xl space-y-5">
       <div>
         <div className="text-xs text-muted-foreground">/ tasks</div>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">All tasks</h1>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Everything on your list</h1>
       </div>
 
       <div className="inline-flex rounded-lg border border-border bg-card p-1">
@@ -86,7 +86,7 @@ const Tasks = () => {
           );
         })}
         {visible.length === 0 && (
-          <li className="px-4 py-8 text-center text-sm text-muted-foreground">Nothing here yet.</li>
+          <li className="px-4 py-8 text-center text-sm text-muted-foreground">All clear here.</li>
         )}
       </ul>
     </div>

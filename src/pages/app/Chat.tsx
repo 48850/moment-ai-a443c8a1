@@ -108,7 +108,7 @@ const Chat = () => {
     <div className="mx-auto flex h-[calc(100vh-9rem)] max-w-2xl flex-col md:h-[calc(100vh-7rem)]">
       <div className="mb-3">
         <div className="text-xs text-muted-foreground">/ chat</div>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Talk it through</h1>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Talk it out with Moment</h1>
       </div>
 
       <div className="flex-1 space-y-3 overflow-y-auto rounded-2xl border border-border bg-card p-4">
