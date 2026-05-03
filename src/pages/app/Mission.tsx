@@ -6,6 +6,8 @@ import { RelationshipGraph } from "@/components/app/RelationshipGraph";
 import type { CapabilityCluster, EvidenceSignal, PursuitWorkstream } from "@/lib/types";
 import { FeedbackChips } from "@/components/app/FeedbackChips";
 import { PatternBanner } from "@/components/app/PatternBanner";
+import { AIInsight } from "@/components/app/AIInsight";
+import { useAI } from "@/lib/ai/useAI";
 
 const wsStatus: Record<PursuitWorkstream["status"], string> = {
   on_track: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
@@ -29,6 +31,7 @@ const sigStyle = (kind: EvidenceSignal["kind"]) =>
 const Mission = () => {
   const state = useStateStore((s) => s.state);
   const [open, setOpen] = useState<string | null>(null);
+  const insight = useAI<{ observation: string; suggestion?: string }>("mission_insight");
 
   if (!state) return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
   const m = selectMissionViewModel(state);
@@ -62,6 +65,21 @@ const Mission = () => {
       </section>
 
       <PatternBanner />
+
+      <AIInsight
+        label="moment notices"
+        loading={insight.loading}
+        error={insight.error}
+        onRun={() => insight.run({ pursuit: state.pursuit_model, workstreams: m.workstreams.map(w => ({ name: w.name, status: w.status, bottleneck: w.bottleneck })) })}
+        cta={insight.result ? "Re-read" : "Read mission"}
+      >
+        {insight.result && (
+          <div className="space-y-1.5">
+            <div className="text-sm">{insight.result.observation}</div>
+            {insight.result.suggestion && <div className="text-xs text-muted-foreground">→ {insight.result.suggestion}</div>}
+          </div>
+        )}
+      </AIInsight>
 
       {state.pursuit_model && <RelationshipGraph model={state.pursuit_model} />}
 

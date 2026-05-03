@@ -1,12 +1,15 @@
 import { useState } from "react";
-import { Hammer, Sparkles, Check } from "lucide-react";
+import { Hammer, Sparkles, Check, Loader2 } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { getForgeViewModel } from "@/lib/selectors/forge";
+import { useAI } from "@/lib/ai/useAI";
+import { AIInsight } from "@/components/app/AIInsight";
 
 const Forge = () => {
   const state = useStateStore((s) => s.state);
   const dispatch = useStateStore((s) => s.dispatch);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const ai = useAI<{ modules: Array<{ name: string; description: string; module_type: string; why?: string }> }>("forge_modules");
 
   if (!state) return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
   const vm = getForgeViewModel(state)!;
@@ -60,15 +63,33 @@ const Forge = () => {
               />
             </div>
           ))}
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
             <button
-              disabled={!allAnswered}
-              onClick={() => dispatch({ type: "forge/generate_candidates" })}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+              disabled={!allAnswered || ai.loading}
+              onClick={async () => {
+                const answers = vm.answers.map(a => ({ q: a.question_text, a: drafts[a.question_key] ?? a.answer_text }));
+                await ai.run({ answers });
+                dispatch({ type: "forge/generate_candidates" });
+              }}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50 inline-flex items-center gap-2"
             >
+              {ai.loading && <Loader2 className="h-3 w-3 animate-spin" />}
               Generate features
             </button>
           </div>
+          {ai.result?.modules?.length ? (
+            <AIInsight label="ai-shaped suggestions">
+              <ul className="space-y-1.5 text-sm">
+                {ai.result.modules.map((m, i) => (
+                  <li key={i}>
+                    <span className="font-medium">{m.name}</span>
+                    <span className="text-muted-foreground"> · {m.description}</span>
+                    {m.why && <div className="text-xs text-muted-foreground">{m.why}</div>}
+                  </li>
+                ))}
+              </ul>
+            </AIInsight>
+          ) : null}
         </section>
       )}
 

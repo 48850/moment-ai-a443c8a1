@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
-import { Check } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { FeedbackChips } from "@/components/app/FeedbackChips";
+import { AIInsight } from "@/components/app/AIInsight";
+import { useAI } from "@/lib/ai/useAI";
 
 type Filter = "all" | "pending" | "completed";
 
@@ -9,6 +11,7 @@ const Tasks = () => {
   const state = useStateStore((s) => s.state);
   const dispatch = useStateStore((s) => s.dispatch);
   const [filter, setFilter] = useState<Filter>("all");
+  const suggest = useAI<{ tasks: Array<{ title: string; estimated_minutes: number; category: string; priority: string; why?: string }> }>("suggest_tasks");
 
   const tasks = state?.tasks ?? [];
 
@@ -35,6 +38,26 @@ const Tasks = () => {
     }
   };
 
+  const addSuggested = (t: { title: string; estimated_minutes: number; category: string; priority: string }) => {
+    dispatch({
+      type: "task/add",
+      payload: {
+        id: crypto.randomUUID(),
+        title: t.title,
+        description: "",
+        status: "pending",
+        priority: (t.priority as "high" | "medium" | "low") ?? "medium",
+        goal_id: "primary",
+        domain_id: "",
+        estimated_minutes: t.estimated_minutes ?? 30,
+        category: (t.category as any) ?? "goal_direct",
+        created_at: new Date().toISOString(),
+        completed_at: "",
+        due_date: "",
+      },
+    });
+  };
+
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <div>
@@ -55,6 +78,37 @@ const Tasks = () => {
           </button>
         ))}
       </div>
+
+      <AIInsight
+        label="ai task suggestions"
+        loading={suggest.loading}
+        error={suggest.error}
+        onRun={() => suggest.run({ tasks: tasks.map(t => ({ title: t.title, status: t.status })) })}
+        cta={suggest.result ? "Refresh" : "Suggest"}
+      >
+        {suggest.result?.tasks?.length ? (
+          <ul className="space-y-2">
+            {suggest.result.tasks.map((t, i) => (
+              <li key={i} className="flex items-start gap-2 rounded-lg border border-border bg-card p-2.5">
+                <div className="flex-1">
+                  <div className="text-sm font-medium">{t.title}</div>
+                  {t.why && <div className="text-xs text-muted-foreground">{t.why}</div>}
+                  <div className="mt-1 flex gap-1.5 text-[10px] text-muted-foreground">
+                    <span>{t.estimated_minutes}m</span>·<span>{t.priority}</span>·<span>{t.category}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => addSuggested(t)}
+                  className="rounded-md border border-border bg-background p-1 hover:border-primary"
+                  aria-label="Add"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </AIInsight>
 
       <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
         {visible.map((t) => {

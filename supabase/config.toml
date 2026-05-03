@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.chat-coach]
 verify_jwt = false
+
+[functions.app-intelligence]
+verify_jwt = false

@@ -4,6 +4,8 @@ import type { Reflection } from "@/lib/types";
 import { getTodayString } from "@/lib/engine/next-best-task";
 import { FeedbackChips } from "@/components/app/FeedbackChips";
 import { PatternBanner } from "@/components/app/PatternBanner";
+import { AIInsight } from "@/components/app/AIInsight";
+import { useAI } from "@/lib/ai/useAI";
 
 const Reflect = () => {
   const state = useStateStore((s) => s.state);
@@ -19,6 +21,7 @@ const Reflect = () => {
   const [struggle, setStruggle] = useState<string>(existing?.struggle ?? "");
   const [tomorrow, setTomorrow] = useState<string>(existing?.tomorrow_intention ?? "");
   const [saved, setSaved] = useState(false);
+  const debrief = useAI<{ headline: string; win?: string; friction?: string; tomorrow_intention?: string }>("daily_debrief");
 
   if (!state) return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
 
@@ -47,6 +50,31 @@ const Reflect = () => {
       </div>
 
       <PatternBanner />
+
+      <AIInsight
+        label="today's debrief"
+        loading={debrief.loading}
+        error={debrief.error}
+        onRun={() => debrief.run({ tasks: state.tasks.filter(t => t.status === "done").map(t => t.title), reflections: state.reflections.slice(-3) })}
+        cta={debrief.result ? "Refresh" : "Generate"}
+      >
+        {debrief.result && (
+          <div className="space-y-1.5">
+            <div className="font-medium">{debrief.result.headline}</div>
+            {debrief.result.win && <div className="text-xs"><span className="text-muted-foreground">win · </span>{debrief.result.win}</div>}
+            {debrief.result.friction && <div className="text-xs"><span className="text-muted-foreground">friction · </span>{debrief.result.friction}</div>}
+            {debrief.result.tomorrow_intention && (
+              <button
+                onClick={() => setTomorrow(debrief.result!.tomorrow_intention!)}
+                className="mt-1 text-xs text-primary underline-offset-2 hover:underline"
+              >
+                Use as tomorrow intention →
+              </button>
+            )}
+          </div>
+        )}
+      </AIInsight>
+
 
       <section className="rounded-2xl border border-border bg-card p-5 space-y-5">
         <div>
