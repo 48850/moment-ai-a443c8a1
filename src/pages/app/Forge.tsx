@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { Hammer, Sparkles, Check } from "lucide-react";
+import { Hammer, Sparkles, Check, Loader2 } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { getForgeViewModel } from "@/lib/selectors/forge";
+import { useAI } from "@/lib/ai/useAI";
+import { AIInsight } from "@/components/app/AIInsight";
 
 const Forge = () => {
   const state = useStateStore((s) => s.state);
