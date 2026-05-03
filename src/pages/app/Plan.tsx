@@ -172,6 +172,37 @@ const Plan = () => {
         )}
       </section>
 
+      {vm.scheduleBlocks.length > 0 && (
+        <Constellation blocks={vm.scheduleBlocks as ScheduleBlock[]} decisiveMoveTitle={vm.scheduleBlocks[0]?.title} />
+      )}
+
+      {(() => {
+        const tiles = selectPursuitPreview(state);
+        if (tiles.length === 0) return null;
+        return (
+          <section className="rounded-2xl border border-border bg-card p-4">
+            <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <Compass className="h-3.5 w-3.5 text-primary" /> Pursuit anchors
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {tiles.map((t, i) => (
+                <Link
+                  key={i}
+                  to="/app/mission"
+                  className={`rounded-lg border bg-background/40 p-2.5 transition-colors hover:bg-secondary/60 ${TILE_TONE[t.kind]}`}
+                >
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    {TILE_LABEL[t.kind]}
+                  </p>
+                  <p className="mt-0.5 truncate text-sm font-medium text-foreground">{t.name}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{t.detail}</p>
+                </Link>
+              ))}
+            </div>
+          </section>
+        );
+      })()}
+
       <section className="rounded-2xl border border-border bg-card/50 p-4">
         {!reformOpen ? (
           <div className="flex items-center justify-between">
