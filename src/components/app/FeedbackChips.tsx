@@ -1,0 +1,134 @@
+import { useState } from "react";
+import { MessageCircleHeart } from "lucide-react";
+import { toast } from "sonner";
+import { useStateStore } from "@/stores/state-store";
+import {
+  FEEDBACK_LABELS,
+  FEEDBACK_RESPONSE,
+  FEEDBACK_GROUPS,
+  type FeedbackKey,
+} from "@/lib/feedback/labels";
+import type { ExecutionFeedbackItem } from "@/lib/types";
+
+interface Props {
+  source: ExecutionFeedbackItem["source"];
+  targetId?: string;
+  taskId?: string;
+  taskTitle?: string;
+  /** Limit the chip set; useful for tight surfaces (chat bubbles, etc.). */
+  groups?: string[];
+  /** Compact = label-only trigger, no surrounding card. */
+  compact?: boolean;
+  /** Override the small prompt shown above the chips. */
+  prompt?: string;
+}
+
+/**
+ * Calm, optional, expandable feedback strip.
+ * - Never asks "how do you feel" — it asks how the *plan* landed.
+ * - Single tap is enough; no required note, no streak guilt.
+ */
+export const FeedbackChips = ({
+  source,
+  targetId = "",
+  taskId = "",
+  taskTitle = "",
+  groups,
+  compact = false,
+  prompt = "How did this land?",
+}: Props) => {
+  const dispatch = useStateStore((s) => s.dispatch);
+  const [open, setOpen] = useState(false);
+  const [picked, setPicked] = useState<FeedbackKey | null>(null);
+
+  const visibleGroups = groups
+    ? FEEDBACK_GROUPS.filter((g) => groups.includes(g.id))
+    : FEEDBACK_GROUPS;
+
+  const submit = (key: FeedbackKey) => {
+    setPicked(key);
+    const item: ExecutionFeedbackItem = {
+      id: crypto.randomUUID(),
+      task_id: taskId,
+      task_title: taskTitle,
+      completed_at: "",
+      feedback: key,
+      note: "",
+      created_at: new Date().toISOString(),
+      source,
+      target_id: targetId,
+    };
+    dispatch({ type: "feedback/add", payload: item });
+    toast.message(FEEDBACK_RESPONSE[key], { duration: 3500 });
+    // auto-close after a beat
+    setTimeout(() => {
+      setOpen(false);
+      setPicked(null);
+    }, 600);
+  };
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(true);
+        }}
+        className={`inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/40 px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground ${
+          compact ? "" : ""
+        }`}
+        aria-label="Give feedback"
+      >
+        <MessageCircleHeart className="h-3 w-3" />
+        Tune this
+      </button>
+    );
+  }
+
+  return (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      className="rounded-xl border border-border bg-background/70 p-3"
+    >
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] text-muted-foreground">{prompt}</p>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground"
+        >
+          close
+        </button>
+      </div>
+      <div className="mt-2 space-y-2">
+        {visibleGroups.map((g) => (
+          <div key={g.id}>
+            <div className="mb-1 text-[9px] font-medium uppercase tracking-[0.18em] text-muted-foreground/70">
+              {g.label}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {g.keys.map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => submit(k)}
+                  className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+                    picked === k
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-secondary/50 text-foreground hover:border-primary/50"
+                  }`}
+                >
+                  {FEEDBACK_LABELS[k]}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 text-[10px] leading-snug text-muted-foreground">
+        Useful signal — not a verdict. We adjust the plan, not the goal.
+      </p>
+    </div>
+  );
+};

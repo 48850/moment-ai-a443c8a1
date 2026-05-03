@@ -2,11 +2,8 @@ import { useMemo } from "react";
 import { useStateStore } from "@/stores/state-store";
 import { computeGoalProgress } from "@/lib/engine/next-best-task";
 import { FEEDBACK_OPTIONS } from "@/lib/state/schema";
-
-const FEEDBACK_LABELS: Record<(typeof FEEDBACK_OPTIONS)[number], string> = {
-  easy: "Easy", hard: "Hard", too_vague: "Too vague", too_big: "Too big",
-  valuable: "Valuable", not_relevant: "Not relevant", need_help: "Need help", do_differently: "Do differently",
-};
+import { FEEDBACK_LABELS } from "@/lib/feedback/labels";
+import { PatternBanner } from "@/components/app/PatternBanner";
 
 const Audit = () => {
   const state = useStateStore((s) => s.state);
@@ -50,6 +47,8 @@ const Audit = () => {
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">How you're really doing</h1>
         <p className="mt-1 text-sm text-muted-foreground">An honest snapshot. No vanity metrics.</p>
       </div>
+
+      <PatternBanner />
 
       <section className="grid grid-cols-2 gap-3 md:grid-cols-3">
         <Stat label="Goal progress" value={`${stats.goalProgress}%`} />

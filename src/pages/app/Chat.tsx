@@ -3,6 +3,7 @@ import { Send, Sparkles, CheckCircle2 } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { FeedbackChips } from "@/components/app/FeedbackChips";
 
 type ChatMessage = {
   id: string;
@@ -252,7 +253,7 @@ const Chat = () => {
       <div className="flex-1 space-y-3 overflow-y-auto rounded-2xl border border-border bg-card p-4">
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div className="max-w-[85%]">
+            <div className="max-w-[85%] space-y-1.5">
               <div
                 className={`whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm ${
                   m.role === "user"
@@ -262,6 +263,14 @@ const Chat = () => {
               >
                 {m.content}
               </div>
+              {m.role === "assistant" && m.id !== "greet" && (
+                <FeedbackChips
+                  source="chat"
+                  targetId={m.id}
+                  groups={["value", "tone", "fit"]}
+                  compact
+                />
+              )}
             </div>
           </div>
         ))}

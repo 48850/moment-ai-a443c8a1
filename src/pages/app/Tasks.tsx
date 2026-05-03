@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Check } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
+import { FeedbackChips } from "@/components/app/FeedbackChips";
 
 type Filter = "all" | "pending" | "completed";
 
@@ -59,29 +60,25 @@ const Tasks = () => {
         {visible.map((t) => {
           const done = t.status === "done";
           return (
-            <li key={t.id}>
-              <button
-                onClick={() => toggle(t.id)}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-secondary/50"
-              >
-                <span
+            <li key={t.id} className="px-4 py-3">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => toggle(t.id)}
                   className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
                     done ? "border-primary bg-primary text-primary-foreground" : "border-border"
                   }`}
+                  aria-label={done ? "Mark incomplete" : "Mark complete"}
                 >
                   {done && <Check className="h-3 w-3" strokeWidth={3} />}
-                </span>
-                <span
-                  className={`flex-1 text-sm ${
-                    done ? "text-muted-foreground line-through" : "text-foreground"
-                  }`}
-                >
+                </button>
+                <span className={`flex-1 text-sm ${done ? "text-muted-foreground line-through" : "text-foreground"}`}>
                   {t.title}
                 </span>
                 <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
                   {t.estimated_minutes}m
                 </span>
-              </button>
+                <FeedbackChips source="task" targetId={t.id} taskId={t.id} taskTitle={t.title} compact />
+              </div>
             </li>
           );
         })}

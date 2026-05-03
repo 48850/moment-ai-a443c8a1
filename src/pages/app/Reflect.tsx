@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { useStateStore } from "@/stores/state-store";
 import type { Reflection } from "@/lib/types";
 import { getTodayString } from "@/lib/engine/next-best-task";
+import { FeedbackChips } from "@/components/app/FeedbackChips";
+import { PatternBanner } from "@/components/app/PatternBanner";
 
 const Reflect = () => {
   const state = useStateStore((s) => s.state);
@@ -43,6 +45,8 @@ const Reflect = () => {
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">How was today?</h1>
         <p className="mt-1 text-sm text-muted-foreground">A two-minute check-in. No pressure.</p>
       </div>
+
+      <PatternBanner />
 
       <section className="rounded-2xl border border-border bg-card p-5 space-y-5">
         <div>
@@ -96,7 +100,13 @@ const Reflect = () => {
           />
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <FeedbackChips
+            source="reflection"
+            targetId={today}
+            groups={["energy", "tone"]}
+            prompt="How did today's plan feel?"
+          />
           <button
             onClick={save}
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"

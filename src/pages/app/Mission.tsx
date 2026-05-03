@@ -4,6 +4,8 @@ import { useStateStore } from "@/stores/state-store";
 import { selectMissionViewModel } from "@/lib/selectors/mission";
 import { RelationshipGraph } from "@/components/app/RelationshipGraph";
 import type { CapabilityCluster, EvidenceSignal, PursuitWorkstream } from "@/lib/types";
+import { FeedbackChips } from "@/components/app/FeedbackChips";
+import { PatternBanner } from "@/components/app/PatternBanner";
 
 const wsStatus: Record<PursuitWorkstream["status"], string> = {
   on_track: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
@@ -59,6 +61,8 @@ const Mission = () => {
         </div>
       </section>
 
+      <PatternBanner />
+
       {state.pursuit_model && <RelationshipGraph model={state.pursuit_model} />}
 
       {m.workstreams.length > 0 && (
@@ -97,6 +101,15 @@ const Mission = () => {
                           {w.next_proof}
                         </div>
                       )}
+                      <div className="pt-1">
+                        <FeedbackChips
+                          source="mission"
+                          targetId={w.id}
+                          taskTitle={w.name}
+                          groups={["fit", "value", "tone"]}
+                          prompt="How does this workstream feel?"
+                        />
+                      </div>
                     </div>
                   )}
                 </li>

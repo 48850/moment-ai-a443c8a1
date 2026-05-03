@@ -161,27 +161,57 @@ export const reflectionSchema = z.object({
   tomorrow_adjustment: z.string().optional(),
 });
 
-// AUDIT FIX: 8-option execution feedback (handoff doc §5).
+// Emotionally-intelligent feedback signals collected throughout the app.
+// Tone rule: every option is observational, not evaluative of the user.
 export const FEEDBACK_OPTIONS = [
+  // task fit
   "easy",
   "hard",
   "too_vague",
   "too_big",
+  "too_small",
   "valuable",
   "not_relevant",
   "need_help",
   "do_differently",
+  // emotional / capacity signals (never diagnostic)
+  "tired",
+  "overwhelmed",
+  "dont_understand",
+  "feels_unrealistic",
+  "wrong_time",
+  "too_much_today",
+  // shaping requests
+  "make_simpler",
+  "make_more_ambitious",
+  "be_more_direct",
+  "be_gentler",
+] as const;
+
+export const FEEDBACK_SOURCES = [
+  "task",
+  "plan",
+  "schedule_block",
+  "chat",
+  "home",
+  "mission",
+  "pathway",
+  "reflection",
+  "nudge",
+  "rescue",
 ] as const;
 
 export const executionFeedbackItemSchema = z.object({
   id: z.string(),
-  task_id: z.string(),
+  task_id: z.string().default(""),
   task_title: z.string().default(""),
   /** Empty string when feedback was given before task completion. */
   completed_at: z.string().default(""),
   feedback: z.enum(FEEDBACK_OPTIONS),
   note: z.string().default(""),
   created_at: z.string(),
+  source: z.enum(FEEDBACK_SOURCES).default("task"),
+  target_id: z.string().default(""),
 });
 
 export const alignmentStateSchema = z.object({
