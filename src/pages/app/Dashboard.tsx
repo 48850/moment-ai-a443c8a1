@@ -57,8 +57,11 @@ const Dashboard = () => {
           </div>
           <h2 className="mt-2 text-xl font-semibold leading-tight">{dm.title}</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Why this? It moves you toward <span className="text-foreground">{vm.goalSnippet}</span>.
+            {rationale.result?.why_now ?? <>Why this? It moves you toward <span className="text-foreground">{vm.goalSnippet}</span>.</>}
           </p>
+          {rationale.result?.next_proof && (
+            <p className="mt-1 text-xs text-muted-foreground">Unlocks: <span className="text-foreground">{rationale.result.next_proof}</span></p>
+          )}
           <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
             <Clock className="h-3 w-3" /> about {dm.estimatedMinutes} min
           </div>
