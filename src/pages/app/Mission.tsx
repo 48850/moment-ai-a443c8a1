@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { selectMissionViewModel } from "@/lib/selectors/mission";
+import { RelationshipGraph } from "@/components/app/RelationshipGraph";
 import type { CapabilityCluster, EvidenceSignal, PursuitWorkstream } from "@/lib/types";
 
 const wsStatus: Record<PursuitWorkstream["status"], string> = {
@@ -35,9 +36,9 @@ const Mission = () => {
       <div className="mx-auto max-w-3xl space-y-6">
         <section className="rounded-2xl border border-border bg-card p-5">
           <div className="text-xs text-muted-foreground">/ mission</div>
-          <h1 className="mt-1 text-xl font-semibold leading-snug">No active goal yet</h1>
+          <h1 className="mt-1 text-xl font-semibold leading-snug">No goal set yet</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Set a goal in chat to compile your pursuit model.
+            Tell Moment what you're chasing in chat. We'll map it out together.
           </p>
         </section>
       </div>
@@ -57,6 +58,8 @@ const Mission = () => {
           )}
         </div>
       </section>
+
+      {state.pursuit_model && <RelationshipGraph model={state.pursuit_model} />}
 
       {m.workstreams.length > 0 && (
         <section>

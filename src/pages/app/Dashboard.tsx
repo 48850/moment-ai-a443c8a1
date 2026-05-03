@@ -4,6 +4,7 @@ import { useStateStore } from "@/stores/state-store";
 import { selectHomeViewModel } from "@/lib/selectors/home";
 import { FEEDBACK_OPTIONS } from "@/lib/state/schema";
 import type { ExecutionFeedbackItem } from "@/lib/types";
+import { JourneyConstellation } from "@/components/app/JourneyConstellation";
 
 const FEEDBACK_LABELS: Record<(typeof FEEDBACK_OPTIONS)[number], string> = {
   easy: "Easy",
@@ -66,22 +67,25 @@ const Dashboard = () => {
       <div>
         <div className="text-xs text-muted-foreground">{vm.greeting}</div>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-          Good afternoon, {state.profile.display_name}.
+          Hey {state.profile.display_name} 👋
         </h1>
+        <p className="mt-1 text-sm text-muted-foreground">Here's the one move that matters most right now.</p>
       </div>
+
+      <JourneyConstellation state={state} />
 
       {/* Decisive move */}
       {dm && (
         <section className="rounded-2xl border border-primary/40 bg-gradient-to-b from-primary/10 to-transparent p-5 shadow-[0_0_0_1px_hsl(var(--primary)/0.15)]">
           <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
-            <Sparkles className="h-3 w-3" /> decisive move
+            <Sparkles className="h-3 w-3" /> your next move
           </div>
           <h2 className="mt-2 text-xl font-semibold leading-tight">{dm.title}</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Best next move toward <span className="text-foreground">{vm.goalSnippet}</span>
+            Why this? It moves you toward <span className="text-foreground">{vm.goalSnippet}</span>.
           </p>
           <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-            <Clock className="h-3 w-3" /> {dm.estimatedMinutes} min
+            <Clock className="h-3 w-3" /> about {dm.estimatedMinutes} min
           </div>
 
           {!feedbackOpen && (
@@ -89,7 +93,7 @@ const Dashboard = () => {
               onClick={onDecisive}
               className="mt-5 w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
-              Mark done
+              Done ✓
             </button>
           )}
 
@@ -148,7 +152,7 @@ const Dashboard = () => {
           <p className="mt-2 text-sm text-muted-foreground">{vm.whyThisMattered.rationale}</p>
           {vm.whyThisMattered.nextProof && (
             <div className="mt-3 text-xs">
-              <span className="text-muted-foreground">Next proof: </span>
+              <span className="text-muted-foreground">What's next: </span>
               <span className="text-foreground">{vm.whyThisMattered.nextProof}</span>
             </div>
           )}
