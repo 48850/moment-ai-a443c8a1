@@ -8,6 +8,8 @@ import { Constellation } from "@/components/app/Constellation";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { MomentState, ScheduleBlock } from "@/lib/types";
+import { FeedbackChips } from "@/components/app/FeedbackChips";
+import { PatternBanner } from "@/components/app/PatternBanner";
 
 /* ----- pursuit tiles (kept) ----- */
 interface PursuitTile {
@@ -200,6 +202,8 @@ const Plan = () => {
         </div>
       )}
 
+      <PatternBanner />
+
       {/* Guiding principle */}
       {aiPlan?.guiding_principle && (
         <motion.div
@@ -293,6 +297,13 @@ const Plan = () => {
                         <span className={`rounded-full border px-2 py-0.5 text-[10px] lowercase ${typeStyles[b.type] ?? "bg-secondary text-muted-foreground border-border"}`}>
                           {b.type.replace("_", " ")}
                         </span>
+                        <FeedbackChips
+                          source="schedule_block"
+                          targetId={b.id}
+                          taskTitle={b.title}
+                          groups={["fit", "energy", "tone"]}
+                          compact
+                        />
                       </li>
                     ))}
                   </ul>
