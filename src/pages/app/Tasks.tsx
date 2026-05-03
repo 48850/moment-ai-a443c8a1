@@ -11,6 +11,7 @@ const Tasks = () => {
   const state = useStateStore((s) => s.state);
   const dispatch = useStateStore((s) => s.dispatch);
   const [filter, setFilter] = useState<Filter>("all");
+  const suggest = useAI<{ tasks: Array<{ title: string; estimated_minutes: number; category: string; priority: string; why?: string }> }>("suggest_tasks");
 
   const tasks = state?.tasks ?? [];
 
@@ -35,6 +36,26 @@ const Tasks = () => {
     } else {
       dispatch({ type: "task/complete", payload: { id, completed_at: new Date().toISOString() } });
     }
+  };
+
+  const addSuggested = (t: { title: string; estimated_minutes: number; category: string; priority: string }) => {
+    dispatch({
+      type: "task/add",
+      payload: {
+        id: crypto.randomUUID(),
+        title: t.title,
+        description: "",
+        status: "pending",
+        priority: (t.priority as "high" | "medium" | "low") ?? "medium",
+        goal_id: "primary",
+        domain_id: "",
+        estimated_minutes: t.estimated_minutes ?? 30,
+        category: (t.category as any) ?? "goal_direct",
+        created_at: new Date().toISOString(),
+        completed_at: "",
+        due_date: "",
+      },
+    });
   };
 
   return (
