@@ -9,7 +9,7 @@ import { useEffect } from "react";
 
 const Index = () => {
   useEffect(() => {
-    document.title = "Moment — One goal. One plan. One move at a time.";
+    document.title = "Moment — One goal. One plan. One moment at a time.";
     const desc = "Moment is a goal-specialized operating system for ambitious teens. Turn your wildest ambition into the next decisive move — every day.";
     let m = document.querySelector('meta[name="description"]');
     if (!m) { m = document.createElement('meta'); m.setAttribute('name', 'description'); document.head.appendChild(m); }
