@@ -1,8 +1,47 @@
 import { useState } from "react";
-import { RefreshCw, Loader2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { RefreshCw, Loader2, Compass } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { selectPlanViewModel } from "@/lib/selectors/plan";
-import type { ScheduleBlock } from "@/lib/types";
+import { Constellation } from "@/components/app/Constellation";
+import type { MomentState, ScheduleBlock } from "@/lib/types";
+
+interface PursuitTile {
+  kind: "workstream" | "capability" | "evidence" | "risk";
+  name: string;
+  detail: string;
+}
+
+function selectPursuitPreview(state: MomentState | null): PursuitTile[] {
+  const pm = state?.pursuit_model;
+  if (!pm) return [];
+  const tiles: PursuitTile[] = [];
+  const wp = { critical: 0, high: 1, medium: 2, low: 3 } as const;
+  const ws = [...pm.workstreams].sort((a, b) => (wp[a.priority] ?? 4) - (wp[b.priority] ?? 4))[0];
+  if (ws) tiles.push({ kind: "workstream", name: ws.name, detail: ws.next_proof || ws.bottleneck || ws.description || "Push the next proof." });
+  const cr = { not_started: 0, emerging: 1, developing: 2, solid: 3, mastered: 4 } as const;
+  const cap = [...pm.capability_clusters].sort((a, b) => (cr[a.status] ?? 0) - (cr[b.status] ?? 0))[0];
+  if (cap) tiles.push({ kind: "capability", name: cap.name, detail: cap.why_it_matters || cap.description || `Status: ${cap.status}.` });
+  const lead = pm.evidence_signals.find((s) => s.kind === "leading");
+  if (lead) {
+    tiles.push({ kind: "evidence", name: lead.name, detail: lead.last_value ? `Last: ${lead.last_value}` : lead.description || "Track this signal." });
+  } else {
+    const sr = { critical: 0, high: 1, medium: 2, low: 3 } as const;
+    const risk = [...pm.risks].sort((a, b) => (sr[a.severity] ?? 4) - (sr[b.severity] ?? 4))[0];
+    if (risk) tiles.push({ kind: "risk", name: risk.name, detail: risk.mitigation || risk.description || `${risk.severity} severity.` });
+  }
+  return tiles.slice(0, 3);
+}
+
+const TILE_LABEL: Record<PursuitTile["kind"], string> = {
+  workstream: "Workstream", capability: "Capability", evidence: "Signal", risk: "Risk",
+};
+const TILE_TONE: Record<PursuitTile["kind"], string> = {
+  workstream: "border-primary/40",
+  capability: "border-accent/40",
+  evidence: "border-primary/40",
+  risk: "border-destructive/40",
+};
 
 const typeStyles: Record<string, string> = {
   study: "bg-primary/15 text-primary border-primary/30",
@@ -132,6 +171,37 @@ const Plan = () => {
           </ul>
         )}
       </section>
+
+      {vm.scheduleBlocks.length > 0 && (
+        <Constellation blocks={vm.scheduleBlocks as ScheduleBlock[]} decisiveMoveTitle={vm.scheduleBlocks[0]?.title} />
+      )}
+
+      {(() => {
+        const tiles = selectPursuitPreview(state);
+        if (tiles.length === 0) return null;
+        return (
+          <section className="rounded-2xl border border-border bg-card p-4">
+            <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <Compass className="h-3.5 w-3.5 text-primary" /> Pursuit anchors
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {tiles.map((t, i) => (
+                <Link
+                  key={i}
+                  to="/app/mission"
+                  className={`rounded-lg border bg-background/40 p-2.5 transition-colors hover:bg-secondary/60 ${TILE_TONE[t.kind]}`}
+                >
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    {TILE_LABEL[t.kind]}
+                  </p>
+                  <p className="mt-0.5 truncate text-sm font-medium text-foreground">{t.name}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{t.detail}</p>
+                </Link>
+              ))}
+            </div>
+          </section>
+        );
+      })()}
 
       <section className="rounded-2xl border border-border bg-card/50 p-4">
         {!reformOpen ? (
