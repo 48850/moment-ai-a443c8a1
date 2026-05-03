@@ -9,6 +9,7 @@ const Forge = () => {
   const state = useStateStore((s) => s.state);
   const dispatch = useStateStore((s) => s.dispatch);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const ai = useAI<{ modules: Array<{ name: string; description: string; module_type: string; why?: string }> }>("forge_modules");
 
   if (!state) return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
   const vm = getForgeViewModel(state)!;
