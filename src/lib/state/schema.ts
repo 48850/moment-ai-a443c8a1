@@ -195,6 +195,15 @@ export const homeStateSchema = z.object({
   active_plan: z.enum(["plan_a", "plan_b"]),
 });
 
+export const forgeStateSchema = z.object({
+  interview_answers: z.array(z.any()).default([]),
+  candidate_features: z.array(z.any()).default([]),
+  selected_feature_ids: z.array(z.string()).default([]),
+  generated_modules: z.array(z.any()).default([]),
+  compiler_status: z.enum(["idle", "interviewing", "model_ready", "ranking", "instantiated"]).default("idle"),
+  last_generated_at: z.string().optional(),
+});
+
 // --- Pursuit compiler sub-schemas ---
 export const pursuitStandardSchema = z.object({
   id: z.string(),
@@ -292,5 +301,9 @@ export const momentStateSchema = z.object({
   execution_feedback: z.array(executionFeedbackItemSchema).default([]),
   alignment: alignmentStateSchema,
   home: homeStateSchema,
+  forge_state: forgeStateSchema.default({
+    interview_answers: [], candidate_features: [], selected_feature_ids: [],
+    generated_modules: [], compiler_status: "idle",
+  }),
   pursuit_model: compiledPursuitModelSchema.nullable(),
 });

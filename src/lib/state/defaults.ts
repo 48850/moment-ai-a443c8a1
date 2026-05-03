@@ -226,6 +226,10 @@ export function createDefaultState(userId: string, displayName: string, timezone
       reasons: [],
     },
     home: { active_plan: "plan_a" },
+    forge_state: {
+      interview_answers: [], candidate_features: [], selected_feature_ids: [],
+      generated_modules: [], compiler_status: "idle",
+    },
     pursuit_model: null,
   };
 

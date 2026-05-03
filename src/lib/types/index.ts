@@ -9,6 +9,7 @@ import {
   alignmentStateSchema,
   homeStateSchema,
   executionFeedbackItemSchema,
+  forgeStateSchema,
   pursuitStandardSchema,
   capabilityClusterSchema,
   pursuitWorkstreamSchema,
@@ -36,6 +37,52 @@ export type EvidenceSignal = z.infer<typeof evidenceSignalSchema>;
 export type OperatingMode = z.infer<typeof operatingModeSchema>;
 export type CompiledPursuitModel = z.infer<typeof compiledPursuitModelSchema>;
 export type { PursuitFamily } from "@/lib/pursuit/families";
+
+export interface ForgeInterviewAnswer {
+  id: string;
+  question_key: string;
+  question_text: string;
+  answer_text: string;
+  source: "user" | "system_inferred";
+}
+
+export interface FeatureCandidate {
+  id: string;
+  name: string;
+  description: string;
+  problem_it_solves: string;
+  leverage_score: number;
+  immediacy_score: number;
+  repeat_value_score: number;
+  complexity_score: number;
+  distinctiveness_score: number;
+  total_score: number;
+  rationale: string;
+  module_type: string;
+}
+
+export interface GeneratedModuleManifest {
+  id: string;
+  name: string;
+  module_type:
+    | "coach_loop" | "planner" | "tracker" | "rescue_protocol"
+    | "practice_system" | "evidence_log" | "simulator" | "review_engine";
+  title: string;
+  description: string;
+  linked_workstream_ids: string[];
+  primary_surface: "home" | "chat" | "plan" | "forge" | "insights";
+  config: Record<string, unknown>;
+  status: "draft" | "active" | "archived";
+}
+
+export interface ForgeState {
+  interview_answers: ForgeInterviewAnswer[];
+  candidate_features: FeatureCandidate[];
+  selected_feature_ids: string[];
+  generated_modules: GeneratedModuleManifest[];
+  compiler_status: "idle" | "interviewing" | "model_ready" | "ranking" | "instantiated";
+  last_generated_at?: string;
+}
 
 export type AppMode =
   | "lock_goal"
