@@ -95,9 +95,12 @@ const Rescue = () => {
           <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
             <Icon className="h-3 w-3" /> rescue protocol
           </div>
-          <h2 className="mt-2 text-lg font-semibold">{proto.title}</h2>
+          <h2 className="mt-2 text-lg font-semibold flex items-center gap-2">
+            {ai.result?.title ?? proto.title}
+            {ai.loading && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+          </h2>
           <ol className="mt-3 space-y-2 text-sm">
-            {proto.steps.map((s, i) => (
+            {(ai.result?.steps ?? proto.steps).map((s, i) => (
               <li key={i} className="flex gap-3">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/20 text-[11px] font-medium text-primary">
                   {i + 1}
@@ -106,6 +109,12 @@ const Rescue = () => {
               </li>
             ))}
           </ol>
+          {ai.result?.soft_note && (
+            <div className="mt-3 flex items-start gap-2 text-xs text-muted-foreground">
+              <Sparkles className="mt-0.5 h-3 w-3 text-primary" />
+              <span>{ai.result.soft_note}</span>
+            </div>
+          )}
 
           {next && picked === "stuck" && (
             <div className="mt-4 rounded-lg border border-border bg-card p-3 text-sm">
