@@ -424,10 +424,7 @@ export const JourneyConstellation = ({ state }: Props) => {
                         }}
                       />
                       {density !== "ultra" && (
-                        <Icon
-                          className="relative h-3 w-3"
-                          style={{ color: "rgba(0,0,0,0.55)" }}
-                        />
+                        <Icon className="relative h-3 w-3 text-black/55" />
                       )}
                       {showLabels && (
                         <span
