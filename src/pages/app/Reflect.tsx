@@ -4,6 +4,8 @@ import type { Reflection } from "@/lib/types";
 import { getTodayString } from "@/lib/engine/next-best-task";
 import { FeedbackChips } from "@/components/app/FeedbackChips";
 import { PatternBanner } from "@/components/app/PatternBanner";
+import { AIInsight } from "@/components/app/AIInsight";
+import { useAI } from "@/lib/ai/useAI";
 
 const Reflect = () => {
   const state = useStateStore((s) => s.state);
