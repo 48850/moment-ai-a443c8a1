@@ -6,6 +6,8 @@ import { RelationshipGraph } from "@/components/app/RelationshipGraph";
 import type { CapabilityCluster, EvidenceSignal, PursuitWorkstream } from "@/lib/types";
 import { FeedbackChips } from "@/components/app/FeedbackChips";
 import { PatternBanner } from "@/components/app/PatternBanner";
+import { AIInsight } from "@/components/app/AIInsight";
+import { useAI } from "@/lib/ai/useAI";
 
 const wsStatus: Record<PursuitWorkstream["status"], string> = {
   on_track: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
