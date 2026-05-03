@@ -14,7 +14,7 @@ export const Footer = () => (
         <a href="#" className="hover:text-foreground">Contact</a>
         <a href="#" className="hover:text-foreground">Twitter</a>
       </div>
-      <div className="font-mono text-xs">One goal. One plan. One move.</div>
+      <div className="font-mono text-xs">One goal. One plan. One moment.</div>
     </div>
   </footer>
 );

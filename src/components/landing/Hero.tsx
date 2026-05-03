@@ -31,7 +31,7 @@ export const Hero = () => {
           >
             One goal. <br className="hidden sm:block" />
             <span className="italic text-gradient-spark">One plan.</span> <br className="hidden sm:block" />
-            One move at a time.
+            One moment at a time.
           </motion.h1>
 
           <motion.p
