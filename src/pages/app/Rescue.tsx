@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { LifeBuoy, Wind, Coffee, Heart } from "lucide-react";
+import { useEffect, useState } from "react";
+import { LifeBuoy, Wind, Coffee, Heart, Sparkles, Loader2 } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { selectNextBestTask } from "@/lib/engine/next-best-task";
+import { useAI } from "@/lib/ai/useAI";
 
 const reasons = [
   { id: "overwhelmed", label: "I'm overwhelmed" },
