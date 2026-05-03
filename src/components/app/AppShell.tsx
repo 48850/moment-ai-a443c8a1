@@ -50,13 +50,20 @@ export const AppShell = () => {
   return (
     <div className="app-zone min-h-screen">
       {/* Top bar */}
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border/60 bg-background/80 px-4 py-3 backdrop-blur md:px-8">
-        <Link to="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/80 px-4 py-3 backdrop-blur md:px-8">
+        <Link to="/" className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-3.5 w-3.5" />
-          <span className="font-semibold tracking-tight text-foreground">Moment</span>
+          <span className="inline-flex items-center gap-2">
+            <span className="grid h-6 w-6 place-items-center rounded-full border border-primary/40 bg-primary/10">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+            </span>
+            <span className="font-display text-base font-medium tracking-tight text-foreground">Moment</span>
+            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">/ai</span>
+          </span>
         </Link>
-        <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">your moment</div>
+        <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">your moment</div>
       </header>
+
 
       <div className="flex">
         {/* Desktop sidebar — three primary tabs */}
