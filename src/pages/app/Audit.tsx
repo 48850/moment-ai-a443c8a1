@@ -4,9 +4,13 @@ import { computeGoalProgress } from "@/lib/engine/next-best-task";
 import { FEEDBACK_OPTIONS } from "@/lib/state/schema";
 import { FEEDBACK_LABELS } from "@/lib/feedback/labels";
 import { PatternBanner } from "@/components/app/PatternBanner";
+import { AIInsight } from "@/components/app/AIInsight";
+import { useAI } from "@/lib/ai/useAI";
 
 const Audit = () => {
   const state = useStateStore((s) => s.state);
+
+  const audit = useAI<{ drift_score: number; status: string; reasons: string[]; recommendation: string }>("goal_audit");
 
   const stats = useMemo(() => {
     if (!state) return null;
@@ -49,6 +53,30 @@ const Audit = () => {
       </div>
 
       <PatternBanner />
+
+      <AIInsight
+        label="goal audit"
+        loading={audit.loading}
+        error={audit.error}
+        onRun={() => audit.run({ feedback: state.execution_feedback?.slice(-30), reflections: state.reflections?.slice(-14) })}
+        cta={audit.result ? "Re-run" : "Run audit"}
+      >
+        {audit.result && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="rounded-full border border-border bg-card px-2 py-0.5">drift {audit.result.drift_score}</span>
+              <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-primary">{audit.result.status}</span>
+            </div>
+            {audit.result.reasons?.length > 0 && (
+              <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-0.5">
+                {audit.result.reasons.map((r, i) => <li key={i}>{r}</li>)}
+              </ul>
+            )}
+            <div className="text-sm">{audit.result.recommendation}</div>
+          </div>
+        )}
+      </AIInsight>
+
 
       <section className="grid grid-cols-2 gap-3 md:grid-cols-3">
         <Stat label="Goal progress" value={`${stats.goalProgress}%`} />
