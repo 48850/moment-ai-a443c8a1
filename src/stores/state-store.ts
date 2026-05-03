@@ -63,6 +63,10 @@ export const useStateStore = create<StateStore>((set, get) => ({
           reasons: [],
         },
         home: saved.home ?? { active_plan: "plan_a" },
+        forge_state: saved.forge_state ?? {
+          interview_answers: [], candidate_features: [], selected_feature_ids: [],
+          generated_modules: [], compiler_status: "idle",
+        },
         pursuit_model: "pursuit_model" in saved ? saved.pursuit_model : null,
       };
       set({ state: hydrated, isHydrated: true });
