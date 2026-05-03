@@ -458,9 +458,9 @@ const Plan = () => {
 
 /* ----- helpers ----- */
 
-interface HorizonItem { key: string; badge: string; title: string; detail: string; meta?: string }
+interface HorizonItem { key: string; badge: string; title: string; detail: string; meta?: string; source?: "plan" | "mission" | "pathway" }
 
-const HorizonList = ({ title, items }: { title: string; items: HorizonItem[] }) => (
+const HorizonList = ({ title, items, source = "plan" }: { title: string; items: HorizonItem[]; source?: "plan" | "mission" | "pathway" }) => (
   <section className="overflow-hidden rounded-2xl border border-border bg-card">
     <div className="border-b border-border bg-secondary/30 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
       {title}
@@ -487,6 +487,13 @@ const HorizonList = ({ title, items }: { title: string; items: HorizonItem[] }) 
                 <p className="mt-1.5 text-xs font-medium text-foreground/80">{it.meta}</p>
               )}
             </div>
+            <FeedbackChips
+              source={source === "mission" ? "mission" : source === "pathway" ? "pathway" : "plan"}
+              targetId={it.key}
+              taskTitle={it.title}
+              groups={["fit", "value", "tone"]}
+              compact
+            />
           </div>
         </motion.li>
       ))}
