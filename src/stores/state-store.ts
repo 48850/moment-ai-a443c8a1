@@ -1,10 +1,16 @@
 import { create } from "zustand";
-import type { MomentState, AppMode, ExecutionFeedbackItem, ScheduleBlock } from "@/lib/types";
+import type { MomentState, AppMode, ExecutionFeedbackItem, ScheduleBlock, ForgeInterviewAnswer } from "@/lib/types";
 import type { MomentAction } from "@/lib/types/actions";
 import { storage } from "@/lib/storage/local";
 import { createDefaultState } from "@/lib/state/defaults";
 import { resolveMode, filterPatchByMode } from "@/lib/state/modes";
 import { compilePursuitModel } from "@/lib/pursuit/compiler";
+import {
+  buildInterviewQuestions,
+  generateFeatureCandidates,
+  selectTopFeatures,
+  instantiateModuleManifests,
+} from "@/lib/forge/compiler";
 
 interface StateStore {
   state: MomentState | null;
