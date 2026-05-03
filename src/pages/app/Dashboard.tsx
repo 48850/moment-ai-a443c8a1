@@ -1,9 +1,12 @@
+import { useEffect } from "react";
 import { Check, Clock, Sparkles } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { selectHomeViewModel } from "@/lib/selectors/home";
 import { JourneyConstellation } from "@/components/app/JourneyConstellation";
 import { FeedbackChips } from "@/components/app/FeedbackChips";
 import { PatternBanner } from "@/components/app/PatternBanner";
+import { AIInsight } from "@/components/app/AIInsight";
+import { useAI } from "@/lib/ai/useAI";
 
 const Dashboard = () => {
   const state = useStateStore((s) => s.state);
@@ -13,6 +16,14 @@ const Dashboard = () => {
 
   const vm = selectHomeViewModel(state);
   const dm = vm.decisiveMove;
+  const rationale = useAI<{ why_now: string; next_proof?: string }>("next_move_rationale");
+
+  useEffect(() => {
+    if (dm && state?.active_goal?.statement && !rationale.loading) {
+      rationale.run({ task: { title: dm.title, estimated_minutes: dm.estimatedMinutes } });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dm?.id]);
 
   const onComplete = (id: string) => {
     const t = state.tasks.find((x) => x.id === id);
