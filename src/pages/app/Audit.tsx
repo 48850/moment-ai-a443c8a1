@@ -48,6 +48,8 @@ const Audit = () => {
         <p className="mt-1 text-sm text-muted-foreground">An honest snapshot. No vanity metrics.</p>
       </div>
 
+      <PatternBanner />
+
       <section className="grid grid-cols-2 gap-3 md:grid-cols-3">
         <Stat label="Goal progress" value={`${stats.goalProgress}%`} />
         <Stat label="Tasks done" value={`${stats.tasksDone}/${stats.tasksTotal}`} sub={`${stats.taskCompletion}%`} />
