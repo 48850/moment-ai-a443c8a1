@@ -301,5 +301,9 @@ export const momentStateSchema = z.object({
   execution_feedback: z.array(executionFeedbackItemSchema).default([]),
   alignment: alignmentStateSchema,
   home: homeStateSchema,
+  forge_state: forgeStateSchema.default({
+    interview_answers: [], candidate_features: [], selected_feature_ids: [],
+    generated_modules: [], compiler_status: "idle",
+  }),
   pursuit_model: compiledPursuitModelSchema.nullable(),
 });

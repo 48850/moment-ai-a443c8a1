@@ -9,6 +9,7 @@ import {
   alignmentStateSchema,
   homeStateSchema,
   executionFeedbackItemSchema,
+  forgeStateSchema,
   pursuitStandardSchema,
   capabilityClusterSchema,
   pursuitWorkstreamSchema,
