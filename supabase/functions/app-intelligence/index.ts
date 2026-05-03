@@ -82,6 +82,7 @@ function tools(intent: string) {
     },
     forge_modules: {
       name: "answer",
+      description: "Propose 3 indispensable, build-ready feature modules for THIS user's goal. Each must include a runnable config (fields/steps/drills/slots).",
       parameters: {
         type: "object",
         properties: {
@@ -91,12 +92,51 @@ function tools(intent: string) {
             items: {
               type: "object",
               properties: {
-                name: { type: "string" },
+                name: { type: "string", description: "Short, distinctive name." },
                 description: { type: "string" },
-                module_type: { type: "string", enum: ["practice_system", "planner", "tracker", "rescue_protocol"] },
-                why: { type: "string" },
+                module_type: { type: "string", enum: ["practice_system", "planner", "tracker", "rescue_protocol", "evidence_log"] },
+                why: { type: "string", description: "Why this user specifically needs it." },
+                config: {
+                  type: "object",
+                  description: "Runnable config. Include the relevant shape for the module_type.",
+                  properties: {
+                    fields: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          key: { type: "string" },
+                          label: { type: "string" },
+                          kind: { type: "string", enum: ["number", "text", "rating"] },
+                        },
+                        required: ["key", "label", "kind"],
+                        additionalProperties: false,
+                      },
+                    },
+                    steps: { type: "array", items: { type: "string" } },
+                    drills: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: { name: { type: "string" }, minutes: { type: "number" } },
+                        required: ["name", "minutes"],
+                        additionalProperties: false,
+                      },
+                    },
+                    slots: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: { label: { type: "string" }, cadence: { type: "string" } },
+                        required: ["label", "cadence"],
+                        additionalProperties: false,
+                      },
+                    },
+                  },
+                  additionalProperties: false,
+                },
               },
-              required: ["name", "description", "module_type"],
+              required: ["name", "description", "module_type", "config"],
               additionalProperties: false,
             },
           },

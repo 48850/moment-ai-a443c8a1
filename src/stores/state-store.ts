@@ -387,13 +387,78 @@ export const useStateStore = create<StateStore>((set, get) => ({
           s.forge_state.selected_feature_ids ?? [],
           s.forge_state.candidate_features ?? [],
         );
+        const existing = (s.forge_state.generated_modules ?? []).filter((m: any) => m.status !== "archived");
+        const existingNames = new Set(existing.map((m: any) => m.name));
+        const fresh = modules.filter((m) => !existingNames.has(m.name));
         next = {
           ...s,
           forge_state: {
             ...s.forge_state,
-            generated_modules: modules,
+            generated_modules: [...existing, ...fresh],
             compiler_status: "instantiated",
             last_generated_at: now(),
+          },
+        };
+        break;
+      }
+      case "forge/set_ai_candidates": {
+        const candidates = action.payload.candidates;
+        const top = candidates.slice(0, 3).map((c) => c.id);
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            candidate_features: candidates,
+            selected_feature_ids: top,
+            compiler_status: "ranking",
+          },
+        };
+        break;
+      }
+      case "forge/update_module": {
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            generated_modules: (s.forge_state.generated_modules ?? []).map((m: any) =>
+              m.id === action.payload.id ? { ...m, ...action.payload.changes } : m,
+            ),
+          },
+        };
+        break;
+      }
+      case "forge/archive_module": {
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            generated_modules: (s.forge_state.generated_modules ?? []).map((m: any) =>
+              m.id === action.payload.id ? { ...m, status: "archived" } : m,
+            ),
+          },
+        };
+        break;
+      }
+      case "forge/delete_module": {
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            generated_modules: (s.forge_state.generated_modules ?? []).filter((m: any) => m.id !== action.payload.id),
+          },
+        };
+        break;
+      }
+      case "forge/log_entry": {
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            generated_modules: (s.forge_state.generated_modules ?? []).map((m: any) =>
+              m.id === action.payload.module_id
+                ? { ...m, entries: [...(m.entries ?? []), action.payload.entry] }
+                : m,
+            ),
           },
         };
         break;
@@ -405,7 +470,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
             interview_answers: [],
             candidate_features: [],
             selected_feature_ids: [],
-            generated_modules: [],
+            generated_modules: s.forge_state.generated_modules ?? [],
             compiler_status: "idle",
           },
         };

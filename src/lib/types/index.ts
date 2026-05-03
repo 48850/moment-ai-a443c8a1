@@ -46,6 +46,26 @@ export interface ForgeInterviewAnswer {
   source: "user" | "system_inferred";
 }
 
+export interface ModuleConfig {
+  /** tracker: named numeric/text fields to log per entry */
+  fields?: Array<{ key: string; label: string; kind: "number" | "text" | "rating" }>;
+  /** rescue_protocol / practice_system: ordered steps or drills */
+  steps?: string[];
+  /** planner: named slots/cadences */
+  slots?: Array<{ label: string; cadence: string }>;
+  /** practice_system: drills */
+  drills?: Array<{ name: string; minutes: number }>;
+  /** any extra free-form notes */
+  notes?: string;
+}
+
+export interface ModuleEntry {
+  id: string;
+  created_at: string;
+  data: Record<string, unknown>;
+  note?: string;
+}
+
 export interface FeatureCandidate {
   id: string;
   name: string;
@@ -59,6 +79,8 @@ export interface FeatureCandidate {
   total_score: number;
   rationale: string;
   module_type: string;
+  config?: ModuleConfig;
+  why?: string;
 }
 
 export interface GeneratedModuleManifest {
@@ -71,8 +93,10 @@ export interface GeneratedModuleManifest {
   description: string;
   linked_workstream_ids: string[];
   primary_surface: "home" | "chat" | "plan" | "forge" | "insights";
-  config: Record<string, unknown>;
+  config: ModuleConfig;
   status: "draft" | "active" | "archived";
+  entries?: ModuleEntry[];
+  created_at?: string;
 }
 
 export interface ForgeState {

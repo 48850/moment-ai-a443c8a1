@@ -24,18 +24,36 @@ export function selectTopFeatures(candidates: FeatureCandidate[]): string[] {
   return [...candidates].sort((a, b) => b.total_score - a.total_score).slice(0, 3).map((c) => c.id);
 }
 
+function defaultConfigFor(moduleType: string): GeneratedModuleManifest["config"] {
+  switch (moduleType) {
+    case "tracker":
+    case "evidence_log":
+      return { fields: [{ key: "value", label: "Value", kind: "number" }, { key: "note", label: "Note", kind: "text" }] };
+    case "rescue_protocol":
+      return { steps: ["Name what's heavy in one sentence.", "Pick the smallest next move (≤5 min).", "Do it. Then decide what's next."] };
+    case "practice_system":
+      return { drills: [{ name: "Warm-up", minutes: 5 }, { name: "Focused rep", minutes: 20 }, { name: "Reflect", minutes: 5 }] };
+    case "planner":
+      return { slots: [{ label: "Deep work", cadence: "daily" }, { label: "Review", cadence: "weekly" }] };
+    default:
+      return { notes: "" };
+  }
+}
+
 export function instantiateModuleManifests(selectedFeatureIds: string[], candidates: FeatureCandidate[]): GeneratedModuleManifest[] {
   return candidates
     .filter((c) => selectedFeatureIds.includes(c.id))
     .map((c) => ({
-      id: `mod_${c.id}_${Date.now()}`,
+      id: `mod_${c.id}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       name: c.name,
-      module_type: c.module_type as GeneratedModuleManifest["module_type"],
+      module_type: (c.module_type as GeneratedModuleManifest["module_type"]) ?? "tracker",
       title: c.name,
       description: c.description,
       linked_workstream_ids: [],
       primary_surface: "forge",
-      config: {},
+      config: c.config ?? defaultConfigFor(c.module_type),
       status: "active" as const,
+      entries: [],
+      created_at: new Date().toISOString(),
     }));
 }
