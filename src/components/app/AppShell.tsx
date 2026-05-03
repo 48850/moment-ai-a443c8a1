@@ -1,12 +1,16 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
-import { Home, MessageSquare, Calendar, Target, ListChecks, ArrowLeft } from "lucide-react";
+import { Home, MessageSquare, Calendar, Target, ListChecks, ArrowLeft, Heart, LifeBuoy, Hammer, BarChart3 } from "lucide-react";
 
 const tabs = [
-  { to: "/app", label: "Home", icon: Home, end: true },
+  { to: "/app", label: "Today", icon: Home, end: true },
   { to: "/app/chat", label: "Chat", icon: MessageSquare },
   { to: "/app/plan", label: "Plan", icon: Calendar },
-  { to: "/app/mission", label: "Mission", icon: Target },
   { to: "/app/tasks", label: "Tasks", icon: ListChecks },
+  { to: "/app/mission", label: "Mission", icon: Target },
+  { to: "/app/forge", label: "Forge", icon: Hammer },
+  { to: "/app/reflect", label: "Reflect", icon: Heart },
+  { to: "/app/rescue", label: "Rescue", icon: LifeBuoy },
+  { to: "/app/audit", label: "Audit", icon: BarChart3 },
 ];
 
 export const AppShell = () => (
@@ -17,12 +21,12 @@ export const AppShell = () => (
         <ArrowLeft className="h-3.5 w-3.5" />
         <span className="font-semibold tracking-tight text-foreground">Moment</span>
       </Link>
-      <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">dev preview</div>
+      <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">your moment</div>
     </header>
 
     {/* Desktop sidebar */}
     <div className="flex">
-      <aside className="sticky top-[52px] hidden h-[calc(100vh-52px)] w-56 shrink-0 flex-col gap-1 border-r border-border/60 px-3 py-6 md:flex">
+      <aside className="sticky top-[52px] hidden h-[calc(100vh-52px)] w-56 shrink-0 flex-col gap-1 overflow-y-auto border-r border-border/60 px-3 py-6 md:flex">
         {tabs.map((t) => (
           <NavLink
             key={t.to}
@@ -47,10 +51,10 @@ export const AppShell = () => (
 
     {/* Mobile bottom nav */}
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-border/60 bg-background/95 px-2 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around overflow-x-auto border-t border-border/60 bg-background/95 px-2 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur md:hidden"
       aria-label="Primary"
     >
-      {tabs.map((t) => (
+      {tabs.slice(0, 5).map((t) => (
         <NavLink
           key={t.to}
           to={t.to}
