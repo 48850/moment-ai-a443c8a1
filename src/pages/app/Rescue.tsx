@@ -53,6 +53,13 @@ const protocols: Record<string, { title: string; steps: string[]; icon: typeof W
 const Rescue = () => {
   const state = useStateStore((s) => s.state);
   const [picked, setPicked] = useState<keyof typeof protocols | null>(null);
+  const ai = useAI<{ title: string; steps: string[]; soft_note?: string }>("rescue_protocol");
+
+  useEffect(() => {
+    if (picked) ai.run({ reason: picked });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [picked]);
+
   if (!state) return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
 
   const proto = picked ? protocols[picked] : null;
