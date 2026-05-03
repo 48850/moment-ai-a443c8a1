@@ -11,12 +11,10 @@ import { useAI } from "@/lib/ai/useAI";
 const Dashboard = () => {
   const state = useStateStore((s) => s.state);
   const dispatch = useStateStore((s) => s.dispatch);
-
-  if (!state) return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
-
-  const vm = selectHomeViewModel(state);
-  const dm = vm.decisiveMove;
   const rationale = useAI<{ why_now: string; next_proof?: string }>("next_move_rationale");
+
+  const vm = state ? selectHomeViewModel(state) : null;
+  const dm = vm?.decisiveMove;
 
   useEffect(() => {
     if (dm && state?.active_goal?.statement && !rationale.loading) {
@@ -24,6 +22,8 @@ const Dashboard = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dm?.id]);
+
+  if (!state || !vm) return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
 
   const onComplete = (id: string) => {
     const t = state.tasks.find((x) => x.id === id);
