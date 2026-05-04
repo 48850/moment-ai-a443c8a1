@@ -2,6 +2,7 @@ import type {
   Task,
   Reflection,
   ScheduleBlock,
+  WeekBlock,
   AlignmentState,
   MomentState,
   ExecutionFeedbackItem,
