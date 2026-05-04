@@ -56,6 +56,8 @@ export const useStateStore = create<StateStore>((set, get) => ({
           ...saved.schedule_state,
           day_plan_a_snapshot: saved.schedule_state?.day_plan_a_snapshot ?? [],
           reform_note: saved.schedule_state?.reform_note ?? "",
+          week_plan: (saved.schedule_state as any)?.week_plan ?? [],
+          week_plan_generated_at: (saved.schedule_state as any)?.week_plan_generated_at ?? "",
         },
         alignment: saved.alignment ?? {
           status: "aligned",
