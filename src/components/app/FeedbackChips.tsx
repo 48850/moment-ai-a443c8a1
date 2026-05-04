@@ -9,6 +9,8 @@ import {
   type FeedbackKey,
 } from "@/lib/feedback/labels";
 import type { ExecutionFeedbackItem } from "@/lib/types";
+import { tuneTaskFromFeedback, isToneFeedback } from "@/lib/feedback/tune-engine";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   source: ExecutionFeedbackItem["source"];
@@ -27,6 +29,8 @@ interface Props {
  * Calm, optional, expandable feedback strip.
  * - Never asks "how do you feel" — it asks how the *plan* landed.
  * - Single tap is enough; no required note, no streak guilt.
+ * - Now: a Tune tap on a task INSTANTLY mutates that task (heuristic),
+ *   then asynchronously asks the AI to refine it further (hybrid mode).
  */
 export const FeedbackChips = ({
   source,
@@ -38,6 +42,7 @@ export const FeedbackChips = ({
   prompt = "How did this land?",
 }: Props) => {
   const dispatch = useStateStore((s) => s.dispatch);
+  const state = useStateStore((s) => s.state);
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState<FeedbackKey | null>(null);
 
@@ -45,8 +50,10 @@ export const FeedbackChips = ({
     ? FEEDBACK_GROUPS.filter((g) => groups.includes(g.id))
     : FEEDBACK_GROUPS;
 
-  const submit = (key: FeedbackKey) => {
+  const submit = async (key: FeedbackKey) => {
     setPicked(key);
+
+    // 1. Always log the feedback signal.
     const item: ExecutionFeedbackItem = {
       id: crypto.randomUUID(),
       task_id: taskId,
@@ -59,12 +66,74 @@ export const FeedbackChips = ({
       target_id: targetId,
     };
     dispatch({ type: "feedback/add", payload: item });
-    toast.message(FEEDBACK_RESPONSE[key], { duration: 3500 });
+
+    // 2. Tone signals → update chat preferences (system-wide).
+    if (isToneFeedback(key)) {
+      dispatch({
+        type: "chat/setPreferences",
+        payload: { tone: key === "be_gentler" ? "gentler" : "more_direct" },
+      });
+    }
+
+    // 3. Task-targeted feedback → instant heuristic mutation + async AI refine.
+    let toastShown = false;
+    if (taskId && state) {
+      const task = state.tasks.find((t) => t.id === taskId);
+      if (task) {
+        const outcome = tuneTaskFromFeedback(task, key);
+        if (outcome) {
+          dispatch({
+            type: "task/tune",
+            payload: {
+              id: taskId,
+              feedback: key,
+              change: outcome.change_summary,
+              changes: outcome.changes,
+            },
+          });
+          toast.message(outcome.change_summary, {
+            description: FEEDBACK_RESPONSE[key],
+            duration: 4000,
+          });
+          toastShown = true;
+
+          // Async AI refinement — silent on failure.
+          supabase.functions
+            .invoke("app-intelligence", {
+              body: {
+                kind: "refine_task",
+                payload: {
+                  task: { ...task, ...outcome.changes },
+                  feedback: key,
+                  goal: state.active_goal?.statement ?? "",
+                },
+              },
+            })
+            .then(({ data, error }) => {
+              if (error || !data) return;
+              const refined = (data as any).changes;
+              if (refined && typeof refined === "object") {
+                dispatch({
+                  type: "task/update",
+                  payload: { id: taskId, changes: refined },
+                });
+              }
+            })
+            .catch(() => {
+              /* silent — heuristic already applied */
+            });
+        }
+      }
+    }
+    if (!toastShown) {
+      toast.message(FEEDBACK_RESPONSE[key], { duration: 3500 });
+    }
+
     // auto-close after a beat
     setTimeout(() => {
       setOpen(false);
       setPicked(null);
-    }, 600);
+    }, 700);
   };
 
   if (!open) {
