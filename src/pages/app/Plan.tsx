@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import type { MomentState, ScheduleBlock } from "@/lib/types";
 import { FeedbackChips } from "@/components/app/FeedbackChips";
 import { PatternBanner } from "@/components/app/PatternBanner";
+import { WeeklyGrid } from "@/components/app/WeeklyGrid";
 
 /* ----- pursuit tiles (kept) ----- */
 interface PursuitTile {
