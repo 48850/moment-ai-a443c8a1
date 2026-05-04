@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Hammer, Sparkles, Check, Loader2, Plus, Archive, Trash2, Pencil, Play } from "lucide-react";
+import { Hammer, Sparkles, Check, Loader2, Plus, Archive, Trash2, Pencil, Play, X } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { getForgeViewModel } from "@/lib/selectors/forge";
 import { useAI } from "@/lib/ai/useAI";
-import { AIInsight } from "@/components/app/AIInsight";
+import { ModuleEngine } from "@/components/app/forge/engines";
 import type { FeatureCandidate, GeneratedModuleManifest, ModuleEntry } from "@/lib/types";
 
 type AIModule = {
@@ -193,12 +193,12 @@ const Forge = () => {
   );
 };
 
-/* ---------------- Execution Container ---------------- */
+/* ---------------- Execution Container — launch & run ---------------- */
 
 function ModuleContainer({ module: m }: { module: GeneratedModuleManifest }) {
   const dispatch = useStateStore((s) => s.dispatch);
   const [editing, setEditing] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [launched, setLaunched] = useState(false);
   const [title, setTitle] = useState(m.title);
   const [desc, setDesc] = useState(m.description);
 
@@ -207,17 +207,62 @@ function ModuleContainer({ module: m }: { module: GeneratedModuleManifest }) {
     setEditing(false);
   };
 
+  const logEntry = (data: Record<string, unknown>, note?: string) => {
+    const entry: ModuleEntry = {
+      id: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+      data,
+      note,
+    };
+    dispatch({ type: "forge/log_entry", payload: { module_id: m.id, entry } });
+  };
+
+  const runCount = (m.entries ?? []).length;
+
+  // LAUNCHED VIEW — full runtime takes over the card
+  if (launched) {
+    return (
+      <div className="rounded-2xl border border-primary/40 bg-card overflow-hidden shadow-sm">
+        <div className="flex items-center justify-between gap-3 border-b border-border bg-primary/5 px-4 py-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
+              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">live</span>
+              <span className="truncate text-sm font-medium">{m.title}</span>
+            </div>
+            <div className="mt-0.5 text-[11px] text-muted-foreground">{m.module_type.replace("_", " ")}</div>
+          </div>
+          <button onClick={() => setLaunched(false)} className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs">
+            <X className="h-3 w-3" /> Close
+          </button>
+        </div>
+        <div className="p-4">
+          <ModuleEngine module={m} logEntry={logEntry} />
+        </div>
+      </div>
+    );
+  }
+
+  // IDLE CARD — click to launch
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <div className="flex items-start justify-between gap-3 p-4">
-        <button onClick={() => setOpen((o) => !o)} className="flex-1 text-left">
+        <button onClick={() => setLaunched(true)} className="flex-1 text-left">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">{m.title}</span>
             <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
               {m.module_type.replace("_", " ")}
             </span>
+            {runCount > 0 && (
+              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-500">
+                {runCount} run{runCount === 1 ? "" : "s"}
+              </span>
+            )}
           </div>
           <p className="mt-1 text-xs text-muted-foreground">{m.description}</p>
+          <div className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-primary">
+            <Play className="h-3 w-3" /> Launch
+          </div>
         </button>
         <div className="flex items-center gap-1">
           <button onClick={() => setEditing((e) => !e)} className="p-1.5 text-muted-foreground hover:text-foreground" aria-label="Edit">
@@ -248,132 +293,8 @@ function ModuleContainer({ module: m }: { module: GeneratedModuleManifest }) {
           </div>
         </div>
       )}
-
-      {open && (
-        <div className="border-t border-border p-4">
-          <ExecutionContainer module={m} />
-        </div>
-      )}
     </div>
   );
-}
-
-function ExecutionContainer({ module: m }: { module: GeneratedModuleManifest }) {
-  const dispatch = useStateStore((s) => s.dispatch);
-  const cfg: any = m.config ?? {};
-  const entries = m.entries ?? [];
-  const [data, setData] = useState<Record<string, string>>({});
-
-  const logEntry = (payload: Record<string, unknown>, note?: string) => {
-    const entry: ModuleEntry = {
-      id: crypto.randomUUID(),
-      created_at: new Date().toISOString(),
-      data: payload,
-      note,
-    };
-    dispatch({ type: "forge/log_entry", payload: { module_id: m.id, entry } });
-    setData({});
-  };
-
-  // TRACKER / EVIDENCE_LOG → field-based logger
-  if ((m.module_type === "tracker" || m.module_type === "evidence_log") && cfg.fields) {
-    return (
-      <div className="space-y-3">
-        <div className="space-y-2">
-          {cfg.fields.map((f: any) => (
-            <div key={f.key}>
-              <label className="block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{f.label}</label>
-              <input
-                type={f.kind === "number" || f.kind === "rating" ? "number" : "text"}
-                value={data[f.key] ?? ""}
-                onChange={(e) => setData((d) => ({ ...d, [f.key]: e.target.value }))}
-                className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-              />
-            </div>
-          ))}
-          <button
-            onClick={() => logEntry(data)}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
-          >
-            <Plus className="h-3 w-3" /> Log entry
-          </button>
-        </div>
-        {entries.length > 0 && (
-          <div>
-            <div className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">recent · {entries.length}</div>
-            <ul className="mt-2 space-y-1.5">
-              {entries.slice(-5).reverse().map((e) => (
-                <li key={e.id} className="rounded-md border border-border bg-background/50 px-3 py-2 text-xs">
-                  <div className="text-muted-foreground">{new Date(e.created_at).toLocaleString()}</div>
-                  <div>{Object.entries(e.data).map(([k, v]) => `${k}: ${v}`).join(" · ")}</div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // RESCUE PROTOCOL → checkable steps
-  if (m.module_type === "rescue_protocol" && cfg.steps) {
-    return (
-      <div className="space-y-3">
-        <ol className="space-y-2">
-          {cfg.steps.map((s: string, i: number) => (
-            <li key={i} className="flex gap-3 rounded-md border border-border bg-background/50 px-3 py-2 text-sm">
-              <span className="text-xs text-muted-foreground">{i + 1}.</span>
-              <span>{s}</span>
-            </li>
-          ))}
-        </ol>
-        <button
-          onClick={() => logEntry({ ran: true })}
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
-        >
-          <Play className="h-3 w-3" /> Mark run · {entries.length}
-        </button>
-      </div>
-    );
-  }
-
-  // PRACTICE SYSTEM → drills
-  if (m.module_type === "practice_system" && cfg.drills) {
-    return (
-      <div className="space-y-3">
-        <ul className="space-y-2">
-          {cfg.drills.map((d: any, i: number) => (
-            <li key={i} className="flex items-center justify-between rounded-md border border-border bg-background/50 px-3 py-2 text-sm">
-              <span>{d.name}</span>
-              <span className="text-xs text-muted-foreground">{d.minutes}m</span>
-            </li>
-          ))}
-        </ul>
-        <button
-          onClick={() => logEntry({ session: true, total_minutes: cfg.drills.reduce((a: number, d: any) => a + d.minutes, 0) })}
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
-        >
-          <Play className="h-3 w-3" /> Log session · {entries.length}
-        </button>
-      </div>
-    );
-  }
-
-  // PLANNER → slots
-  if (m.module_type === "planner" && cfg.slots) {
-    return (
-      <ul className="space-y-2">
-        {cfg.slots.map((s: any, i: number) => (
-          <li key={i} className="flex items-center justify-between rounded-md border border-border bg-background/50 px-3 py-2 text-sm">
-            <span>{s.label}</span>
-            <span className="text-xs text-muted-foreground">{s.cadence}</span>
-          </li>
-        ))}
-      </ul>
-    );
-  }
-
-  return <div className="text-xs text-muted-foreground">{cfg.notes || "No runtime configured."}</div>;
 }
 
 export default Forge;
