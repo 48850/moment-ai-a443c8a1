@@ -162,16 +162,7 @@ const Chat = () => {
     setIsTyping(true);
 
     try {
-      const snapshot = {
-        display_name: state.profile.display_name,
-        active_goal: {
-          statement: state.active_goal.statement,
-          why_it_matters: state.active_goal.why_it_matters,
-        },
-        constraints: state.constraints,
-        missing_schedule_info: missing,
-        recent_feedback: (state.execution_feedback ?? []).slice(-5).map((f) => f.feedback),
-      };
+      const snapshot = selectChatSnapshot(state);
 
       const apiMessages = [...messages, userMsg].map((m) => ({
         role: m.role,
@@ -184,7 +175,7 @@ const Chat = () => {
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
 
-      const reply = (data as any).reply as string;
+      const reply = ((data as any).reply as string) || "";
       const patches = ((data as any).patches ?? []) as Array<{
         tool: string;
         args: Record<string, any>;
@@ -192,12 +183,27 @@ const Chat = () => {
 
       applyToolPatches(patches);
 
+      // Never surface "(no reply)" — synthesize a contextual fallback so the
+      // chat always feels alive, even when the model only emits tool calls.
+      let display = reply.trim();
+      if (!display) {
+        if (patches.length) {
+          display = "Got it — pulled that into your plan. What else?";
+        } else if (snapshot.next_move) {
+          display = `Your next move is "${snapshot.next_move.title}" (${snapshot.next_move.estimated_minutes}m). Want help shrinking it?`;
+        } else if (snapshot.missing_schedule_info.length) {
+          display = `Quickly — what's your ${snapshot.missing_schedule_info[0].replace(/_/g, " ")}?`;
+        } else {
+          display = "Tell me where you're stuck or what just happened.";
+        }
+      }
+
       setMessages((m) => [
         ...m,
         {
           id: crypto.randomUUID(),
           role: "assistant",
-          content: reply || "(no reply)",
+          content: display,
         },
       ]);
     } catch (e: any) {
