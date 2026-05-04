@@ -3,6 +3,8 @@ import { LifeBuoy, Wind, Coffee, Heart, Sparkles, Loader2 } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { selectNextBestTask } from "@/lib/engine/next-best-task";
 import { useAI } from "@/lib/ai/useAI";
+import { toast } from "sonner";
+import type { RescueSignal } from "@/lib/types";
 
 const reasons = [
   { id: "overwhelmed", label: "I'm overwhelmed" },
@@ -52,8 +54,58 @@ const protocols: Record<string, { title: string; steps: string[]; icon: typeof W
 
 const Rescue = () => {
   const state = useStateStore((s) => s.state);
+  const dispatch = useStateStore((s) => s.dispatch);
   const [picked, setPicked] = useState<keyof typeof protocols | null>(null);
   const ai = useAI<{ title: string; steps: string[]; soft_note?: string }>("rescue_protocol");
+
+  const handlePick = (id: keyof typeof protocols) => {
+    setPicked(id);
+    if (!state) return;
+    const next = selectNextBestTask(state).best;
+    let switchedToPlanB = false;
+    let shrunkTo = 0;
+
+    // For overwhelmed/tired: actually mutate the day — switch to Plan B if we
+    // have a snapshot, OR shrink the next-best task to its first 10 minutes.
+    if ((id === "overwhelmed" || id === "tired") && next) {
+      const halved = Math.max(10, Math.round(next.estimated_minutes / 2));
+      shrunkTo = halved;
+      dispatch({
+        type: "task/tune",
+        payload: {
+          id: next.id,
+          feedback: id === "overwhelmed" ? "overwhelmed" : "tired",
+          change: `Lightened to ~${halved} min via Rescue.`,
+          changes: {
+            estimated_minutes: halved,
+            energy_demand: "low",
+            was_tuned: true,
+            title: next.title.startsWith("First 10 min: ")
+              ? next.title
+              : `First 10 min: ${next.title}`,
+            original_title: (next as any).original_title || next.title,
+          },
+        },
+      });
+      // Flip Home to Plan B as the active mode (visible to the user).
+      if (state.home.active_plan !== "plan_b") {
+        dispatch({ type: "home/setPlan", payload: "plan_b" });
+        switchedToPlanB = true;
+      }
+      toast.success(`Today softened — ${halved}-min first move queued.`);
+    }
+
+    const signal: RescueSignal = {
+      id: crypto.randomUUID(),
+      reason: id as RescueSignal["reason"],
+      created_at: new Date().toISOString(),
+      affected_task_id: next?.id ?? "",
+      shrunk_to_minutes: shrunkTo,
+      switched_to_plan_b: switchedToPlanB,
+      note: "",
+    };
+    dispatch({ type: "rescue/log", payload: signal });
+  };
 
   useEffect(() => {
     if (picked) ai.run({ reason: picked });
@@ -78,7 +130,7 @@ const Rescue = () => {
         {reasons.map((r) => (
           <button
             key={r.id}
-            onClick={() => setPicked(r.id as keyof typeof protocols)}
+            onClick={() => handlePick(r.id as keyof typeof protocols)}
             className={`rounded-xl border p-4 text-left text-sm transition-colors ${
               picked === r.id
                 ? "border-primary bg-primary/10 text-foreground"

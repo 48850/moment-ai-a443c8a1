@@ -208,6 +208,29 @@ function tools(intent: string) {
         additionalProperties: false,
       },
     },
+    refine_task: {
+      name: "answer",
+      description:
+        "Given a user's recent Tune feedback on a task, propose targeted edits. ONLY return fields that should change. The heuristic engine has already applied a first-pass mutation; your job is to refine title clarity and description specificity for THIS goal.",
+      parameters: {
+        type: "object",
+        properties: {
+          changes: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "Rewritten task title — concrete, first-step framed, under 80 chars." },
+              description: { type: "string", description: "Optional one-sentence description with the actual first physical step." },
+              estimated_minutes: { type: "number", description: "Override the estimate only if it's clearly wrong." },
+              priority: { type: "string", enum: ["high", "medium", "low"] },
+            },
+            additionalProperties: false,
+          },
+          reasoning: { type: "string", description: "One sentence on why these edits help." },
+        },
+        required: ["changes"],
+        additionalProperties: false,
+      },
+    },
   };
   return T[intent];
 }
@@ -251,6 +274,8 @@ Propose exactly 3 features that would feel indispensable to THIS user pursuing T
       return `${ctx}\n\nReflections: ${JSON.stringify(payload?.reflections ?? [])}\nName one true pattern (energy, friction, timing). One line of honest encouragement.`;
     case "mission_insight":
       return `${ctx}\n\nPursuit model: ${JSON.stringify(payload?.pursuit ?? null)}\nWorkstream statuses: ${JSON.stringify(payload?.workstreams ?? [])}\nWhat's the one thing the user should notice?`;
+    case "refine_task":
+      return `Goal: ${payload?.goal || goal}\n\nTask after first-pass shrink: ${JSON.stringify(payload?.task ?? {})}\nUser's Tune feedback: "${payload?.feedback}".\n\nRefine ONLY the fields that need it. Lead with the first physical step. If the title is already concrete, leave it alone (return an empty title — do not invent one). Be specific to THIS goal — never generic productivity-speak.`;
     default:
       return ctx;
   }

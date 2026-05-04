@@ -484,6 +484,40 @@ export const useStateStore = create<StateStore>((set, get) => ({
         };
         break;
       }
+
+      case "task/tune": {
+        const { id, feedback, change, changes } = action.payload;
+        next = {
+          ...s,
+          tasks: s.tasks.map((t) => {
+            if (t.id !== id) return t;
+            const tuneNote = {
+              at: now(),
+              feedback,
+              change,
+            };
+            return {
+              ...t,
+              ...changes,
+              tune_notes: [...((t as any).tune_notes ?? []), tuneNote],
+            } as typeof t;
+          }),
+        };
+        break;
+      }
+
+      case "rescue/log": {
+        next = { ...s, rescue_signals: [...(s.rescue_signals ?? []), action.payload] };
+        break;
+      }
+
+      case "chat/setPreferences": {
+        next = {
+          ...s,
+          chat_preferences: { ...(s.chat_preferences ?? { tone: "default" }), ...action.payload },
+        };
+        break;
+      }
     }
 
     next = touch(next);
