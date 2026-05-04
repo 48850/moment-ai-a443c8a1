@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Hammer, Sparkles, Check, Loader2, Plus, Archive, Trash2, Pencil, Play } from "lucide-react";
+import { Hammer, Sparkles, Check, Loader2, Plus, Archive, Trash2, Pencil, Play, X } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { getForgeViewModel } from "@/lib/selectors/forge";
 import { useAI } from "@/lib/ai/useAI";
-import { AIInsight } from "@/components/app/AIInsight";
+import { ModuleEngine } from "@/components/app/forge/engines";
 import type { FeatureCandidate, GeneratedModuleManifest, ModuleEntry } from "@/lib/types";
 
 type AIModule = {
