@@ -76,7 +76,7 @@ const Forge = () => {
             active modules · {activeModules.length}
           </div>
           {activeModules.map((m) => (
-            <ModuleContainer key={m.id} module={m} />
+            <ModuleContainer key={m.id} mod={m} />
           ))}
         </section>
       )}
