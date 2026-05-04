@@ -6,43 +6,20 @@ import { FEEDBACK_LABELS } from "@/lib/feedback/labels";
 import { PatternBanner } from "@/components/app/PatternBanner";
 import { AIInsight } from "@/components/app/AIInsight";
 import { useAI } from "@/lib/ai/useAI";
+import { selectAuditMetrics } from "@/lib/selectors/audit";
 
 const Audit = () => {
   const state = useStateStore((s) => s.state);
 
-  const audit = useAI<{ drift_score: number; status: string; reasons: string[]; recommendation: string }>("goal_audit");
+  const audit = useAI<{ drift_score: number; status: string; reasons: string[]; recommendation: string }>(
+    "goal_audit",
+  );
 
-  const stats = useMemo(() => {
-    if (!state) return null;
-    const tasks = state.tasks ?? [];
-    const done = tasks.filter((t) => t.status === "done").length;
-    const total = tasks.length;
-    const reflections = state.reflections ?? [];
-    const lastWeek = reflections.filter((r) => {
-      const d = new Date(r.date).getTime();
-      return Date.now() - d <= 7 * 86400000;
-    });
-    const avgEnergy = lastWeek.length
-      ? Math.round((lastWeek.reduce((a, r) => a + r.energy_rating, 0) / lastWeek.length) * 10) / 10
-      : 0;
+  const metrics = useMemo(() => (state ? selectAuditMetrics(state) : null), [state]);
+  const goalProgress = useMemo(() => (state ? computeGoalProgress(state) : 0), [state]);
 
-    const fb = state.execution_feedback ?? [];
-    const counts: Record<string, number> = {};
-    fb.forEach((f) => { counts[f.feedback] = (counts[f.feedback] ?? 0) + 1; });
-
-    return {
-      goalProgress: computeGoalProgress(state),
-      taskCompletion: total > 0 ? Math.round((done / total) * 100) : 0,
-      tasksDone: done,
-      tasksTotal: total,
-      avgEnergy,
-      reflectionStreak: lastWeek.length,
-      feedbackCounts: counts,
-      feedbackTotal: fb.length,
-    };
-  }, [state]);
-
-  if (!state || !stats) return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
+  if (!state || !metrics)
+    return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -54,22 +31,44 @@ const Audit = () => {
 
       <PatternBanner />
 
+      {/* Bottleneck hypothesis derived from real state — always visible */}
+      <section className="rounded-2xl border border-primary/30 bg-gradient-to-b from-primary/5 to-transparent p-5">
+        <div className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
+          where you're stuck right now
+        </div>
+        <p className="mt-2 text-sm font-medium text-foreground">{metrics.bottleneck_hypothesis}</p>
+        <p className="mt-2 text-xs text-muted-foreground">{metrics.recommended_adjustment}</p>
+      </section>
+
       <AIInsight
         label="goal audit"
         loading={audit.loading}
         error={audit.error}
-        onRun={() => audit.run({ feedback: state.execution_feedback?.slice(-30), reflections: state.reflections?.slice(-14) })}
-        cta={audit.result ? "Re-run" : "Run audit"}
+        onRun={() =>
+          audit.run({
+            metrics,
+            feedback: state.execution_feedback?.slice(-30),
+            reflections: state.reflections?.slice(-14),
+            rescue_signals: state.rescue_signals?.slice(-10),
+          })
+        }
+        cta={audit.result ? "Re-run" : "Run deeper audit"}
       >
         {audit.result && (
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-xs">
-              <span className="rounded-full border border-border bg-card px-2 py-0.5">drift {audit.result.drift_score}</span>
-              <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-primary">{audit.result.status}</span>
+              <span className="rounded-full border border-border bg-card px-2 py-0.5">
+                drift {audit.result.drift_score}
+              </span>
+              <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-primary">
+                {audit.result.status}
+              </span>
             </div>
             {audit.result.reasons?.length > 0 && (
               <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-0.5">
-                {audit.result.reasons.map((r, i) => <li key={i}>{r}</li>)}
+                {audit.result.reasons.map((r, i) => (
+                  <li key={i}>{r}</li>
+                ))}
               </ul>
             )}
             <div className="text-sm">{audit.result.recommendation}</div>
@@ -77,25 +76,58 @@ const Audit = () => {
         )}
       </AIInsight>
 
-
       <section className="grid grid-cols-2 gap-3 md:grid-cols-3">
-        <Stat label="Goal progress" value={`${stats.goalProgress}%`} />
-        <Stat label="Tasks done" value={`${stats.tasksDone}/${stats.tasksTotal}`} sub={`${stats.taskCompletion}%`} />
-        <Stat label="Reflections (7d)" value={`${stats.reflectionStreak}`} />
-        <Stat label="Avg energy" value={stats.avgEnergy ? `${stats.avgEnergy}/5` : "—"} />
+        <Stat label="Goal progress" value={`${goalProgress}%`} />
+        <Stat
+          label="Tasks done"
+          value={`${metrics.tasks_done}/${metrics.tasks_total}`}
+          sub={`${metrics.task_completion_pct}% · ${metrics.tasks_done_today} today`}
+        />
+        <Stat label="Reflections (7d)" value={`${metrics.reflections_7d}`} />
+        <Stat
+          label="Avg energy"
+          value={metrics.avg_energy_7d ? `${metrics.avg_energy_7d}/5` : "—"}
+        />
+        <Stat
+          label="Rescue (7d)"
+          value={`${metrics.rescue_signals_7d}`}
+          sub={metrics.most_recent_rescue ?? undefined}
+        />
+        <Stat
+          label="Plan"
+          value={metrics.plan_b_active ? "Plan B" : "Plan A"}
+          sub={metrics.plan_b_active ? "softened today" : undefined}
+        />
+        <Stat
+          label="Forge modules"
+          value={`${metrics.forge_modules_active}`}
+          sub={`${metrics.forge_entries_7d} runs / 7d`}
+        />
         <Stat label="Active goal" value={state.active_goal.status} />
-        <Stat label="Plan" value={state.home.active_plan === "plan_b" ? "Plan B" : "Plan A"} />
+        <Stat
+          label="Top signal"
+          value={
+            metrics.most_common_feedback
+              ? FEEDBACK_LABELS[metrics.most_common_feedback as keyof typeof FEEDBACK_LABELS] ??
+                metrics.most_common_feedback
+              : "—"
+          }
+          sub={
+            metrics.most_common_feedback ? `${metrics.most_common_feedback_count}×` : undefined
+          }
+        />
       </section>
 
-      {stats.feedbackTotal > 0 && (
+      {metrics.feedback_total > 0 && (
         <section className="rounded-2xl border border-border bg-card p-5">
           <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Task feedback patterns
           </div>
           <div className="mt-3 space-y-2">
             {FEEDBACK_OPTIONS.map((opt) => {
-              const c = stats.feedbackCounts[opt] ?? 0;
-              const pct = stats.feedbackTotal > 0 ? (c / stats.feedbackTotal) * 100 : 0;
+              const c = metrics.feedback_breakdown[opt] ?? 0;
+              const pct = metrics.feedback_total > 0 ? (c / metrics.feedback_total) * 100 : 0;
+              if (c === 0) return null;
               return (
                 <div key={opt}>
                   <div className="flex items-center justify-between text-xs">
@@ -117,17 +149,31 @@ const Audit = () => {
           Honest signals
         </div>
         <ul className="mt-3 space-y-2 text-sm">
-          {stats.taskCompletion < 30 && stats.tasksTotal > 3 && (
+          {metrics.task_completion_pct < 30 && metrics.tasks_total > 3 && (
             <li>↘ You're starting more than you're finishing. Try shrinking tasks.</li>
           )}
-          {stats.feedbackCounts.too_big > 1 && (
-            <li>⚠ You've flagged tasks as "too big" {stats.feedbackCounts.too_big}× — break them down in chat.</li>
+          {(metrics.feedback_breakdown.too_big ?? 0) > 1 && (
+            <li>
+              ⚠ You've flagged tasks as "too big" {metrics.feedback_breakdown.too_big}× — Tune
+              chips already shrunk them. Watch if it sticks.
+            </li>
           )}
-          {stats.reflectionStreak >= 5 && <li>✓ Strong reflection streak this week.</li>}
-          {stats.avgEnergy && stats.avgEnergy < 2.5 && (
+          {metrics.rescue_signals_7d >= 2 && (
+            <li>↘ Rescue fired {metrics.rescue_signals_7d}× this week — capacity is the constraint.</li>
+          )}
+          {metrics.reflections_7d >= 5 && <li>✓ Strong reflection streak this week.</li>}
+          {metrics.avg_energy_7d > 0 && metrics.avg_energy_7d < 2.5 && (
             <li>↘ Your energy has been low. Rescue → "I'm wiped out" might help.</li>
           )}
-          {stats.tasksDone === 0 && stats.tasksTotal === 0 && <li>Nothing tracked yet. Start with one task in Plan.</li>}
+          {metrics.tasks_done === 0 && metrics.tasks_total === 0 && (
+            <li>Nothing tracked yet. Start with one task in Plan.</li>
+          )}
+          {metrics.forge_modules_active > 0 && metrics.forge_entries_7d === 0 && (
+            <li>
+              ⚠ {metrics.forge_modules_active} Forge module{metrics.forge_modules_active > 1 ? "s" : ""}{" "}
+              active but no entries this week. They're not earning their place yet.
+            </li>
+          )}
         </ul>
       </section>
     </div>
@@ -138,7 +184,7 @@ const Stat = ({ label, value, sub }: { label: string; value: string; sub?: strin
   <div className="rounded-xl border border-border bg-card p-4">
     <div className="text-xs text-muted-foreground">{label}</div>
     <div className="mt-1 text-xl font-semibold tracking-tight">{value}</div>
-    {sub && <div className="text-[10px] text-muted-foreground">{sub}</div>}
+    {sub && <div className="mt-0.5 text-[10px] text-muted-foreground">{sub}</div>}
   </div>
 );
 
