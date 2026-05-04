@@ -17,6 +17,8 @@ import {
   evidenceSignalSchema,
   operatingModeSchema,
   compiledPursuitModelSchema,
+  rescueSignalSchema,
+  chatPreferencesSchema,
 } from "@/lib/state/schema";
 
 export type MomentState = z.infer<typeof momentStateSchema>;
