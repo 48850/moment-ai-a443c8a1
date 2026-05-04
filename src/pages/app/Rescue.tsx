@@ -130,7 +130,7 @@ const Rescue = () => {
         {reasons.map((r) => (
           <button
             key={r.id}
-            onClick={() => setPicked(r.id as keyof typeof protocols)}
+            onClick={() => handlePick(r.id as keyof typeof protocols)}
             className={`rounded-xl border p-4 text-left text-sm transition-colors ${
               picked === r.id
                 ? "border-primary bg-primary/10 text-foreground"
