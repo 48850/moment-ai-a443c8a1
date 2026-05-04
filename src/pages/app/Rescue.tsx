@@ -97,7 +97,7 @@ const Rescue = () => {
 
     const signal: RescueSignal = {
       id: crypto.randomUUID(),
-      reason: id,
+      reason: id as RescueSignal["reason"],
       created_at: new Date().toISOString(),
       affected_task_id: next?.id ?? "",
       shrunk_to_minutes: shrunkTo,
