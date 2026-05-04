@@ -68,6 +68,8 @@ export const useStateStore = create<StateStore>((set, get) => ({
           generated_modules: [], compiler_status: "idle",
         },
         pursuit_model: "pursuit_model" in saved ? saved.pursuit_model : null,
+        rescue_signals: (saved as any).rescue_signals ?? [],
+        chat_preferences: (saved as any).chat_preferences ?? { tone: "default" },
       };
       set({ state: hydrated, isHydrated: true });
     } else {

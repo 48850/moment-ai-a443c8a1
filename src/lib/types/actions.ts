@@ -11,19 +11,19 @@ import type {
   PursuitWorkstream,
   PursuitRisk,
   AppMode,
+  RescueSignal,
+  ChatPreferences,
 } from "@/lib/types";
 
 /**
  * Typed action union for the Moment dispatch system.
- * AUDIT FIXES vs. archive:
- *   - Added `feedback/add` (was missing)
- *   - Added `plan/reform` (was missing)
  */
 export type MomentAction =
   | { type: "task/add"; payload: Task }
   | { type: "task/update"; payload: { id: string; changes: Partial<Task> } }
   | { type: "task/complete"; payload: { id: string; completed_at: string } }
   | { type: "task/delete"; payload: { id: string } }
+  | { type: "task/tune"; payload: { id: string; feedback: string; change: string; changes: Partial<Task> } }
   | { type: "schedule/addBlock"; payload: ScheduleBlock }
   | { type: "schedule/updateBlock"; payload: { id: string; changes: Partial<ScheduleBlock> } }
   | { type: "feedback/add"; payload: ExecutionFeedbackItem }
@@ -31,6 +31,8 @@ export type MomentAction =
   | { type: "reflection/add"; payload: Reflection }
   | { type: "alignment/set"; payload: AlignmentState }
   | { type: "home/setPlan"; payload: "plan_a" | "plan_b" }
+  | { type: "rescue/log"; payload: RescueSignal }
+  | { type: "chat/setPreferences"; payload: Partial<ChatPreferences> }
   | { type: "goal/set"; payload: MomentState["active_goal"] }
   | { type: "goal/patch"; payload: Partial<MomentState["active_goal"]> }
   | { type: "pursuit/set_model"; payload: CompiledPursuitModel }

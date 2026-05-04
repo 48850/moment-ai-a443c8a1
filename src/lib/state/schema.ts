@@ -117,6 +117,12 @@ export const systemStateSchema = z.object({
   state_version: z.number(),
 });
 
+export const taskTuneNoteSchema = z.object({
+  at: z.string(),
+  feedback: z.string(),
+  change: z.string(),
+});
+
 export const taskSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -136,6 +142,12 @@ export const taskSchema = z.object({
   parent_milestone_id: z.string().optional(),
   fallback_task_id: z.string().optional(),
   workstream_id: z.string().optional(),
+  /** Lineage of Tune adjustments — visible on the task. */
+  tune_notes: z.array(taskTuneNoteSchema).default([]).optional(),
+  /** True when the task has been auto-mutated by feedback. */
+  was_tuned: z.boolean().default(false).optional(),
+  /** Original title before the most recent tune (for context only). */
+  original_title: z.string().default("").optional(),
 });
 
 export const frictionTagSchema = z.enum([
@@ -223,6 +235,20 @@ export const alignmentStateSchema = z.object({
 
 export const homeStateSchema = z.object({
   active_plan: z.enum(["plan_a", "plan_b"]),
+});
+
+export const rescueSignalSchema = z.object({
+  id: z.string(),
+  reason: z.enum(["overwhelmed", "tired", "stuck", "anxious"]),
+  created_at: z.string(),
+  affected_task_id: z.string().default(""),
+  shrunk_to_minutes: z.number().default(0),
+  switched_to_plan_b: z.boolean().default(false),
+  note: z.string().default(""),
+});
+
+export const chatPreferencesSchema = z.object({
+  tone: z.enum(["default", "gentler", "more_direct"]).default("default"),
 });
 
 export const forgeStateSchema = z.object({
@@ -336,4 +362,6 @@ export const momentStateSchema = z.object({
     generated_modules: [], compiler_status: "idle",
   }),
   pursuit_model: compiledPursuitModelSchema.nullable(),
+  rescue_signals: z.array(rescueSignalSchema).default([]),
+  chat_preferences: chatPreferencesSchema.default({ tone: "default" }),
 });

@@ -231,6 +231,8 @@ export function createDefaultState(userId: string, displayName: string, timezone
       generated_modules: [], compiler_status: "idle",
     },
     pursuit_model: null,
+    rescue_signals: [],
+    chat_preferences: { tone: "default" },
   };
 
   base.pursuit_model = compilePursuitModel(base.active_goal, null);
