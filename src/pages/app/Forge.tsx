@@ -145,6 +145,12 @@ const Forge = () => {
           </div>
           {vm.candidates.map((c) => {
             const selected = vm.selected_features.some((f) => f.id === c.id);
+            const cfg = (c as any).config ?? {};
+            const previewBits: string[] = [];
+            if (Array.isArray(cfg.fields)) previewBits.push(...cfg.fields.slice(0, 3).map((f: any) => f.label));
+            if (Array.isArray(cfg.steps)) previewBits.push(`${cfg.steps.length} steps`);
+            if (Array.isArray(cfg.drills)) previewBits.push(...cfg.drills.slice(0, 3).map((d: any) => `${d.name} ${d.minutes}m`));
+            if (Array.isArray(cfg.slots)) previewBits.push(...cfg.slots.slice(0, 3).map((s: any) => `${s.label} · ${s.cadence}`));
             return (
               <button
                 key={c.id}
@@ -158,8 +164,8 @@ const Forge = () => {
                 }`}>
                   {selected && <Check className="h-3 w-3" strokeWidth={3} />}
                 </span>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-medium">{c.name}</span>
                     <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
                       {c.module_type.replace("_", " ")}
@@ -167,6 +173,15 @@ const Forge = () => {
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">{c.description}</p>
                   {c.why && <p className="mt-1 text-xs text-primary/80">{c.why}</p>}
+                  {previewBits.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {previewBits.slice(0, 4).map((b, i) => (
+                        <span key={i} className="rounded-md border border-border bg-background/50 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                          {b}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </button>
             );
