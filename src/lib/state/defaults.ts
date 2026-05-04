@@ -1,5 +1,6 @@
 import type { MomentState } from "@/lib/types";
 import { compilePursuitModel } from "@/lib/pursuit/compiler";
+import { seedWeekPlan } from "@/lib/engine/week-plan";
 
 /**
  * Build a fresh MomentState seeded with demo content so the redesigned
