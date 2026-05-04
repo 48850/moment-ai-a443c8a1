@@ -117,6 +117,12 @@ export const systemStateSchema = z.object({
   state_version: z.number(),
 });
 
+export const taskTuneNoteSchema = z.object({
+  at: z.string(),
+  feedback: z.string(),
+  change: z.string(),
+});
+
 export const taskSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -136,6 +142,12 @@ export const taskSchema = z.object({
   parent_milestone_id: z.string().optional(),
   fallback_task_id: z.string().optional(),
   workstream_id: z.string().optional(),
+  /** Lineage of Tune adjustments — visible on the task. */
+  tune_notes: z.array(taskTuneNoteSchema).default([]).optional(),
+  /** True when the task has been auto-mutated by feedback. */
+  was_tuned: z.boolean().default(false).optional(),
+  /** Original title before the most recent tune (for context only). */
+  original_title: z.string().default("").optional(),
 });
 
 export const frictionTagSchema = z.enum([
