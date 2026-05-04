@@ -38,6 +38,8 @@ export type PursuitRisk = z.infer<typeof pursuitRiskSchema>;
 export type EvidenceSignal = z.infer<typeof evidenceSignalSchema>;
 export type OperatingMode = z.infer<typeof operatingModeSchema>;
 export type CompiledPursuitModel = z.infer<typeof compiledPursuitModelSchema>;
+export type RescueSignal = z.infer<typeof rescueSignalSchema>;
+export type ChatPreferences = z.infer<typeof chatPreferencesSchema>;
 export type { PursuitFamily } from "@/lib/pursuit/families";
 
 export interface ForgeInterviewAnswer {
