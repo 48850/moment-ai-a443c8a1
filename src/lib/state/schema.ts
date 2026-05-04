@@ -237,6 +237,20 @@ export const homeStateSchema = z.object({
   active_plan: z.enum(["plan_a", "plan_b"]),
 });
 
+export const rescueSignalSchema = z.object({
+  id: z.string(),
+  reason: z.enum(["overwhelmed", "tired", "stuck", "anxious"]),
+  created_at: z.string(),
+  affected_task_id: z.string().default(""),
+  shrunk_to_minutes: z.number().default(0),
+  switched_to_plan_b: z.boolean().default(false),
+  note: z.string().default(""),
+});
+
+export const chatPreferencesSchema = z.object({
+  tone: z.enum(["default", "gentler", "more_direct"]).default("default"),
+});
+
 export const forgeStateSchema = z.object({
   interview_answers: z.array(z.any()).default([]),
   candidate_features: z.array(z.any()).default([]),
