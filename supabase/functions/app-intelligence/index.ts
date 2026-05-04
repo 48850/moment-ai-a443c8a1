@@ -230,7 +230,19 @@ function userPrompt(intent: string, snapshot: any, payload: any): string {
     case "goal_audit":
       return `${ctx}\n\nLast 14 days feedback: ${JSON.stringify(payload?.feedback ?? [])}\nReflections: ${JSON.stringify(payload?.reflections ?? [])}\nReport drift honestly. Suggest recommit / pivot / shrink.`;
     case "forge_modules":
-      return `${ctx}\n\nInterview answers: ${JSON.stringify(payload?.answers ?? [])}\nPropose up to 3 custom features that would feel indispensable to THIS user.`;
+      return `${ctx}
+
+Interview answers: ${JSON.stringify(payload?.answers ?? [])}
+
+Propose exactly 3 features that would feel indispensable to THIS user pursuing THIS goal. Rules:
+- Names must reference the user's domain (e.g. "Serve Toss Tracker" not "Practice Tracker"). Avoid generic words like "Daily", "System", "Loop" unless paired with a domain word.
+- Each "why" must cite something the user actually said in the interview answers. One sentence.
+- Configs must be domain-specific:
+  • tracker fields: name the actual signals to log (e.g. {key:"first_serve_pct", label:"1st serve %", kind:"number"}). 2-4 fields.
+  • rescue_protocol steps: 3-4 steps written for THIS goal's typical stall, not generic mindfulness.
+  • practice_system drills: 3-5 drills with realistic minutes, named after real techniques in the domain.
+  • planner slots: 2-4 slots with cadences that fit a teen's week.
+- Pick module_types that match the user's stated needs (structure/depth/speed/accountability). Don't return 3 of the same type unless clearly warranted.`;
     case "rescue_protocol":
       return `${ctx}\n\nThe user feels: "${payload?.reason}". Give a gentle 3-4 step protocol. No motivation-speak.`;
     case "suggest_tasks":
