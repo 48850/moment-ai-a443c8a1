@@ -237,10 +237,6 @@ export function createDefaultState(userId: string, displayName: string, timezone
   };
 
   base.pursuit_model = compilePursuitModel(base.active_goal, null);
-  // Seed a 7-day liquid week plan so Plan/Weeks renders immediately.
-  // Imported lazily to avoid a circular import via types.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { seedWeekPlan } = require("@/lib/engine/week-plan") as typeof import("@/lib/engine/week-plan");
   base.schedule_state.week_plan = seedWeekPlan(base);
   base.schedule_state.week_plan_generated_at = now;
   return base;
