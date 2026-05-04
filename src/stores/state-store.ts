@@ -387,15 +387,21 @@ export const useStateStore = create<StateStore>((set, get) => ({
           s.forge_state.selected_feature_ids ?? [],
           s.forge_state.candidate_features ?? [],
         );
-        const existing = (s.forge_state.generated_modules ?? []).filter((m: any) => m.status !== "archived");
-        const existingNames = new Set(existing.map((m: any) => m.name));
-        const fresh = modules.filter((m) => !existingNames.has(m.name));
+        const existing = (s.forge_state.generated_modules ?? []);
+        const existingActiveNames = new Set(
+          existing.filter((m: any) => m.status === "active").map((m: any) => m.name),
+        );
+        const fresh = modules.filter((m) => !existingActiveNames.has(m.name));
         next = {
           ...s,
           forge_state: {
             ...s.forge_state,
             generated_modules: [...existing, ...fresh],
-            compiler_status: "instantiated",
+            // Clear proposal stack — modules now live as execution containers above.
+            interview_answers: [],
+            candidate_features: [],
+            selected_feature_ids: [],
+            compiler_status: "idle",
             last_generated_at: now(),
           },
         };
