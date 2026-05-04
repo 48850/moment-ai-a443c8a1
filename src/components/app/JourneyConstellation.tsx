@@ -291,6 +291,16 @@ export const JourneyConstellation = ({ state }: Props) => {
       });
     }
 
+    // Guarantee at least 10 nodes — fill with horizon possibilities.
+    const MIN_NODES = 10;
+    if (ordered.length < MIN_NODES) {
+      const fillers = buildHorizonFiller(MIN_NODES - ordered.length, mountSeed);
+      // Insert fillers BEFORE the goal node (if present) so the goal stays at the end.
+      const goalNode = ordered[ordered.length - 1]?.type === "goal" ? ordered.pop() : null;
+      ordered.push(...fillers);
+      if (goalNode) ordered.push(goalNode);
+    }
+
     const total = ordered.length;
     const widthPerNode = total > 20 ? 160 : 200;
     const canvasWidth = Math.max(900, total * widthPerNode);
@@ -312,9 +322,9 @@ export const JourneyConstellation = ({ state }: Props) => {
       total > 40 ? "ultra" : total > 20 ? "dense" : "standard";
 
     return { nodes: ordered, links, canvasWidth, canvasHeight, density };
-  }, [state.tasks, state.active_goal]);
+  }, [state.tasks, state.active_goal, mountSeed]);
 
-  if (nodes.length <= 1) return null;
+  if (nodes.length === 0) return null;
 
   const zoneEdges = ZONES.map((_, i) => ((i + 1) / ZONES.length) * canvasWidth);
   const nodeRadius = density === "ultra" ? 6 : density === "dense" ? 9 : 14;
