@@ -4,6 +4,7 @@ import { useStateStore } from "@/stores/state-store";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { FeedbackChips } from "@/components/app/FeedbackChips";
+import { selectChatSnapshot } from "@/lib/selectors/chat";
 
 type ChatMessage = {
   id: string;
