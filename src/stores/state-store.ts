@@ -11,6 +11,7 @@ import {
   selectTopFeatures,
   instantiateModuleManifests,
 } from "@/lib/forge/compiler";
+import { seedWeekPlan, reformWeekPlan, sortBlocks as weekSort } from "@/lib/engine/week-plan";
 
 interface StateStore {
   state: MomentState | null;
