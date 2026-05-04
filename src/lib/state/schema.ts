@@ -362,4 +362,6 @@ export const momentStateSchema = z.object({
     generated_modules: [], compiler_status: "idle",
   }),
   pursuit_model: compiledPursuitModelSchema.nullable(),
+  rescue_signals: z.array(rescueSignalSchema).default([]),
+  chat_preferences: chatPreferencesSchema.default({ tone: "default" }),
 });
