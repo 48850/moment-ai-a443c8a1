@@ -210,7 +210,7 @@ const Forge = () => {
 
 /* ---------------- Execution Container — launch & run ---------------- */
 
-function ModuleContainer({ module: m }: { module: GeneratedModuleManifest }) {
+function ModuleContainer({ mod: m }: { mod: GeneratedModuleManifest }) {
   const dispatch = useStateStore((s) => s.dispatch);
   const [editing, setEditing] = useState(false);
   const [launched, setLaunched] = useState(false);
@@ -234,22 +234,20 @@ function ModuleContainer({ module: m }: { module: GeneratedModuleManifest }) {
 
   const runCount = (m.entries ?? []).length;
 
-  // LAUNCHED VIEW — full runtime takes over the card
+  // LAUNCHED VIEW — focused runtime, minimal chrome
   if (launched) {
     return (
-      <div className="rounded-2xl border border-primary/40 bg-card overflow-hidden shadow-sm">
-        <div className="flex items-center justify-between gap-3 border-b border-border bg-primary/5 px-4 py-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
-              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">live</span>
-              <span className="truncate text-sm font-medium">{m.title}</span>
-            </div>
-            <div className="mt-0.5 text-[11px] text-muted-foreground">{m.module_type.replace("_", " ")}</div>
-          </div>
-          <button onClick={() => setLaunched(false)} className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs">
-            <X className="h-3 w-3" /> Close
+      <div className="rounded-2xl border border-primary/30 bg-card overflow-hidden">
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-border/60">
+          <button onClick={() => setLaunched(false)} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground">
+            <X className="h-3.5 w-3.5" />
+            <span className="truncate">{m.title}</span>
           </button>
+          {runCount > 0 && (
+            <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+              {runCount} {runCount === 1 ? "run" : "runs"}
+            </span>
+          )}
         </div>
         <div className="p-4">
           <ModuleEngine module={m} logEntry={logEntry} />
@@ -262,8 +260,8 @@ function ModuleContainer({ module: m }: { module: GeneratedModuleManifest }) {
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <div className="flex items-start justify-between gap-3 p-4">
-        <button onClick={() => setLaunched(true)} className="flex-1 text-left">
-          <div className="flex items-center gap-2">
+        <button onClick={() => setLaunched(true)} className="flex-1 text-left min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-medium">{m.title}</span>
             <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
               {m.module_type.replace("_", " ")}
