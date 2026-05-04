@@ -332,18 +332,21 @@ const Plan = () => {
           )}
 
           {horizon === "weeks" && (
-            aiPlan?.weeks?.length ? (
-              <HorizonList
-                title="Weekly outcomes"
-                items={aiPlan.weeks.map((w, i) => ({
-                  key: `wk-${i}`,
-                  badge: w.week_range,
-                  title: w.title,
-                  detail: w.detail,
-                  meta: `→ ${w.outcome}`,
-                }))}
-              />
-            ) : <EmptyHorizon onGenerate={generatePlan} loading={aiLoading} hasGoal={!!goalText} label="weekly outcomes" />
+            <div className="space-y-6">
+              <WeeklyGrid />
+              {aiPlan?.weeks?.length ? (
+                <HorizonList
+                  title="AI weekly outcomes"
+                  items={aiPlan.weeks.map((w, i) => ({
+                    key: `wk-${i}`,
+                    badge: w.week_range,
+                    title: w.title,
+                    detail: w.detail,
+                    meta: `→ ${w.outcome}`,
+                  }))}
+                />
+              ) : null}
+            </div>
           )}
 
           {horizon === "months" && (
