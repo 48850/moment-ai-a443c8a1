@@ -101,7 +101,8 @@ export const FeedbackChips = ({
           supabase.functions
             .invoke("app-intelligence", {
               body: {
-                kind: "refine_task",
+                intent: "refine_task",
+                snapshot: { active_goal: state.active_goal },
                 payload: {
                   task: { ...task, ...outcome.changes },
                   feedback: key,
@@ -111,12 +112,20 @@ export const FeedbackChips = ({
             })
             .then(({ data, error }) => {
               if (error || !data) return;
-              const refined = (data as any).changes;
+              const refined = (data as any).result?.changes;
               if (refined && typeof refined === "object") {
-                dispatch({
-                  type: "task/update",
-                  payload: { id: taskId, changes: refined },
-                });
+                // Strip empty strings so we don't blank fields.
+                const clean: Record<string, unknown> = {};
+                for (const [k, v] of Object.entries(refined)) {
+                  if (v === "" || v === null || v === undefined) continue;
+                  clean[k] = v;
+                }
+                if (Object.keys(clean).length) {
+                  dispatch({
+                    type: "task/update",
+                    payload: { id: taskId, changes: clean as any },
+                  });
+                }
               }
             })
             .catch(() => {
