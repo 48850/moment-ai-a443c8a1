@@ -80,11 +80,25 @@ export const todayStateSchema = z.object({
   day_context_notes: z.string(),
 });
 
+// Liquid weekly grid — a 7-day plan that's easily reformable.
+export const WEEK_CATEGORIES = ["school", "goal", "commitment", "hobby", "rest"] as const;
+export const weekBlockSchema = z.object({
+  id: z.string(),
+  day_index: z.number().min(0).max(6), // 0 = Mon … 6 = Sun
+  start_time: z.string(), // "HH:MM"
+  end_time: z.string(),   // "HH:MM"
+  title: z.string(),
+  category: z.enum(WEEK_CATEGORIES),
+  notes: z.string().default(""),
+  is_locked: z.boolean().default(false), // school/commitments stay put unless edited
+});
+
 // AUDIT FIX: day_plan_a_snapshot added to preserve original plan across reforms.
 export const scheduleStateSchema = z.object({
   day_plan: z.array(scheduleBlockSchema),
   day_plan_a_snapshot: z.array(scheduleBlockSchema).default([]),
-  week_plan: z.array(z.any()),
+  week_plan: z.array(weekBlockSchema).default([]),
+  week_plan_generated_at: z.string().default(""),
   assumptions: z.array(z.string()),
   confidence: z.number().min(0).max(100),
   last_plan_generated_at: z.string(),

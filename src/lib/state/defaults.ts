@@ -1,5 +1,6 @@
 import type { MomentState } from "@/lib/types";
 import { compilePursuitModel } from "@/lib/pursuit/compiler";
+import { seedWeekPlan } from "@/lib/engine/week-plan";
 
 /**
  * Build a fresh MomentState seeded with demo content so the redesigned
@@ -236,5 +237,7 @@ export function createDefaultState(userId: string, displayName: string, timezone
   };
 
   base.pursuit_model = compilePursuitModel(base.active_goal, null);
+  base.schedule_state.week_plan = seedWeekPlan(base);
+  base.schedule_state.week_plan_generated_at = now;
   return base;
 }

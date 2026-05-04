@@ -11,6 +11,7 @@ import {
   selectTopFeatures,
   instantiateModuleManifests,
 } from "@/lib/forge/compiler";
+import { seedWeekPlan, reformWeekPlan, sortBlocks as weekSort } from "@/lib/engine/week-plan";
 
 interface StateStore {
   state: MomentState | null;
@@ -55,6 +56,8 @@ export const useStateStore = create<StateStore>((set, get) => ({
           ...saved.schedule_state,
           day_plan_a_snapshot: saved.schedule_state?.day_plan_a_snapshot ?? [],
           reform_note: saved.schedule_state?.reform_note ?? "",
+          week_plan: (saved.schedule_state as any)?.week_plan ?? [],
+          week_plan_generated_at: (saved.schedule_state as any)?.week_plan_generated_at ?? "",
         },
         alignment: saved.alignment ?? {
           status: "aligned",
@@ -164,6 +167,62 @@ export const useStateStore = create<StateStore>((set, get) => ({
           },
         };
         break;
+
+      case "week/set":
+        next = {
+          ...s,
+          schedule_state: {
+            ...s.schedule_state,
+            week_plan: action.payload,
+            week_plan_generated_at: now(),
+          },
+        };
+        break;
+      case "week/addBlock":
+        next = {
+          ...s,
+          schedule_state: {
+            ...s.schedule_state,
+            week_plan: [...(s.schedule_state.week_plan ?? []), action.payload].sort(weekSort),
+          },
+        };
+        break;
+      case "week/updateBlock":
+        next = {
+          ...s,
+          schedule_state: {
+            ...s.schedule_state,
+            week_plan: (s.schedule_state.week_plan ?? [])
+              .map((b: any) => (b.id === action.payload.id ? { ...b, ...action.payload.changes } : b))
+              .sort(weekSort),
+          },
+        };
+        break;
+      case "week/deleteBlock":
+        next = {
+          ...s,
+          schedule_state: {
+            ...s.schedule_state,
+            week_plan: (s.schedule_state.week_plan ?? []).filter((b: any) => b.id !== action.payload.id),
+          },
+        };
+        break;
+      case "week/seed": {
+        const seeded = seedWeekPlan(s);
+        next = {
+          ...s,
+          schedule_state: { ...s.schedule_state, week_plan: seeded, week_plan_generated_at: now() },
+        };
+        break;
+      }
+      case "week/reform": {
+        const reformed = reformWeekPlan(s, (s.schedule_state.week_plan ?? []) as any);
+        next = {
+          ...s,
+          schedule_state: { ...s.schedule_state, week_plan: reformed, week_plan_generated_at: now() },
+        };
+        break;
+      }
 
       // AUDIT FIX: typed feedback persistence.
       case "feedback/add": {

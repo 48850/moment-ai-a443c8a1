@@ -3,6 +3,7 @@ import {
   momentStateSchema,
   fixedCommitmentSchema,
   scheduleBlockSchema,
+  weekBlockSchema,
   pathwayDomainSchema,
   taskSchema,
   reflectionSchema,
@@ -24,6 +25,8 @@ import {
 export type MomentState = z.infer<typeof momentStateSchema>;
 export type FixedCommitment = z.infer<typeof fixedCommitmentSchema>;
 export type ScheduleBlock = z.infer<typeof scheduleBlockSchema>;
+export type WeekBlock = z.infer<typeof weekBlockSchema>;
+export type WeekCategory = WeekBlock["category"];
 export type PathwayDomain = z.infer<typeof pathwayDomainSchema>;
 export type Task = z.infer<typeof taskSchema>;
 export type Reflection = z.infer<typeof reflectionSchema>;

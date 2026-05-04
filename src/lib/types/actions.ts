@@ -2,6 +2,7 @@ import type {
   Task,
   Reflection,
   ScheduleBlock,
+  WeekBlock,
   AlignmentState,
   MomentState,
   ExecutionFeedbackItem,
@@ -26,6 +27,12 @@ export type MomentAction =
   | { type: "task/tune"; payload: { id: string; feedback: string; change: string; changes: Partial<Task> } }
   | { type: "schedule/addBlock"; payload: ScheduleBlock }
   | { type: "schedule/updateBlock"; payload: { id: string; changes: Partial<ScheduleBlock> } }
+  | { type: "week/set"; payload: WeekBlock[] }
+  | { type: "week/addBlock"; payload: WeekBlock }
+  | { type: "week/updateBlock"; payload: { id: string; changes: Partial<WeekBlock> } }
+  | { type: "week/deleteBlock"; payload: { id: string } }
+  | { type: "week/reform" }
+  | { type: "week/seed" }
   | { type: "feedback/add"; payload: ExecutionFeedbackItem }
   | { type: "plan/reform"; payload: { reformed_plan: ScheduleBlock[]; reform_note: string } }
   | { type: "reflection/add"; payload: Reflection }
