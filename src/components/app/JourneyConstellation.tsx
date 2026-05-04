@@ -206,8 +206,42 @@ const Starfield = () => {
 /* Component                                                                   */
 /* -------------------------------------------------------------------------- */
 
+// Regenerate filler horizon seed every mount so the sky feels alive on each open.
+const HORIZON_SEEDS = [
+  { zone: "Days" as Zone, prompts: ["First small move", "Tiny rep", "Open the file", "10-min sprint", "Quick reset"] },
+  { zone: "Weeks" as Zone, prompts: ["Visible artifact", "Share with one person", "Weekly review", "Pattern check", "Friction audit"] },
+  { zone: "Months" as Zone, prompts: ["First milestone", "Compounding habit", "Outside signal", "Skill leap", "Course correction"] },
+  { zone: "Years" as Zone, prompts: ["Identity shift", "Long arc proof", "Mastery threshold", "Quiet legacy", "Horizon opens"] },
+];
+
+function buildHorizonFiller(neededCount: number, mountSeed: number): ConstellationNode[] {
+  const out: ConstellationNode[] = [];
+  // Distribute across zones roughly evenly
+  const perZone = Math.ceil(neededCount / HORIZON_SEEDS.length);
+  let idx = 0;
+  for (const { zone, prompts } of HORIZON_SEEDS) {
+    for (let k = 0; k < perZone && out.length < neededCount; k++) {
+      const promptIdx = (mountSeed + idx * 7 + k * 3) % prompts.length;
+      out.push({
+        id: `__horizon_${zone}_${idx}_${k}`,
+        type: "domain",
+        title: prompts[promptIdx],
+        description: "A possible move on the horizon. Tap a real task to anchor it.",
+        category: zone,
+        progress: 0,
+        x: 0,
+        y: 0,
+      });
+      idx++;
+    }
+  }
+  return out;
+}
+
 export const JourneyConstellation = ({ state }: Props) => {
   const [focused, setFocused] = useState<ConstellationNode | null>(null);
+  // Stable per-mount seed → constellation regenerates each time the app is opened.
+  const mountSeed = useMemo(() => Math.floor(Math.random() * 10_000), []);
 
   const { nodes, links, canvasWidth, canvasHeight, density } = useMemo(() => {
     const tasks = state.tasks ?? [];
@@ -257,6 +291,16 @@ export const JourneyConstellation = ({ state }: Props) => {
       });
     }
 
+    // Guarantee at least 10 nodes — fill with horizon possibilities.
+    const MIN_NODES = 10;
+    if (ordered.length < MIN_NODES) {
+      const fillers = buildHorizonFiller(MIN_NODES - ordered.length, mountSeed);
+      // Insert fillers BEFORE the goal node (if present) so the goal stays at the end.
+      const goalNode = ordered[ordered.length - 1]?.type === "goal" ? ordered.pop() : null;
+      ordered.push(...fillers);
+      if (goalNode) ordered.push(goalNode);
+    }
+
     const total = ordered.length;
     const widthPerNode = total > 20 ? 160 : 200;
     const canvasWidth = Math.max(900, total * widthPerNode);
@@ -278,9 +322,9 @@ export const JourneyConstellation = ({ state }: Props) => {
       total > 40 ? "ultra" : total > 20 ? "dense" : "standard";
 
     return { nodes: ordered, links, canvasWidth, canvasHeight, density };
-  }, [state.tasks, state.active_goal]);
+  }, [state.tasks, state.active_goal, mountSeed]);
 
-  if (nodes.length <= 1) return null;
+  if (nodes.length === 0) return null;
 
   const zoneEdges = ZONES.map((_, i) => ((i + 1) / ZONES.length) * canvasWidth);
   const nodeRadius = density === "ultra" ? 6 : density === "dense" ? 9 : 14;
