@@ -20,11 +20,11 @@ const CATEGORY_META: Record<WeekCategory, {
   dot: string;      // legend swatch
   Icon: React.ComponentType<{ className?: string }>;
 }> = {
-  school:     { label: "School",     text: "text-amber-100",   bg: "bg-amber-500/20",   border: "border-l-amber-400",   dot: "bg-amber-400",   Icon: GraduationCap },
-  goal:       { label: "Goal",       text: "text-violet-100",  bg: "bg-violet-500/25",  border: "border-l-violet-400",  dot: "bg-violet-400",  Icon: Target },
-  commitment: { label: "Commitment", text: "text-rose-100",    bg: "bg-rose-500/20",    border: "border-l-rose-400",    dot: "bg-rose-400",    Icon: CalendarClock },
-  hobby:      { label: "Hobby",      text: "text-emerald-100", bg: "bg-emerald-500/20", border: "border-l-emerald-400", dot: "bg-emerald-400", Icon: Music },
-  rest:       { label: "Rest",       text: "text-slate-200",   bg: "bg-slate-500/20",   border: "border-l-slate-400",   dot: "bg-slate-400",   Icon: Moon },
+  school:     { label: "School",     text: "text-amber-50",    bg: "bg-amber-600",   border: "border-l-amber-300",   dot: "bg-amber-500",   Icon: GraduationCap },
+  goal:       { label: "Goal",       text: "text-violet-50",   bg: "bg-violet-600",  border: "border-l-violet-300",  dot: "bg-violet-500",  Icon: Target },
+  commitment: { label: "Commitment", text: "text-rose-50",     bg: "bg-rose-600",    border: "border-l-rose-300",    dot: "bg-rose-500",    Icon: CalendarClock },
+  hobby:      { label: "Hobby",      text: "text-emerald-50",  bg: "bg-emerald-600", border: "border-l-emerald-300", dot: "bg-emerald-500", Icon: Music },
+  rest:       { label: "Rest",       text: "text-slate-50",    bg: "bg-slate-600",   border: "border-l-slate-300",   dot: "bg-slate-500",   Icon: Moon },
 };
 
 const DAY_OF_WEEK_NUMS = [1, 2, 3, 4, 5, 6, 0]; // Mon..Sun JS day numbers
