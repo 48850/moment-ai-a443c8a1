@@ -1,0 +1,1 @@
+DELETE FROM public.moment_state;
