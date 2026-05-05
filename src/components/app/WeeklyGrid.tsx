@@ -1,31 +1,54 @@
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Plus, Trash2, Lock, RefreshCw, Sparkles, X } from "lucide-react";
+import { Plus, Trash2, Lock, RefreshCw, Sparkles, X, GraduationCap, Target, CalendarClock, Music, Moon } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
-import {
-  CATEGORY_META,
-  DAY_LABELS,
-  sortBlocks,
-} from "@/lib/engine/week-plan";
+import { sortBlocks } from "@/lib/engine/week-plan";
 import type { WeekBlock, WeekCategory } from "@/lib/types";
 
 const HOUR_START = 7;
-const HOUR_END = 22; // exclusive — visual range 07:00–22:00
-const HOUR_PX = 36;
+const HOUR_END = 22;
+const HOUR_PX = 56; // taller for breathing room
+
+const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+
+// Refined, more distinguishable palette
+const CATEGORY_META: Record<WeekCategory, {
+  label: string;
+  text: string;     // text color
+  bg: string;       // block background
+  border: string;   // left accent border
+  dot: string;      // legend swatch
+  Icon: React.ComponentType<{ className?: string }>;
+}> = {
+  school:     { label: "School",     text: "text-amber-100",   bg: "bg-amber-500/20",   border: "border-l-amber-400",   dot: "bg-amber-400",   Icon: GraduationCap },
+  goal:       { label: "Goal",       text: "text-violet-100",  bg: "bg-violet-500/25",  border: "border-l-violet-400",  dot: "bg-violet-400",  Icon: Target },
+  commitment: { label: "Commitment", text: "text-rose-100",    bg: "bg-rose-500/20",    border: "border-l-rose-400",    dot: "bg-rose-400",    Icon: CalendarClock },
+  hobby:      { label: "Hobby",      text: "text-emerald-100", bg: "bg-emerald-500/20", border: "border-l-emerald-400", dot: "bg-emerald-400", Icon: Music },
+  rest:       { label: "Rest",       text: "text-slate-200",   bg: "bg-slate-500/20",   border: "border-l-slate-400",   dot: "bg-slate-400",   Icon: Moon },
+};
+
+const DAY_OF_WEEK_NUMS = [1, 2, 3, 4, 5, 6, 0]; // Mon..Sun JS day numbers
+const todayIdx = (() => {
+  const js = new Date().getDay();
+  return DAY_OF_WEEK_NUMS.indexOf(js);
+})();
 
 function timeToY(hhmm: string): number {
   const [h, m] = hhmm.split(":").map(Number);
   return ((h - HOUR_START) * 60 + m) * (HOUR_PX / 60);
 }
 function durationPx(start: string, end: string): number {
-  return Math.max(20, timeToY(end) - timeToY(start));
+  return Math.max(28, timeToY(end) - timeToY(start));
 }
 function snapTime(minutes: number): string {
   const clamped = Math.max(HOUR_START * 60, Math.min(HOUR_END * 60, minutes));
   const snapped = Math.round(clamped / 15) * 15;
   return `${String(Math.floor(snapped / 60)).padStart(2, "0")}:${String(snapped % 60).padStart(2, "0")}`;
 }
-
+function toMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+}
 const uid = () => `wb_${Math.random().toString(36).slice(2, 10)}`;
 
 export function WeeklyGrid() {
@@ -33,6 +56,7 @@ export function WeeklyGrid() {
   const dispatch = useStateStore((s) => s.dispatch);
   const blocks = ((state?.schedule_state.week_plan ?? []) as WeekBlock[]).slice().sort(sortBlocks);
   const [editing, setEditing] = useState<WeekBlock | null>(null);
+  const [hoverDay, setHoverDay] = useState<number | null>(null);
 
   const blocksByDay = useMemo(() => {
     const out: WeekBlock[][] = [[], [], [], [], [], [], []];
@@ -40,19 +64,17 @@ export function WeeklyGrid() {
     return out;
   }, [blocks]);
 
-  // Auto-seed if empty
   if (state && blocks.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
+      <div className="rounded-2xl border border-dashed border-border bg-card/60 p-10 text-center">
         <Sparkles className="mx-auto h-5 w-5 text-primary" />
         <h3 className="mt-3 text-sm font-medium">Build your week</h3>
         <p className="mx-auto mt-2 max-w-sm text-xs text-muted-foreground">
-          We'll lay out school, your goal, commitments and hobbies across 7 days.
-          Every block is liquid — drag to reform anytime.
+          We'll lay out school, your goal, commitments and hobbies across 7 days. Every block is liquid — reform anytime.
         </p>
         <button
           onClick={() => dispatch({ type: "week/seed" })}
-          className="mt-4 rounded-md bg-primary px-4 py-2 text-xs font-medium text-primary-foreground"
+          className="mt-5 rounded-md bg-primary px-4 py-2 text-xs font-medium text-primary-foreground hover:opacity-90"
         >
           Generate week
         </button>
@@ -62,9 +84,10 @@ export function WeeklyGrid() {
 
   const hours = Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, i) => HOUR_START + i);
 
-  const addBlock = (dayIdx: number, startHour: number) => {
-    const start = `${String(startHour).padStart(2, "0")}:00`;
-    const end = `${String(startHour + 1).padStart(2, "0")}:00`;
+  const addBlock = (dayIdx: number, startMin: number) => {
+    const startTotal = Math.max(HOUR_START * 60, Math.min(HOUR_END * 60 - 60, startMin));
+    const start = snapTime(startTotal);
+    const end = snapTime(startTotal + 60);
     const block: WeekBlock = {
       id: uid(),
       day_index: dayIdx,
@@ -80,141 +103,179 @@ export function WeeklyGrid() {
   };
 
   return (
-    <section className="space-y-3">
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          <span>Liquid week</span>
-          <span className="text-border">·</span>
-          {(Object.keys(CATEGORY_META) as WeekCategory[]).map((cat) => (
-            <span key={cat} className={`inline-flex items-center gap-1 ${CATEGORY_META[cat].tone}`}>
-              <span className={`h-2 w-2 rounded-sm ${CATEGORY_META[cat].bg}`} />
-              {CATEGORY_META[cat].label}
-            </span>
-          ))}
+    <section className="space-y-4">
+      {/* Header / Toolbar */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <div className="text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground">Liquid Week</div>
+          <h2 className="mt-1 text-lg font-semibold tracking-tight">Your 7-day shape</h2>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => dispatch({ type: "week/reform" })}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs hover:border-primary/40"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium hover:border-primary/50 hover:bg-card/80"
           >
-            <RefreshCw className="h-3 w-3" /> Reform week
+            <RefreshCw className="h-3.5 w-3.5" /> Reform
           </button>
           <button
             onClick={() => dispatch({ type: "week/seed" })}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground"
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
           >
-            <Sparkles className="h-3 w-3" /> Reseed
+            <Sparkles className="h-3.5 w-3.5" /> Reseed
           </button>
         </div>
       </div>
 
+      {/* Legend */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px]">
+        {(Object.keys(CATEGORY_META) as WeekCategory[]).map((cat) => {
+          const m = CATEGORY_META[cat];
+          return (
+            <span key={cat} className="inline-flex items-center gap-1.5 text-muted-foreground">
+              <span className={`h-2 w-2 rounded-full ${m.dot}`} />
+              {m.label}
+            </span>
+          );
+        })}
+      </div>
+
       {/* Grid */}
-      <div className="overflow-x-auto rounded-2xl border border-border bg-card">
-        <div className="grid min-w-[760px]" style={{ gridTemplateColumns: `48px repeat(7, minmax(0, 1fr))` }}>
-          {/* Header row */}
-          <div className="border-b border-border" />
-          {DAY_LABELS.map((d) => (
-            <div key={d} className="border-b border-l border-border px-2 py-1.5 text-center text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              {d}
-            </div>
-          ))}
+      <div className="overflow-x-auto rounded-2xl border border-border bg-card/40">
+        <div
+          className="grid min-w-[860px]"
+          style={{ gridTemplateColumns: `64px repeat(7, minmax(0, 1fr))` }}
+        >
+          {/* Day header row */}
+          <div className="border-b border-border bg-card/60" />
+          {DAY_LABELS.map((d, i) => {
+            const isToday = i === todayIdx;
+            return (
+              <div
+                key={d}
+                className={`border-b border-l border-border px-3 py-2.5 text-left ${
+                  isToday ? "bg-primary/5" : "bg-card/60"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${isToday ? "text-primary" : "text-foreground/80"}`}>
+                    {d}
+                  </span>
+                  {isToday && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+                </div>
+                <div className="mt-0.5 text-[10px] text-muted-foreground">
+                  {blocksByDay[i].length} {blocksByDay[i].length === 1 ? "block" : "blocks"}
+                </div>
+              </div>
+            );
+          })}
 
           {/* Time gutter */}
           <div
-            className="relative border-r border-border"
+            className="relative border-r border-border bg-card/30"
             style={{ height: hours.length * HOUR_PX }}
           >
             {hours.map((h, i) => (
               <div
                 key={h}
-                className="absolute right-1 -translate-y-1/2 font-mono text-[9px] text-muted-foreground"
+                className="absolute right-2 -translate-y-1/2 font-mono text-[10px] tabular-nums text-muted-foreground/80"
                 style={{ top: i * HOUR_PX }}
               >
-                {String(h).padStart(2, "0")}
+                {String(h).padStart(2, "0")}:00
               </div>
             ))}
           </div>
 
           {/* Day columns */}
-          {DAY_LABELS.map((_, dayIdx) => (
-            <div
-              key={dayIdx}
-              className="relative border-l border-border"
-              style={{ height: hours.length * HOUR_PX }}
-              onDoubleClick={(e) => {
-                const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-                const y = e.clientY - rect.top;
-                const minutes = HOUR_START * 60 + Math.round(y / (HOUR_PX / 60));
-                addBlock(dayIdx, Math.floor(minutes / 60));
-              }}
-            >
-              {/* Hour grid lines */}
-              {hours.map((_, i) => (
-                <div
-                  key={i}
-                  className="absolute left-0 right-0 border-t border-border/50"
-                  style={{ top: i * HOUR_PX }}
-                />
-              ))}
-
-              {/* Empty-state add hint */}
-              {blocksByDay[dayIdx].length === 0 && (
-                <button
-                  type="button"
-                  onClick={() => addBlock(dayIdx, 17)}
-                  className="absolute inset-2 flex items-center justify-center rounded-md border border-dashed border-border/50 text-[10px] text-muted-foreground hover:border-primary/40 hover:text-primary"
-                >
-                  <Plus className="mr-1 h-3 w-3" /> add
-                </button>
-              )}
-
-              {/* Blocks */}
-              <AnimatePresence>
-                {blocksByDay[dayIdx].map((b) => {
-                  const meta = CATEGORY_META[b.category];
-                  return (
-                    <motion.button
-                      key={b.id}
-                      layout
-                      initial={{ opacity: 0, scale: 0.96 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.96 }}
-                      onClick={() => setEditing(b)}
-                      className={`absolute left-1 right-1 overflow-hidden rounded-md ring-1 ${meta.ring} ${meta.bg} px-1.5 py-1 text-left transition-shadow hover:shadow-md`}
-                      style={{
-                        top: timeToY(b.start_time),
-                        height: durationPx(b.start_time, b.end_time),
-                      }}
-                    >
-                      <div className={`flex items-center gap-1 text-[10px] font-medium ${meta.tone}`}>
-                        {b.is_locked && <Lock className="h-2.5 w-2.5 opacity-70" />}
-                        <span className="truncate">{b.title}</span>
-                      </div>
-                      <div className="mt-0.5 font-mono text-[9px] text-foreground/60">
-                        {b.start_time}–{b.end_time}
-                      </div>
-                    </motion.button>
-                  );
-                })}
-              </AnimatePresence>
-
-              {/* Tap-to-add */}
-              <button
-                type="button"
-                aria-label="Add block"
-                onClick={() => addBlock(dayIdx, 17)}
-                className="absolute bottom-1 right-1 z-10 rounded-full bg-background/80 p-1 text-muted-foreground opacity-0 transition-opacity hover:text-primary group-hover:opacity-100 sm:opacity-100"
+          {DAY_LABELS.map((_, dayIdx) => {
+            const isToday = dayIdx === todayIdx;
+            return (
+              <div
+                key={dayIdx}
+                className={`group relative border-l border-border ${isToday ? "bg-primary/[0.03]" : ""}`}
+                style={{ height: hours.length * HOUR_PX }}
+                onMouseEnter={() => setHoverDay(dayIdx)}
+                onMouseLeave={() => setHoverDay(null)}
+                onDoubleClick={(e) => {
+                  const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                  const y = e.clientY - rect.top;
+                  const minutes = HOUR_START * 60 + Math.round(y / (HOUR_PX / 60));
+                  addBlock(dayIdx, minutes);
+                }}
               >
-                <Plus className="h-3 w-3" />
-              </button>
-            </div>
-          ))}
+                {/* Hour grid lines (subtle, half-hour even subtler) */}
+                {hours.map((_, i) => (
+                  <div
+                    key={i}
+                    className="absolute left-0 right-0 border-t border-border/40"
+                    style={{ top: i * HOUR_PX }}
+                  />
+                ))}
+                {hours.slice(0, -1).map((_, i) => (
+                  <div
+                    key={`half-${i}`}
+                    className="absolute left-0 right-0 border-t border-dashed border-border/15"
+                    style={{ top: i * HOUR_PX + HOUR_PX / 2 }}
+                  />
+                ))}
+
+                {/* Blocks */}
+                <AnimatePresence>
+                  {blocksByDay[dayIdx].map((b) => {
+                    const meta = CATEGORY_META[b.category];
+                    const Icon = meta.Icon;
+                    const h = durationPx(b.start_time, b.end_time);
+                    const compact = h < 56;
+                    return (
+                      <motion.button
+                        key={b.id}
+                        layout
+                        initial={{ opacity: 0, scale: 0.97 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.97 }}
+                        onClick={() => setEditing(b)}
+                        className={`absolute left-1 right-1 overflow-hidden rounded-md border-l-2 ${meta.border} ${meta.bg} px-2 py-1.5 text-left shadow-sm backdrop-blur-[2px] transition-all hover:z-20 hover:shadow-lg hover:ring-1 hover:ring-foreground/20`}
+                        style={{
+                          top: timeToY(b.start_time) + 1,
+                          height: h - 2,
+                        }}
+                      >
+                        <div className={`flex items-center gap-1 ${meta.text}`}>
+                          <Icon className="h-3 w-3 shrink-0 opacity-80" />
+                          {b.is_locked && <Lock className="h-2.5 w-2.5 shrink-0 opacity-70" />}
+                          <span className={`truncate text-[11px] font-medium leading-tight`}>{b.title}</span>
+                        </div>
+                        {!compact && (
+                          <div className="mt-1 font-mono text-[9px] tabular-nums text-foreground/60">
+                            {b.start_time}–{b.end_time}
+                          </div>
+                        )}
+                      </motion.button>
+                    );
+                  })}
+                </AnimatePresence>
+
+                {/* Single floating add button on hover (top-right of column) */}
+                <AnimatePresence>
+                  {hoverDay === dayIdx && (
+                    <motion.button
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      onClick={() => addBlock(dayIdx, 17 * 60)}
+                      className="absolute right-1.5 top-1.5 z-30 inline-flex items-center gap-1 rounded-full bg-foreground/90 px-2 py-0.5 text-[10px] font-medium text-background shadow-md hover:bg-foreground"
+                    >
+                      <Plus className="h-3 w-3" /> add
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      <p className="text-[10px] text-muted-foreground">
-        Double-click any empty slot to add. Click a block to edit, move days, or change time. <span className="text-foreground/70">Reform week</span> reshuffles everything liquid; locked blocks (school, commitments) stay put.
+      <p className="text-[11px] text-muted-foreground">
+        Double-click any empty slot to add. Click a block to edit. <span className="text-foreground/80">Reform</span> reshuffles liquid blocks; locked ones (school, commitments) stay put.
       </p>
 
       {/* Editor modal */}
@@ -260,7 +321,7 @@ function BlockEditor({ block, onClose, onSave, onDelete }: EditorProps) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm sm:items-center"
     >
       <motion.div
         initial={{ y: 40, opacity: 0 }}
@@ -286,15 +347,17 @@ function BlockEditor({ block, onClose, onSave, onDelete }: EditorProps) {
         <div className="flex flex-wrap gap-1.5">
           {(Object.keys(CATEGORY_META) as WeekCategory[]).map((cat) => {
             const meta = CATEGORY_META[cat];
+            const Icon = meta.Icon;
             const active = category === cat;
             return (
               <button
                 key={cat}
                 onClick={() => setCategory(cat)}
-                className={`rounded-full px-2.5 py-1 text-[11px] ${meta.bg} ${meta.tone} ring-1 ${
-                  active ? meta.ring : "ring-transparent"
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] transition ${meta.bg} ${meta.text} ${
+                  active ? "ring-1 ring-foreground/40" : "ring-1 ring-transparent"
                 }`}
               >
+                <Icon className="h-3 w-3" />
                 {meta.label}
               </button>
             );
@@ -379,9 +442,4 @@ function BlockEditor({ block, onClose, onSave, onDelete }: EditorProps) {
       </motion.div>
     </motion.div>
   );
-}
-
-function toMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(":").map(Number);
-  return h * 60 + m;
 }
