@@ -42,9 +42,11 @@ const tabs: { to: string; label: string; icon: React.ComponentType<{ className?:
 
 export const AppShell = () => {
   const { pathname } = useLocation();
+  // forge/:featureId routes should keep the Plan group (Forge sub-tab) active
+  const normalizedPath = pathname.startsWith("/app/forge/") ? "/app/forge" : pathname;
   const activeGroup =
-    tabs.find((t) => t.match.includes(pathname)) ??
-    tabs.find((t) => pathname.startsWith(t.to) && t.to !== "/app") ??
+    tabs.find((t) => t.match.includes(normalizedPath)) ??
+    tabs.find((t) => normalizedPath.startsWith(t.to) && t.to !== "/app") ??
     tabs[0];
 
   return (

@@ -9,6 +9,8 @@ export type AIIntent =
   | "daily_debrief"
   | "goal_audit"
   | "forge_modules"
+  | "forge_guidebook"
+  | "forge_feature_ai"
   | "rescue_protocol"
   | "suggest_tasks"
   | "reflect_summary"
@@ -16,6 +18,19 @@ export type AIIntent =
 
 function buildSnapshot(s: MomentState | null) {
   if (!s) return {};
+
+  const activeGuidebooks = (s.forge_state?.guidebooks ?? [])
+    .filter((g) => g.status === "active")
+    .map((g) => ({ id: g.id, title: g.title, purpose: g.purpose, feature_type: g.feature_type }));
+
+  const recentSignals = (s.forge_state?.forge_signals ?? [])
+    .slice(-10)
+    .map((sig) => ({ feature: sig.feature_title, key: sig.signal_key, value: sig.value, at: sig.created_at }));
+
+  const recentRuns = (s.forge_state?.feature_runs ?? [])
+    .slice(-5)
+    .map((r) => ({ feature_id: r.feature_id, function_type: r.function_type, at: r.run_at }));
+
   return {
     display_name: s.profile.display_name,
     active_goal: {
@@ -29,6 +44,20 @@ function buildSnapshot(s: MomentState | null) {
     constraints: {
       energy_pattern: s.constraints?.energy_pattern,
       preferred_work_window: s.constraints?.preferred_work_window,
+    },
+    pursuit_model: s.pursuit_model
+      ? {
+          family: s.pursuit_model.family,
+          summary: s.pursuit_model.summary,
+          top_workstream: s.pursuit_model.workstreams[0]?.title,
+          bottleneck: s.pursuit_model.workstreams.find((w) => w.bottleneck)?.bottleneck,
+          risks: s.pursuit_model.risks.slice(0, 3).map((r) => r.description),
+        }
+      : null,
+    forge: {
+      active_guidebooks: activeGuidebooks,
+      recent_signals: recentSignals,
+      recent_runs: recentRuns,
     },
   };
 }

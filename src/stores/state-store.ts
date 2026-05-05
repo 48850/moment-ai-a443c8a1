@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { MomentState, AppMode, ExecutionFeedbackItem, ScheduleBlock, ForgeInterviewAnswer } from "@/lib/types";
+import type { MomentState, AppMode, ExecutionFeedbackItem, ScheduleBlock, ForgeInterviewAnswer, ForgeState } from "@/lib/types";
 import type { MomentAction } from "@/lib/types/actions";
 import { storage } from "@/lib/storage/local";
 import { createDefaultState } from "@/lib/state/defaults";
@@ -66,10 +66,22 @@ export const useStateStore = create<StateStore>((set, get) => ({
           reasons: [],
         },
         home: saved.home ?? { active_plan: "plan_a" },
-        forge_state: saved.forge_state ?? {
-          interview_answers: [], candidate_features: [], selected_feature_ids: [],
-          generated_modules: [], compiler_status: "idle",
-        },
+        forge_state: {
+          // Base defaults
+          interview_answers: [],
+          candidate_features: [],
+          selected_feature_ids: [],
+          generated_modules: [],
+          compiler_status: "idle" as const,
+          // Spread existing saved state (may have legacy fields)
+          ...(saved.forge_state ?? {}),
+          // Backfill guidebook fields if missing from older saves
+          guidebooks: (saved.forge_state as any)?.guidebooks ?? [],
+          feature_runs: (saved.forge_state as any)?.feature_runs ?? [],
+          forge_signals: (saved.forge_state as any)?.forge_signals ?? [],
+          guidebook_build_status: ((saved.forge_state as any)?.guidebook_build_status ?? "idle") as ForgeState["guidebook_build_status"],
+          draft_guidebook: (saved.forge_state as any)?.draft_guidebook ?? null,
+        } as ForgeState,
         pursuit_model: "pursuit_model" in saved ? saved.pursuit_model : null,
         rescue_signals: (saved as any).rescue_signals ?? [],
         chat_preferences: (saved as any).chat_preferences ?? { tone: "default" },
@@ -534,11 +546,135 @@ export const useStateStore = create<StateStore>((set, get) => ({
         next = {
           ...s,
           forge_state: {
+            ...s.forge_state,
             interview_answers: [],
             candidate_features: [],
             selected_feature_ids: [],
             generated_modules: s.forge_state.generated_modules ?? [],
             compiler_status: "idle",
+            guidebook_build_status: "idle",
+            draft_guidebook: null,
+          },
+        };
+        break;
+      }
+
+      // ─── Guidebook system ───────────────────────────────────────────────────
+      case "forge/set_draft_guidebook": {
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            draft_guidebook: { ...(s.forge_state.draft_guidebook ?? {}), ...action.payload },
+          },
+        };
+        break;
+      }
+      case "forge/clear_draft_guidebook": {
+        next = {
+          ...s,
+          forge_state: { ...s.forge_state, draft_guidebook: null, guidebook_build_status: "idle" },
+        };
+        break;
+      }
+      case "forge/set_build_status": {
+        next = {
+          ...s,
+          forge_state: { ...s.forge_state, guidebook_build_status: action.payload as ForgeState["guidebook_build_status"] },
+        };
+        break;
+      }
+      case "forge/create_guidebook": {
+        const existing = s.forge_state.guidebooks ?? [];
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            guidebooks: [...existing, action.payload],
+            draft_guidebook: null,
+            guidebook_build_status: "done",
+          },
+        };
+        break;
+      }
+      case "forge/update_guidebook": {
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            guidebooks: (s.forge_state.guidebooks ?? []).map((g) =>
+              g.id === action.payload.id
+                ? { ...g, ...action.payload.changes, updated_at: now() }
+                : g,
+            ),
+          },
+        };
+        break;
+      }
+      case "forge/activate_guidebook": {
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            guidebooks: (s.forge_state.guidebooks ?? []).map((g) =>
+              g.id === action.payload.id ? { ...g, status: "active", updated_at: now() } : g,
+            ),
+          },
+        };
+        break;
+      }
+      case "forge/pause_guidebook": {
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            guidebooks: (s.forge_state.guidebooks ?? []).map((g) =>
+              g.id === action.payload.id ? { ...g, status: "paused", updated_at: now() } : g,
+            ),
+          },
+        };
+        break;
+      }
+      case "forge/archive_guidebook": {
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            guidebooks: (s.forge_state.guidebooks ?? []).map((g) =>
+              g.id === action.payload.id ? { ...g, status: "archived", updated_at: now() } : g,
+            ),
+          },
+        };
+        break;
+      }
+      case "forge/log_feature_run": {
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            feature_runs: [...(s.forge_state.feature_runs ?? []), action.payload],
+          },
+        };
+        break;
+      }
+      case "forge/log_signal": {
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            forge_signals: [...(s.forge_state.forge_signals ?? []), action.payload],
+          },
+        };
+        break;
+      }
+      case "forge/touch_guidebook": {
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            guidebooks: (s.forge_state.guidebooks ?? []).map((g) =>
+              g.id === action.payload.id ? { ...g, last_used_at: now() } : g,
+            ),
           },
         };
         break;

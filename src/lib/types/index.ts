@@ -45,6 +45,8 @@ export type RescueSignal = z.infer<typeof rescueSignalSchema>;
 export type ChatPreferences = z.infer<typeof chatPreferencesSchema>;
 export type { PursuitFamily } from "@/lib/pursuit/families";
 
+// ─── Legacy module system (kept for backward compatibility) ───────────────────
+
 export interface ForgeInterviewAnswer {
   id: string;
   question_key: string;
@@ -54,15 +56,10 @@ export interface ForgeInterviewAnswer {
 }
 
 export interface ModuleConfig {
-  /** tracker: named numeric/text fields to log per entry */
   fields?: Array<{ key: string; label: string; kind: "number" | "text" | "rating" }>;
-  /** rescue_protocol / practice_system: ordered steps or drills */
   steps?: string[];
-  /** planner: named slots/cadences */
   slots?: Array<{ label: string; cadence: string }>;
-  /** practice_system: drills */
   drills?: Array<{ name: string; minutes: number }>;
-  /** any extra free-form notes */
   notes?: string;
 }
 
@@ -106,13 +103,161 @@ export interface GeneratedModuleManifest {
   created_at?: string;
 }
 
+// ─── Guidebook system ─────────────────────────────────────────────────────────
+
+export type ForgeFeatureType =
+  | "tracker"
+  | "protocol"
+  | "control_room"
+  | "drill_lab"
+  | "proof_builder"
+  | "decision_engine"
+  | "planner"
+  | "simulator"
+  | "coach_lens"
+  | "research_helper"
+  | "custom";
+
+export interface GuidebookInput {
+  id: string;
+  label: string;
+  type: "text" | "textarea" | "number" | "select" | "date" | "scale" | "file_link";
+  required: boolean;
+  placeholder?: string;
+  options?: string[];
+}
+
+export interface GuidebookSection {
+  id: string;
+  title: string;
+  description?: string;
+  section_type:
+    | "input_panel"
+    | "ai_output"
+    | "saved_entries"
+    | "task_list"
+    | "scorecard"
+    | "timeline"
+    | "protocol_steps"
+    | "decision_result"
+    | "reflection_box"
+    | "audit_summary";
+  linked_ai_function_id?: string;
+  linked_state_key?: string;
+}
+
+export interface GuidebookAIFunction {
+  id: string;
+  name: string;
+  description: string;
+  function_type:
+    | "analyze"
+    | "generate_plan"
+    | "split_tasks"
+    | "score_quality"
+    | "rank_options"
+    | "simulate"
+    | "challenge"
+    | "summarize"
+    | "extract_signals"
+    | "create_next_move";
+  input_sources: string[];
+  output_schema: Record<string, unknown>;
+  prompt_contract: string;
+  writes_to_state: boolean;
+  allowed_state_actions: string[];
+}
+
+export interface GuidebookStateWrite {
+  action:
+    | "task/create"
+    | "task/update"
+    | "forge/log_signal"
+    | "forge/check_in"
+    | "audit/add_signal"
+    | "reflection/add"
+    | "plan/add_item"
+    | "chat/add_context"
+    | "rescue/create_signal";
+  conditions: string;
+  user_confirmation_required: boolean;
+}
+
+export interface GuidebookTaskOutput {
+  id: string;
+  title_template: string;
+  description_template?: string;
+  priority: "high" | "medium" | "low";
+  trigger: string;
+}
+
+export interface GuidebookAuditHook {
+  signal_key: string;
+  description: string;
+  trigger: string;
+}
+
+export interface ForgeGuidebook {
+  id: string;
+  title: string;
+  subtitle: string;
+  purpose: string;
+  linked_goal_id: string;
+  bottleneck_addressed: string;
+  feature_type: ForgeFeatureType;
+  status: "draft" | "active" | "paused" | "archived";
+  route_slug: string;
+  required_inputs: GuidebookInput[];
+  sections: GuidebookSection[];
+  ai_functions: GuidebookAIFunction[];
+  state_writes: GuidebookStateWrite[];
+  task_outputs: GuidebookTaskOutput[];
+  audit_hooks: GuidebookAuditHook[];
+  chat_context_summary: string;
+  safety_rules: string[];
+  created_at: string;
+  updated_at: string;
+  last_used_at: string;
+}
+
+export interface FeatureRunResult {
+  id: string;
+  feature_id: string;
+  run_at: string;
+  function_id: string;
+  function_type: string;
+  inputs: Record<string, unknown>;
+  output: Record<string, unknown>;
+  state_writes_approved: string[];
+  tasks_created: string[];
+}
+
+export interface ForgeSignal {
+  id: string;
+  feature_id: string;
+  feature_title: string;
+  signal_key: string;
+  value: string;
+  created_at: string;
+}
+
+// ─── State ────────────────────────────────────────────────────────────────────
+
 export interface ForgeState {
+  // Legacy module system
   interview_answers: ForgeInterviewAnswer[];
   candidate_features: FeatureCandidate[];
   selected_feature_ids: string[];
   generated_modules: GeneratedModuleManifest[];
   compiler_status: "idle" | "interviewing" | "model_ready" | "ranking" | "instantiated";
   last_generated_at?: string;
+
+  // Guidebook system
+  guidebooks: ForgeGuidebook[];
+  feature_runs: FeatureRunResult[];
+  forge_signals: ForgeSignal[];
+  guidebook_build_status: "idle" | "asking" | "generating" | "preview" | "done";
+  draft_guidebook?: Partial<ForgeGuidebook> | null;
 }
 
 export type AppMode =
