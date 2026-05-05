@@ -245,7 +245,7 @@ export function WeeklyGrid() {
                           <span className={`truncate text-[11px] font-medium leading-tight`}>{b.title}</span>
                         </div>
                         {!compact && (
-                          <div className="mt-1 font-mono text-[9px] tabular-nums text-foreground/60">
+                          <div className={`mt-1 font-mono text-[9px] tabular-nums ${meta.text} opacity-80`}>
                             {b.start_time}–{b.end_time}
                           </div>
                         )}
