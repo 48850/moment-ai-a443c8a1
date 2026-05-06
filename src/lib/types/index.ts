@@ -20,6 +20,7 @@ import {
   compiledPursuitModelSchema,
   rescueSignalSchema,
   chatPreferencesSchema,
+  missionSnapshotSchema,
 } from "@/lib/state/schema";
 
 export type MomentState = z.infer<typeof momentStateSchema>;
@@ -43,6 +44,7 @@ export type OperatingMode = z.infer<typeof operatingModeSchema>;
 export type CompiledPursuitModel = z.infer<typeof compiledPursuitModelSchema>;
 export type RescueSignal = z.infer<typeof rescueSignalSchema>;
 export type ChatPreferences = z.infer<typeof chatPreferencesSchema>;
+export type MissionSnapshot = z.infer<typeof missionSnapshotSchema>;
 export type { PursuitFamily } from "@/lib/pursuit/families";
 
 export interface ForgeInterviewAnswer {
