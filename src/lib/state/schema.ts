@@ -352,6 +352,27 @@ export const compiledPursuitModelSchema = z.object({
 });
 
 // --- Full state schema ---
+// Daily mission snapshot — persisted history so the AI can detect trends and confront patterns.
+export const missionSnapshotSchema = z.object({
+  date: z.string(), // YYYY-MM-DD
+  taken_at: z.string(),
+  overall_health: z.number().min(0).max(100),
+  total_tasks: z.number(),
+  total_done: z.number(),
+  velocity_7d: z.number(),
+  workstreams: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    status: z.string(),
+    health: z.number(),
+    pct: z.number(),
+    velocity_7d: z.number(),
+    trend: z.string(),
+    headline: z.string(),
+    feedback_top: z.array(z.string()).default([]),
+  })),
+});
+
 export const momentStateSchema = z.object({
   user_id: z.string(),
   profile: z.object({
@@ -381,4 +402,5 @@ export const momentStateSchema = z.object({
   pursuit_model: compiledPursuitModelSchema.nullable(),
   rescue_signals: z.array(rescueSignalSchema).default([]),
   chat_preferences: chatPreferencesSchema.default({ tone: "default" }),
+  mission_history: z.array(missionSnapshotSchema).default([]),
 });
