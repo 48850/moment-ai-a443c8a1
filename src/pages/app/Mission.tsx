@@ -79,17 +79,18 @@ const Mission = () => {
     });
   }, [state, analytics, dispatch]);
 
-  if (!state || !m) return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
-
   const priorityWS = useMemo(() => {
     if (!analytics) return [];
     return [...analytics.perWorkstream].sort((a, b) => a.health - b.health);
   }, [analytics]);
 
   const topRisk = useMemo(() => {
+    if (!m) return null;
     const sev = { critical: 0, high: 1, medium: 2, low: 3 } as const;
     return [...m.risks].sort((a, b) => sev[a.severity] - sev[b.severity])[0] ?? null;
-  }, [m.risks]);
+  }, [m]);
+
+  if (!state || !m) return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
 
   const nextProof = m.workstreams.find((w) => w.next_proof)?.next_proof ?? "";
 
