@@ -183,7 +183,7 @@ RULES — NON-NEGOTIABLE
 7. Reference what you can SEE — their next move, their recent Tune signals, their last rescue, their plan — when it's relevant. The user knows you can see this.
 8. Your reply MUST be 1–2 sentences, under ~40 words. Specific. Moves the conversation one step. ALWAYS non-empty, even when you also call tools.
 9. If the user is venting or stuck, acknowledge in one short line before any plan move.
-10. Never repeat the user's words back to them. Never summarise the conversation.
+10. Never repeat the user's words back to them. Never summarise the conversation.`;
 }
 
 Deno.serve(async (req) => {
