@@ -166,7 +166,44 @@ const Plan = () => {
       const plan = (data as any).plan as AiPlan;
       setAiPlan(plan);
       saveCachedPlan(goalText, plan);
-      toast.success("Plan generated across all horizons");
+
+      // Sync the AI day-list into real Tasks so Today, Tasks, and the
+      // Constellation all light up from the same source of truth.
+      const existingTitles = new Set(
+        (state.tasks ?? []).map((t) => t.title.trim().toLowerCase()),
+      );
+      const nowIso = new Date().toISOString();
+      let addedCount = 0;
+      (plan.days ?? []).forEach((d, i) => {
+        const title = (d.title || "").trim();
+        if (!title || existingTitles.has(title.toLowerCase())) return;
+        const due = new Date();
+        due.setDate(due.getDate() + i);
+        dispatch({
+          type: "task/add",
+          payload: {
+            id: crypto.randomUUID(),
+            title,
+            description: d.detail || "",
+            status: "pending",
+            priority: i === 0 ? "high" : "medium",
+            goal_id: "primary",
+            domain_id: "",
+            estimated_minutes: d.estimated_minutes ?? 30,
+            category: "goal_direct",
+            created_at: nowIso,
+            completed_at: "",
+            due_date: due.toISOString().slice(0, 10),
+          },
+        });
+        addedCount++;
+      });
+
+      toast.success(
+        addedCount
+          ? `Plan generated · ${addedCount} task${addedCount === 1 ? "" : "s"} added to Today`
+          : "Plan generated across all horizons",
+      );
     } catch (e: any) {
       toast.error(e?.message || "Couldn't generate plan");
     } finally {
