@@ -128,7 +128,6 @@ const Dashboard = () => {
         </ul>
       </section>
     </div>
-    </OnboardingGate>
   );
 };
 
