@@ -272,6 +272,9 @@ export const forgeStateSchema = z.object({
   generated_modules: z.array(z.any()).default([]),
   compiler_status: z.enum(["idle", "interviewing", "model_ready", "ranking", "instantiated"]).default("idle"),
   last_generated_at: z.string().optional(),
+  guidebooks: z.array(z.any()).default([]),
+  feature_runs: z.array(z.any()).default([]),
+  forge_signals: z.array(z.any()).default([]),
 });
 
 // --- Pursuit compiler sub-schemas ---

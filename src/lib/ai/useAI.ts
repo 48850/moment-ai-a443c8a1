@@ -9,6 +9,8 @@ export type AIIntent =
   | "daily_debrief"
   | "goal_audit"
   | "forge_modules"
+  | "forge_guidebook"
+  | "forge_feature_ai"
   | "rescue_protocol"
   | "suggest_tasks"
   | "reflect_summary"

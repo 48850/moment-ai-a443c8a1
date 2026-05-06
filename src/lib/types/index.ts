@@ -115,6 +115,106 @@ export interface ForgeState {
   last_generated_at?: string;
 }
 
+// ─── Forge Guidebook system ──────────────────────────────────────────────────
+
+export type ForgeFeatureType =
+  | "control_room" | "proof_builder" | "drill_lab" | "tracker" | "planner"
+  | "simulator" | "coach_lens" | "research_helper" | "decision_engine"
+  | "protocol" | "custom";
+
+export type GuidebookFunctionType =
+  | "generate" | "rank" | "critique" | "score" | "plan"
+  | "reflect" | "diagnose" | "rewrite" | "summarize" | "decide";
+
+export interface GuidebookInput {
+  id: string;
+  label: string;
+  type: "text" | "textarea" | "select" | "scale" | "number" | "date";
+  placeholder?: string;
+  required?: boolean;
+  options?: string[];
+}
+
+export interface GuidebookAIFunction {
+  id: string;
+  name: string;
+  description: string;
+  function_type: GuidebookFunctionType;
+  prompt_contract: string;
+  input_sources: string[];
+  output_schema: Record<string, string>;
+  writes_to_state: boolean;
+  allowed_state_actions: string[];
+}
+
+export interface GuidebookSection {
+  id: string;
+  title: string;
+  section_type:
+    | "input_panel" | "ai_output" | "saved_entries" | "task_list"
+    | "scorecard" | "timeline" | "protocol_steps" | "decision_result"
+    | "reflection_box" | "audit_summary";
+  description?: string;
+  linked_ai_function_id?: string;
+}
+
+export interface GuidebookTaskOutput {
+  title_template: string;
+  category?: string;
+}
+
+export interface GuidebookAuditHook {
+  signal_key: string;
+  description: string;
+}
+
+export interface GuidebookStateWrite {
+  action: string;
+  description: string;
+}
+
+export interface ForgeGuidebook {
+  id: string;
+  feature_type: ForgeFeatureType;
+  title: string;
+  subtitle: string;
+  purpose: string;
+  bottleneck_addressed: string;
+  route_slug: string;
+  required_inputs: GuidebookInput[];
+  ai_functions: GuidebookAIFunction[];
+  sections: GuidebookSection[];
+  task_outputs: GuidebookTaskOutput[];
+  audit_hooks: GuidebookAuditHook[];
+  state_writes: GuidebookStateWrite[];
+  safety_rules: string[];
+  status: "draft" | "active" | "paused" | "archived";
+  created_at: string;
+  updated_at: string;
+  last_used_at?: string;
+}
+
+export interface FeatureRunResult {
+  id: string;
+  feature_id: string;
+  run_at: string;
+  function_id: string;
+  function_type: string;
+  inputs: Record<string, unknown>;
+  output: Record<string, unknown>;
+  state_writes_approved: string[];
+  tasks_created: string[];
+}
+
+export interface ForgeSignal {
+  id: string;
+  feature_id: string;
+  feature_title: string;
+  signal_key: string;
+  value: string;
+  created_at: string;
+}
+
 export type AppMode =
   | "lock_goal"
   | "gather_constraints"
