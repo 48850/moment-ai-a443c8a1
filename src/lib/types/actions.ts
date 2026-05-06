@@ -62,4 +62,13 @@ export type MomentAction =
   | { type: "forge/archive_module"; payload: { id: string } }
   | { type: "forge/delete_module"; payload: { id: string } }
   | { type: "forge/log_entry"; payload: { module_id: string; entry: import("@/lib/types").ModuleEntry } }
-  | { type: "forge/reset" };
+  | { type: "forge/reset" }
+  | { type: "forge/create_guidebook"; payload: import("@/lib/types").ForgeGuidebook }
+  | { type: "forge/update_guidebook"; payload: { id: string; changes: Partial<import("@/lib/types").ForgeGuidebook> } }
+  | { type: "forge/pause_guidebook"; payload: { id: string } }
+  | { type: "forge/activate_guidebook"; payload: { id: string } }
+  | { type: "forge/archive_guidebook"; payload: { id: string } }
+  | { type: "forge/delete_guidebook"; payload: { id: string } }
+  | { type: "forge/touch_guidebook"; payload: { id: string } }
+  | { type: "forge/log_feature_run"; payload: import("@/lib/types").FeatureRunResult }
+  | { type: "forge/log_signal"; payload: import("@/lib/types").ForgeSignal };
