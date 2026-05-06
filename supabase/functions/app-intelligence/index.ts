@@ -208,7 +208,90 @@ function tools(intent: string) {
         additionalProperties: false,
       },
     },
-    refine_task: {
+    forge_guidebook: {
+      name: "answer",
+      description: "Design a complete guidebook for a goal-related feature: inputs, AI functions, sections, safety rules.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          subtitle: { type: "string" },
+          purpose: { type: "string" },
+          bottleneck_addressed: { type: "string" },
+          feature_type: { type: "string" },
+          required_inputs: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                label: { type: "string" },
+                type: { type: "string", enum: ["text", "textarea", "select", "scale", "number", "date"] },
+                placeholder: { type: "string" },
+                required: { type: "boolean" },
+                options: { type: "array", items: { type: "string" } },
+              },
+              required: ["id", "label", "type"],
+              additionalProperties: false,
+            },
+          },
+          ai_functions: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                name: { type: "string" },
+                description: { type: "string" },
+                function_type: { type: "string", enum: ["generate", "rank", "critique", "score", "plan", "reflect", "diagnose", "rewrite", "summarize", "decide"] },
+                prompt_contract: { type: "string" },
+                input_sources: { type: "array", items: { type: "string" } },
+                writes_to_state: { type: "boolean" },
+                allowed_state_actions: { type: "array", items: { type: "string" } },
+              },
+              required: ["id", "name", "function_type", "prompt_contract"],
+              additionalProperties: false,
+            },
+          },
+          sections: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                title: { type: "string" },
+                section_type: { type: "string", enum: ["input_panel", "ai_output", "saved_entries", "task_list", "scorecard", "timeline", "protocol_steps", "decision_result", "reflection_box", "audit_summary"] },
+                description: { type: "string" },
+                linked_ai_function_id: { type: "string" },
+              },
+              required: ["id", "title", "section_type"],
+              additionalProperties: false,
+            },
+          },
+          safety_rules: { type: "array", items: { type: "string" } },
+        },
+        required: ["title", "purpose", "required_inputs", "ai_functions", "sections"],
+        additionalProperties: true,
+      },
+    },
+    forge_feature_ai: {
+      name: "answer",
+      description: "Run a guidebook AI function. Return the structured result keys requested in the prompt.",
+      parameters: {
+        type: "object",
+        properties: {
+          next_action: { type: "string" },
+          why: { type: "string" },
+          today_tasks: { type: "array", items: { type: "string" } },
+          summary: { type: "string" },
+          score: { type: "number" },
+          total_score: { type: "number" },
+          proof_score: { type: "number" },
+          notes: { type: "string" },
+        },
+        additionalProperties: true,
+      },
+    },
       name: "answer",
       description:
         "Given a user's recent Tune feedback on a task, propose targeted edits. ONLY return fields that should change. The heuristic engine has already applied a first-pass mutation; your job is to refine title clarity and description specificity for THIS goal.",
@@ -276,6 +359,10 @@ Propose exactly 3 features that would feel indispensable to THIS user pursuing T
       return `${ctx}\n\nPursuit model: ${JSON.stringify(payload?.pursuit ?? null)}\nWorkstream statuses: ${JSON.stringify(payload?.workstreams ?? [])}\nWhat's the one thing the user should notice?`;
     case "refine_task":
       return `Goal: ${payload?.goal || goal}\n\nTask after first-pass shrink: ${JSON.stringify(payload?.task ?? {})}\nUser's Tune feedback: "${payload?.feedback}".\n\nRefine ONLY the fields that need it. Lead with the first physical step. If the title is already concrete, leave it alone (return an empty title — do not invent one). Be specific to THIS goal — never generic productivity-speak.`;
+    case "forge_guidebook":
+      return `${ctx}\n\nFeature type: ${payload?.feature_type}\nUser's description: "${payload?.description}"\nBottleneck (if any): ${payload?.bottleneck ?? ""}\n\nDesign a full Guidebook tailored to THIS goal. Generate concrete IDs (e.g. "input_context", "fn_generate"). 1–4 inputs, 1–3 AI functions, 2–4 sections that include at least an input_panel and an ai_output linked to the first function. Be domain-specific.`;
+    case "forge_feature_ai":
+      return `Feature: ${payload?.feature_title}\nFunction type: ${payload?.function_type}\nPrompt contract: ${payload?.prompt_contract}\nUser inputs: ${JSON.stringify(payload?.inputs ?? {})}\nExpected output keys: ${JSON.stringify(payload?.output_schema ?? {})}\n\nReturn only the keys the contract requires. Be specific and useful.`;
     default:
       return ctx;
   }
