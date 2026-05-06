@@ -40,6 +40,7 @@ export type MomentAction =
   | { type: "home/setPlan"; payload: "plan_a" | "plan_b" }
   | { type: "rescue/log"; payload: RescueSignal }
   | { type: "chat/setPreferences"; payload: Partial<ChatPreferences> }
+  | { type: "mission/snapshot"; payload: import("@/lib/state/schema").missionSnapshotSchema extends never ? never : import("zod").infer<typeof import("@/lib/state/schema").missionSnapshotSchema> }
   | { type: "goal/set"; payload: MomentState["active_goal"] }
   | { type: "goal/patch"; payload: Partial<MomentState["active_goal"]> }
   | { type: "pursuit/set_model"; payload: CompiledPursuitModel }
