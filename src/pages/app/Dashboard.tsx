@@ -7,7 +7,7 @@ import { FeedbackChips } from "@/components/app/FeedbackChips";
 import { PatternBanner } from "@/components/app/PatternBanner";
 import { AIInsight } from "@/components/app/AIInsight";
 import { useAI } from "@/lib/ai/useAI";
-import { OnboardingGate } from "@/components/app/OnboardingGate";
+
 
 const Dashboard = () => {
   const state = useStateStore((s) => s.state);
