@@ -37,11 +37,7 @@ const Dashboard = () => {
   };
 
   return (
-    <OnboardingGate
-      requires="goal"
-      pageName="Today"
-      unlocksWhen="Today shows your single decisive next move and the tasks pulled toward your goal. It needs a goal first."
-    >
+  return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <div className="text-xs text-muted-foreground">{vm.greeting}</div>
