@@ -18,6 +18,7 @@ import Audit from "./pages/app/Audit";
 import Forge from "./pages/app/Forge";
 import ForgeFeature from "./pages/app/ForgeFeature";
 import { useStateStore } from "./stores/state-store";
+import { OnboardingGate } from "./components/app/OnboardingGate";
 
 const queryClient = new QueryClient();
 
