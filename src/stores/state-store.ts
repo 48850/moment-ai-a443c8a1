@@ -534,6 +534,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
         next = {
           ...s,
           forge_state: {
+            ...s.forge_state,
             interview_answers: [],
             candidate_features: [],
             selected_feature_ids: [],
@@ -541,6 +542,63 @@ export const useStateStore = create<StateStore>((set, get) => ({
             compiler_status: "idle",
           },
         };
+        break;
+      }
+      case "forge/create_guidebook": {
+        const list = ((s.forge_state as any).guidebooks ?? []) as any[];
+        next = { ...s, forge_state: { ...s.forge_state, guidebooks: [...list, action.payload] } as any };
+        break;
+      }
+      case "forge/update_guidebook": {
+        const list = ((s.forge_state as any).guidebooks ?? []) as any[];
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            guidebooks: list.map((g) => g.id === action.payload.id ? { ...g, ...action.payload.changes, updated_at: now() } : g),
+          } as any,
+        };
+        break;
+      }
+      case "forge/pause_guidebook":
+      case "forge/activate_guidebook":
+      case "forge/archive_guidebook": {
+        const newStatus = action.type === "forge/pause_guidebook" ? "paused"
+          : action.type === "forge/activate_guidebook" ? "active" : "archived";
+        const list = ((s.forge_state as any).guidebooks ?? []) as any[];
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            guidebooks: list.map((g) => g.id === action.payload.id ? { ...g, status: newStatus, updated_at: now() } : g),
+          } as any,
+        };
+        break;
+      }
+      case "forge/delete_guidebook": {
+        const list = ((s.forge_state as any).guidebooks ?? []) as any[];
+        next = { ...s, forge_state: { ...s.forge_state, guidebooks: list.filter((g) => g.id !== action.payload.id) } as any };
+        break;
+      }
+      case "forge/touch_guidebook": {
+        const list = ((s.forge_state as any).guidebooks ?? []) as any[];
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            guidebooks: list.map((g) => g.id === action.payload.id ? { ...g, last_used_at: now() } : g),
+          } as any,
+        };
+        break;
+      }
+      case "forge/log_feature_run": {
+        const runs = ((s.forge_state as any).feature_runs ?? []) as any[];
+        next = { ...s, forge_state: { ...s.forge_state, feature_runs: [...runs, action.payload] } as any };
+        break;
+      }
+      case "forge/log_signal": {
+        const sigs = ((s.forge_state as any).forge_signals ?? []) as any[];
+        next = { ...s, forge_state: { ...s.forge_state, forge_signals: [...sigs, action.payload] } as any };
         break;
       }
 
