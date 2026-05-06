@@ -292,6 +292,7 @@ function tools(intent: string) {
         additionalProperties: true,
       },
     },
+    tune_refine: {
       name: "answer",
       description:
         "Given a user's recent Tune feedback on a task, propose targeted edits. ONLY return fields that should change. The heuristic engine has already applied a first-pass mutation; your job is to refine title clarity and description specificity for THIS goal.",
