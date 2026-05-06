@@ -335,6 +335,7 @@ function tools(intent: string) {
       },
     },
   };
+  T.refine_task = T.tune_refine;
   return T[intent];
 }
 
