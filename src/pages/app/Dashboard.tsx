@@ -99,33 +99,47 @@ const Dashboard = () => {
       {/* Task list */}
       <section>
         <div className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Today</div>
-        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
-          {vm.tasks.map((t) => {
-            const done = t.status === "done";
-            return (
-              <li key={t.id} className="px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => onComplete(t.id)}
-                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
-                      done ? "border-primary bg-primary text-primary-foreground" : "border-border"
-                    }`}
-                    aria-label={done ? "Mark incomplete" : "Mark complete"}
-                  >
-                    {done && <Check className="h-3 w-3" strokeWidth={3} />}
-                  </button>
-                  <span className={`flex-1 text-sm ${done ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                    {t.title}
-                  </span>
-                  <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
-                    {t.estimated_minutes}m
-                  </span>
-                  <FeedbackChips source="task" targetId={t.id} taskId={t.id} taskTitle={t.title} compact />
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        {vm.tasks.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              No tasks yet. Generate your AI plan and we'll seed Today with your first moves.
+            </p>
+            <a
+              href="/app/plan"
+              className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground hover:opacity-90"
+            >
+              <Sparkles className="h-3.5 w-3.5" /> Generate plan
+            </a>
+          </div>
+        ) : (
+          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            {vm.tasks.map((t) => {
+              const done = t.status === "done";
+              return (
+                <li key={t.id} className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => onComplete(t.id)}
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+                        done ? "border-primary bg-primary text-primary-foreground" : "border-border"
+                      }`}
+                      aria-label={done ? "Mark incomplete" : "Mark complete"}
+                    >
+                      {done && <Check className="h-3 w-3" strokeWidth={3} />}
+                    </button>
+                    <span className={`flex-1 text-sm ${done ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                      {t.title}
+                    </span>
+                    <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
+                      {t.estimated_minutes}m
+                    </span>
+                    <FeedbackChips source="task" targetId={t.id} taskId={t.id} taskTitle={t.title} compact />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </section>
     </div>
   );
