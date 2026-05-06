@@ -16,6 +16,7 @@ import Reflect from "./pages/app/Reflect";
 import Rescue from "./pages/app/Rescue";
 import Audit from "./pages/app/Audit";
 import Forge from "./pages/app/Forge";
+import ForgeFeature from "./pages/app/ForgeFeature";
 import { useStateStore } from "./stores/state-store";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => {
             <Route path="rescue" element={<Rescue />} />
             <Route path="audit" element={<Audit />} />
             <Route path="forge" element={<Forge />} />
+            <Route path="forge/:featureId" element={<ForgeFeature />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
