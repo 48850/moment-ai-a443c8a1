@@ -39,7 +39,7 @@ export function matchScenarios(state: MomentState | null, limit = 2): MatchedSce
       if (hit) { score += 40; reasons.push(`goal mentions "${hit}"`); }
     }
     if (s.triggers.feedback_signals) {
-      const overlap = s.triggers.feedback_signals.filter((f) => recentFeedback.includes(f));
+      const overlap = s.triggers.feedback_signals.filter((f) => (recentFeedback as string[]).includes(f));
       if (overlap.length > 0) { score += overlap.length * 12; reasons.push(`recent feedback: ${overlap.join(", ")}`); }
     }
     if (s.triggers.needs_recent_rescue && recentRescue) { score += 25; reasons.push("rescue used in last 7d"); }
