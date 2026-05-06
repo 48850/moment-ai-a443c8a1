@@ -464,6 +464,7 @@ function ForgeBuilderFlow({
 // ─── Legacy module container (kept for backward compatibility) ────────────────
 
 function ModuleContainer({ mod: m }: { mod: GeneratedModuleManifest }) {
+  const state = useStateStore((s) => s.state);
   const dispatch = useStateStore((s) => s.dispatch);
   const [launched, setLaunched] = useState(false);
 
@@ -494,7 +495,7 @@ function ModuleContainer({ mod: m }: { mod: GeneratedModuleManifest }) {
           )}
         </div>
         <div className="p-4">
-          <ModuleEngine module={m} logEntry={logEntry} />
+          <ModuleEngine module={m} logEntry={logEntry} state={state ?? undefined} dispatch={dispatch} />
         </div>
       </div>
     );

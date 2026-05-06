@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStateStore } from "@/stores/state-store";
 import type { MomentState } from "@/lib/types";
+import { computeStallPattern } from "@/lib/selectors/audit";
 
 export type AIIntent =
   | "next_move_rationale"
@@ -58,6 +59,29 @@ function buildSnapshot(s: MomentState | null) {
       active_guidebooks: activeGuidebooks,
       recent_signals: recentSignals,
       recent_runs: recentRuns,
+    },
+    execution_context: {
+      pending_tasks: (s.tasks ?? [])
+        .filter((t) => t.status === "pending")
+        .slice(0, 5)
+        .map((t) => ({
+          id: t.id,
+          title: t.title,
+          priority: t.priority,
+          estimated_minutes: t.estimated_minutes,
+          category: t.category,
+        })),
+      today_energy: s.today_state?.energy ?? "unknown",
+      stall_pattern: computeStallPattern(s),
+      recent_rescue_reason: (s.rescue_signals ?? []).slice(-1)[0]?.reason ?? null,
+      first_pending_high_priority_task: (() => {
+        const hp = (s.tasks ?? []).find(
+          (t) => t.status === "pending" && t.priority === "high",
+        );
+        return hp
+          ? { id: hp.id, title: hp.title, estimated_minutes: hp.estimated_minutes }
+          : null;
+      })(),
     },
   };
 }

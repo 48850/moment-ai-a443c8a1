@@ -3,12 +3,13 @@ import { useParams, Link } from "react-router-dom";
 import {
   ArrowLeft, Zap, CheckCircle2, Clock, Target, Loader2, ChevronDown, ChevronRight,
   Plus, RotateCcw, BookOpen, AlertTriangle, Sparkles, Send, BarChart2,
-  ClipboardList, ListChecks, Activity,
+  ClipboardList, ListChecks, Activity, Brain,
 } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { getGuidebookById, getFeatureRunsForGuidebook, getSignalsForGuidebook } from "@/lib/selectors/forge";
 import { useAI } from "@/lib/ai/useAI";
 import { FEATURE_TYPE_LABELS, FUNCTION_TYPE_LABELS } from "@/lib/forge/guidebook";
+import { computeStallPattern } from "@/lib/selectors/audit";
 import type {
   ForgeGuidebook,
   GuidebookInput,
@@ -16,7 +17,159 @@ import type {
   GuidebookSection,
   FeatureRunResult,
   Task,
+  MomentState,
+  ExecutionFeedbackItem,
 } from "@/lib/types";
+
+// ─── Context awareness panel ──────────────────────────────────────────────────
+
+function ContextAwarenessPanel({
+  guidebook,
+  state,
+}: {
+  guidebook: ForgeGuidebook;
+  state: MomentState;
+}) {
+  const stall = computeStallPattern(state);
+  const recentFeedback: ExecutionFeedbackItem[] = (state.execution_feedback ?? []).slice(-7);
+  const bottleneck = state.pursuit_model?.workstreams?.find((w) => w.bottleneck)?.bottleneck ?? null;
+  const runCount = (state.forge_state?.feature_runs ?? []).filter((r) => r.feature_id === guidebook.id).length;
+  const rescueCount7d = (state.rescue_signals ?? []).filter(
+    (r) => Date.now() - new Date(r.created_at).getTime() <= 7 * 86400_000,
+  ).length;
+
+  const hasSignal =
+    stall.stall_type !== "unclear" ||
+    recentFeedback.length > 0 ||
+    bottleneck ||
+    rescueCount7d > 0;
+
+  if (!hasSignal) return null;
+
+  return (
+    <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+      <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.15em] text-primary">
+        <Brain className="h-3.5 w-3.5" /> Why this feature exists right now
+      </div>
+
+      {stall.stall_type !== "unclear" && (
+        <div className="space-y-1.5">
+          <div className="text-xs font-medium text-foreground">{stall.label}</div>
+          <div className="flex flex-wrap gap-1.5">
+            {stall.evidence_chips.map((chip, i) => (
+              <span key={i} className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] text-primary">
+                {chip}
+              </span>
+            ))}
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+              stall.confidence === "high" ? "bg-red-500/10 text-red-500" :
+              stall.confidence === "medium" ? "bg-amber-500/10 text-amber-500" :
+              "bg-secondary text-muted-foreground"
+            }`}>
+              {stall.confidence} confidence
+            </span>
+          </div>
+        </div>
+      )}
+
+      {recentFeedback.length > 0 && (
+        <div>
+          <div className="mb-1 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Recent feedback</div>
+          <div className="flex flex-wrap gap-1">
+            {recentFeedback.map((fb, i) => (
+              <span key={i} className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
+                {fb.feedback.replace(/_/g, " ")}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {bottleneck && (
+        <div className="text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Bottleneck: </span>{bottleneck}
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-4 text-[11px] text-muted-foreground">
+        {runCount > 0 && <span>{runCount} run{runCount !== 1 ? "s" : ""} on this feature</span>}
+        {rescueCount7d > 0 && <span>{rescueCount7d} rescue call{rescueCount7d !== 1 ? "s" : ""} this week</span>}
+      </div>
+    </div>
+  );
+}
+
+// ─── Current target card ──────────────────────────────────────────────────────
+
+function CurrentTargetCard({
+  state,
+  guidebook,
+}: {
+  state: MomentState;
+  guidebook: ForgeGuidebook;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  const pending = (state.tasks ?? [])
+    .filter((t) => t.status === "pending")
+    .sort((a, b) => (priorityOrder[a.priority] ?? 3) - (priorityOrder[b.priority] ?? 3));
+
+  if (pending.length === 0) return null;
+
+  const primary = pending[0];
+  const rest = pending.slice(1, 5);
+
+  const priorityChipClass: Record<string, string> = {
+    high: "bg-red-500/10 text-red-500",
+    medium: "bg-amber-500/10 text-amber-500",
+    low: "bg-secondary text-muted-foreground",
+  };
+
+  return (
+    <div className="rounded-2xl border border-border bg-card/60 p-4 space-y-2">
+      <div className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+        Current target · {guidebook.feature_type}
+      </div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium">{primary.title}</span>
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${priorityChipClass[primary.priority] ?? "bg-secondary text-muted-foreground"}`}>
+              {primary.priority}
+            </span>
+          </div>
+          {primary.estimated_minutes && (
+            <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Clock className="h-3 w-3" /> {primary.estimated_minutes}m
+            </div>
+          )}
+        </div>
+        {rest.length > 0 && (
+          <button
+            onClick={() => setExpanded((e) => !e)}
+            className="shrink-0 text-[11px] text-muted-foreground hover:text-foreground"
+          >
+            {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+          </button>
+        )}
+      </div>
+      {expanded && rest.length > 0 && (
+        <div className="mt-1 space-y-1 border-t border-border/60 pt-2">
+          <div className="text-[10px] text-muted-foreground">Other pending</div>
+          {rest.map((t) => (
+            <div key={t.id} className="flex items-center justify-between text-xs">
+              <span className="truncate text-foreground">{t.title}</span>
+              <span className={`ml-2 shrink-0 rounded-full px-1.5 py-0.5 text-[10px] ${priorityChipClass[t.priority] ?? ""}`}>
+                {t.priority}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Input renderer ───────────────────────────────────────────────────────────
 
@@ -627,6 +780,36 @@ export default function ForgeFeature() {
             created_at: new Date().toISOString(),
           },
         });
+      } else if (write.data.type === "feedback") {
+        dispatch({
+          type: "feedback/add",
+          payload: {
+            id: crypto.randomUUID(),
+            task_id: String(write.data.task_id ?? ""),
+            task_title: String(write.data.task_title ?? ""),
+            feedback: String(write.data.feedback ?? "not_relevant") as ExecutionFeedbackItem["feedback"],
+            created_at: new Date().toISOString(),
+          },
+        });
+      } else if (write.data.type === "task_tune") {
+        dispatch({
+          type: "task/tune",
+          payload: {
+            id: String(write.data.id ?? ""),
+            feedback: String(write.data.feedback ?? "too_big"),
+            change: String(write.data.change ?? "rewritten"),
+            changes: (write.data.changes ?? {}) as Partial<Task>,
+          },
+        });
+      } else if (write.data.type === "rescue") {
+        dispatch({
+          type: "rescue/log",
+          payload: {
+            id: crypto.randomUUID(),
+            reason: String(write.data.reason ?? "stuck") as "overwhelmed" | "tired" | "stuck" | "anxious",
+            created_at: new Date().toISOString(),
+          },
+        });
       }
       setPendingWrites((prev) => prev.filter((w) => w !== write));
     },
@@ -772,6 +955,12 @@ export default function ForgeFeature() {
 
       {activeTab === "run" && (
         <>
+          {/* Context awareness */}
+          {state && <ContextAwarenessPanel guidebook={guidebook} state={state} />}
+
+          {/* Current target */}
+          {state && <CurrentTargetCard state={state} guidebook={guidebook} />}
+
           {/* Pending state write approvals */}
           <StateWritePanel
             pending={pendingWrites}
