@@ -37,7 +37,6 @@ const Dashboard = () => {
   };
 
   return (
-  return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <div className="text-xs text-muted-foreground">{vm.greeting}</div>
