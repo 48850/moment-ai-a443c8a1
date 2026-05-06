@@ -47,7 +47,10 @@ export const useStateStore = create<StateStore>((set, get) => ({
       storage.setSession(session.userId, session.displayName);
     }
     const saved = await storage.getState(session.userId);
-    if (saved) {
+    // Force a clean onboarding for users still holding the old Stanford seed.
+    const isLegacySeed =
+      !!saved && saved.active_goal?.statement === "Stanford CS, class of 2027";
+    if (saved && !isLegacySeed) {
       // Backfill fields added after a previous schema version.
       const hydrated: MomentState = {
         ...saved,

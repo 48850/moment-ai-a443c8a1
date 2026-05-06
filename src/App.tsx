@@ -18,6 +18,7 @@ import Audit from "./pages/app/Audit";
 import Forge from "./pages/app/Forge";
 import ForgeFeature from "./pages/app/ForgeFeature";
 import { useStateStore } from "./stores/state-store";
+import { OnboardingGate } from "./components/app/OnboardingGate";
 
 const queryClient = new QueryClient();
 
@@ -36,16 +37,16 @@ const App = () => {
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/app" element={<AppShell />}>
-            <Route index element={<Dashboard />} />
+            <Route index element={<OnboardingGate requires="goal" pageName="Today" unlocksWhen="Today shows your one decisive next move and the tasks pulled toward your goal."><Dashboard /></OnboardingGate>} />
             <Route path="chat" element={<Chat />} />
-            <Route path="plan" element={<Plan />} />
-            <Route path="mission" element={<Mission />} />
-            <Route path="tasks" element={<Tasks />} />
-            <Route path="reflect" element={<Reflect />} />
-            <Route path="rescue" element={<Rescue />} />
-            <Route path="audit" element={<Audit />} />
-            <Route path="forge" element={<Forge />} />
-            <Route path="forge/:featureId" element={<ForgeFeature />} />
+            <Route path="plan" element={<OnboardingGate requires="constraints" pageName="Plan" unlocksWhen="Plan builds your day and week around school, sleep, and your goal — it needs your goal and a few schedule basics."><Plan /></OnboardingGate>} />
+            <Route path="mission" element={<OnboardingGate requires="complete" pageName="Mission" unlocksWhen="Mission tracks workstream health, signals, and trends. It activates once your goal, why, and core schedule are captured."><Mission /></OnboardingGate>} />
+            <Route path="tasks" element={<OnboardingGate requires="goal" pageName="Tasks" unlocksWhen="Tasks holds the concrete moves toward your goal."><Tasks /></OnboardingGate>} />
+            <Route path="reflect" element={<OnboardingGate requires="goal" pageName="Reflect" unlocksWhen="Reflect captures today's energy, win, and friction — anchored to your goal."><Reflect /></OnboardingGate>} />
+            <Route path="rescue" element={<OnboardingGate requires="goal" pageName="Rescue" unlocksWhen="Rescue shrinks a stuck task into a gentle next step."><Rescue /></OnboardingGate>} />
+            <Route path="audit" element={<OnboardingGate requires="complete" pageName="Audit" unlocksWhen="Audit reads alignment and drift across your last weeks of execution."><Audit /></OnboardingGate>} />
+            <Route path="forge" element={<OnboardingGate requires="constraints" pageName="Forge" unlocksWhen="Forge spawns custom tools tuned to your goal once it knows your goal and basic constraints."><Forge /></OnboardingGate>} />
+            <Route path="forge/:featureId" element={<OnboardingGate requires="constraints" pageName="Forge" unlocksWhen="Forge features run against your goal context."><ForgeFeature /></OnboardingGate>} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

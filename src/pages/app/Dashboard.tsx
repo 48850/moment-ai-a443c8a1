@@ -8,6 +8,7 @@ import { PatternBanner } from "@/components/app/PatternBanner";
 import { AIInsight } from "@/components/app/AIInsight";
 import { useAI } from "@/lib/ai/useAI";
 
+
 const Dashboard = () => {
   const state = useStateStore((s) => s.state);
   const dispatch = useStateStore((s) => s.dispatch);
