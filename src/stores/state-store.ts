@@ -636,6 +636,14 @@ export const useStateStore = create<StateStore>((set, get) => ({
         };
         break;
       }
+
+      case "mission/snapshot": {
+        const snap = action.payload;
+        const history = ((s as any).mission_history ?? []).filter((h: any) => h.date !== snap.date);
+        const merged = [...history, snap].slice(-60);
+        next = { ...s, mission_history: merged } as any;
+        break;
+      }
     }
 
     next = touch(next);
