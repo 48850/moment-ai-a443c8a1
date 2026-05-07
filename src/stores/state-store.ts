@@ -641,7 +641,22 @@ export const useStateStore = create<StateStore>((set, get) => ({
         break;
       }
 
-      case "mission/snapshot": {
+      case "chat/append": {
+        const msg = {
+          id: action.payload.id,
+          role: action.payload.role,
+          content: action.payload.content,
+          created_at: action.payload.created_at ?? now(),
+        };
+        const existing = (s as any).chat_messages ?? [];
+        next = { ...s, chat_messages: [...existing, msg].slice(-200) } as any;
+        break;
+      }
+
+      case "chat/clear": {
+        next = { ...s, chat_messages: [] } as any;
+        break;
+      }
         const snap = action.payload;
         const history = ((s as any).mission_history ?? []).filter((h: any) => h.date !== snap.date);
         const merged = [...history, snap].slice(-60);
