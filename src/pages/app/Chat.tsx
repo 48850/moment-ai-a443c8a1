@@ -50,14 +50,18 @@ const Chat = () => {
     [state?.profile.display_name, state?.active_goal?.statement],
   );
 
-  const [messages, setMessages] = useState<ChatMessage[]>([greeting]);
+  const persisted = (state as any)?.chat_messages as ChatMessage[] | undefined;
+  const [messages, setMessages] = useState<ChatMessage[]>(
+    persisted && persisted.length ? persisted : [greeting],
+  );
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
-  // Reset greeting only on first mount with state
+  // Rehydrate when user changes; keep greeting only when no history.
   useEffect(() => {
-    setMessages((prev) => (prev.length <= 1 ? [greeting] : prev));
+    const stored = (state as any)?.chat_messages as ChatMessage[] | undefined;
+    setMessages(stored && stored.length ? stored : [greeting]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state?.user_id]);
 
