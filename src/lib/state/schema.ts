@@ -162,6 +162,10 @@ export const taskSchema = z.object({
   was_tuned: z.boolean().default(false).optional(),
   /** Original title before the most recent tune (for context only). */
   original_title: z.string().default("").optional(),
+  /** AI-generated rationale ("why this matters now"). Cached per task. */
+  why_now: z.string().default("").optional(),
+  /** AI-generated next proof unlocked by this task. Cached per task. */
+  next_proof: z.string().default("").optional(),
 });
 
 export const frictionTagSchema = z.enum([
