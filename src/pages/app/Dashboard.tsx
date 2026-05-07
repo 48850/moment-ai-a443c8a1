@@ -16,13 +16,29 @@ const Dashboard = () => {
 
   const vm = state ? selectHomeViewModel(state) : null;
   const dm = vm?.decisiveMove;
+  const dmTask = dm ? state?.tasks.find((t) => t.id === dm.id) : undefined;
+  const cachedWhyNow = dmTask?.why_now || "";
+  const cachedNextProof = dmTask?.next_proof || "";
 
   useEffect(() => {
-    if (dm && state?.active_goal?.statement && !rationale.loading) {
-      rationale.run({ task: { title: dm.title, estimated_minutes: dm.estimatedMinutes } });
-    }
+    if (!dm || !state?.active_goal?.statement) return;
+    if (cachedWhyNow) return; // already have it — don't re-spend tokens
+    if (rationale.loading) return;
+    rationale
+      .run({ task: { title: dm.title, estimated_minutes: dm.estimatedMinutes } })
+      .then((res) => {
+        if (res?.why_now) {
+          dispatch({
+            type: "task/update",
+            payload: {
+              id: dm.id,
+              changes: { why_now: res.why_now, next_proof: res.next_proof || "" },
+            },
+          });
+        }
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dm?.id]);
+  }, [dm?.id, cachedWhyNow]);
 
   if (!state || !vm) return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
 
@@ -58,10 +74,14 @@ const Dashboard = () => {
           </div>
           <h2 className="mt-2 text-xl font-semibold leading-tight">{dm.title}</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            {rationale.result?.why_now ?? <>Why this? It moves you toward <span className="text-foreground">{vm.goalSnippet}</span>.</>}
+            {cachedWhyNow || rationale.result?.why_now || (
+              <>Why this? It moves you toward <span className="text-foreground">{vm.goalSnippet}</span>.</>
+            )}
           </p>
-          {rationale.result?.next_proof && (
-            <p className="mt-1 text-xs text-muted-foreground">Unlocks: <span className="text-foreground">{rationale.result.next_proof}</span></p>
+          {(cachedNextProof || rationale.result?.next_proof) && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Unlocks: <span className="text-foreground">{cachedNextProof || rationale.result?.next_proof}</span>
+            </p>
           )}
           <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
             <Clock className="h-3 w-3" /> about {dm.estimatedMinutes} min
