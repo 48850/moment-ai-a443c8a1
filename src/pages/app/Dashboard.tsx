@@ -16,13 +16,29 @@ const Dashboard = () => {
 
   const vm = state ? selectHomeViewModel(state) : null;
   const dm = vm?.decisiveMove;
+  const dmTask = dm ? state?.tasks.find((t) => t.id === dm.id) : undefined;
+  const cachedWhyNow = dmTask?.why_now || "";
+  const cachedNextProof = dmTask?.next_proof || "";
 
   useEffect(() => {
-    if (dm && state?.active_goal?.statement && !rationale.loading) {
-      rationale.run({ task: { title: dm.title, estimated_minutes: dm.estimatedMinutes } });
-    }
+    if (!dm || !state?.active_goal?.statement) return;
+    if (cachedWhyNow) return; // already have it — don't re-spend tokens
+    if (rationale.loading) return;
+    rationale
+      .run({ task: { title: dm.title, estimated_minutes: dm.estimatedMinutes } })
+      .then((res) => {
+        if (res?.why_now) {
+          dispatch({
+            type: "task/update",
+            payload: {
+              id: dm.id,
+              changes: { why_now: res.why_now, next_proof: res.next_proof || "" },
+            },
+          });
+        }
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dm?.id]);
+  }, [dm?.id, cachedWhyNow]);
 
   if (!state || !vm) return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
 
