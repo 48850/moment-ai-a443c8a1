@@ -657,6 +657,8 @@ export const useStateStore = create<StateStore>((set, get) => ({
         next = { ...s, chat_messages: [] } as any;
         break;
       }
+
+      case "mission/snapshot": {
         const snap = action.payload;
         const history = ((s as any).mission_history ?? []).filter((h: any) => h.date !== snap.date);
         const merged = [...history, snap].slice(-60);
