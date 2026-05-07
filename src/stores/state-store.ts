@@ -77,6 +77,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
         rescue_signals: (saved as any).rescue_signals ?? [],
         chat_preferences: (saved as any).chat_preferences ?? { tone: "default" },
         mission_history: (saved as any).mission_history ?? [],
+        chat_messages: (saved as any).chat_messages ?? [],
       };
       set({ state: hydrated, isHydrated: true });
     } else {
