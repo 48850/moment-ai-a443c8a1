@@ -41,6 +41,8 @@ export type MomentAction =
   | { type: "home/setPlan"; payload: "plan_a" | "plan_b" }
   | { type: "rescue/log"; payload: RescueSignal }
   | { type: "chat/setPreferences"; payload: Partial<ChatPreferences> }
+  | { type: "chat/append"; payload: { id: string; role: "user" | "assistant"; content: string; created_at?: string } }
+  | { type: "chat/clear" }
   | { type: "mission/snapshot"; payload: MissionSnapshot }
   | { type: "goal/set"; payload: MomentState["active_goal"] }
   | { type: "goal/patch"; payload: Partial<MomentState["active_goal"]> }

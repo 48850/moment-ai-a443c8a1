@@ -50,14 +50,18 @@ const Chat = () => {
     [state?.profile.display_name, state?.active_goal?.statement],
   );
 
-  const [messages, setMessages] = useState<ChatMessage[]>([greeting]);
+  const persisted = (state as any)?.chat_messages as ChatMessage[] | undefined;
+  const [messages, setMessages] = useState<ChatMessage[]>(
+    persisted && persisted.length ? persisted : [greeting],
+  );
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
-  // Reset greeting only on first mount with state
+  // Rehydrate when user changes; keep greeting only when no history.
   useEffect(() => {
-    setMessages((prev) => (prev.length <= 1 ? [greeting] : prev));
+    const stored = (state as any)?.chat_messages as ChatMessage[] | undefined;
+    setMessages(stored && stored.length ? stored : [greeting]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state?.user_id]);
 
@@ -158,6 +162,7 @@ const Chat = () => {
     if (!text.trim() || !state) return;
     const userMsg: ChatMessage = { id: crypto.randomUUID(), role: "user", content: text };
     setMessages((m) => [...m, userMsg]);
+    dispatch({ type: "chat/append", payload: userMsg });
     setInput("");
     setIsTyping(true);
 
@@ -183,8 +188,6 @@ const Chat = () => {
 
       applyToolPatches(patches);
 
-      // Never surface "(no reply)" — synthesize a contextual fallback so the
-      // chat always feels alive, even when the model only emits tool calls.
       let display = reply.trim();
       if (!display) {
         if (patches.length) {
@@ -198,24 +201,22 @@ const Chat = () => {
         }
       }
 
-      setMessages((m) => [
-        ...m,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: display,
-        },
-      ]);
+      const assistantMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: display,
+      };
+      setMessages((m) => [...m, assistantMsg]);
+      dispatch({ type: "chat/append", payload: assistantMsg });
     } catch (e: any) {
       toast.error(e?.message || "Chat failed");
-      setMessages((m) => [
-        ...m,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: "Sorry — I couldn't reach the coach. Try again in a moment.",
-        },
-      ]);
+      const errMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: "Sorry — I couldn't reach the coach. Try again in a moment.",
+      };
+      setMessages((m) => [...m, errMsg]);
+      dispatch({ type: "chat/append", payload: errMsg });
     } finally {
       setIsTyping(false);
     }

@@ -77,6 +77,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
         rescue_signals: (saved as any).rescue_signals ?? [],
         chat_preferences: (saved as any).chat_preferences ?? { tone: "default" },
         mission_history: (saved as any).mission_history ?? [],
+        chat_messages: (saved as any).chat_messages ?? [],
       };
       set({ state: hydrated, isHydrated: true });
     } else {
@@ -637,6 +638,23 @@ export const useStateStore = create<StateStore>((set, get) => ({
           ...s,
           chat_preferences: { ...(s.chat_preferences ?? { tone: "default" }), ...action.payload },
         };
+        break;
+      }
+
+      case "chat/append": {
+        const msg = {
+          id: action.payload.id,
+          role: action.payload.role,
+          content: action.payload.content,
+          created_at: action.payload.created_at ?? now(),
+        };
+        const existing = (s as any).chat_messages ?? [];
+        next = { ...s, chat_messages: [...existing, msg].slice(-200) } as any;
+        break;
+      }
+
+      case "chat/clear": {
+        next = { ...s, chat_messages: [] } as any;
         break;
       }
 

@@ -112,6 +112,7 @@ export function createDefaultState(userId: string, displayName: string, timezone
     pursuit_model: null,
     rescue_signals: [],
     chat_preferences: { tone: "default" },
+    chat_messages: [],
     mission_history: [],
   };
 
