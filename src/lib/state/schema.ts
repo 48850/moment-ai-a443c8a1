@@ -409,5 +409,6 @@ export const momentStateSchema = z.object({
   pursuit_model: compiledPursuitModelSchema.nullable(),
   rescue_signals: z.array(rescueSignalSchema).default([]),
   chat_preferences: chatPreferencesSchema.default({ tone: "default" }),
+  chat_messages: z.array(chatMessageSchema).default([]),
   mission_history: z.array(missionSnapshotSchema).default([]),
 });
