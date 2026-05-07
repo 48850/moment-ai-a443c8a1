@@ -265,6 +265,13 @@ export const chatPreferencesSchema = z.object({
   tone: z.enum(["default", "gentler", "more_direct"]).default("default"),
 });
 
+export const chatMessageSchema = z.object({
+  id: z.string(),
+  role: z.enum(["user", "assistant"]),
+  content: z.string(),
+  created_at: z.string().default(""),
+});
+
 export const forgeStateSchema = z.object({
   interview_answers: z.array(z.any()).default([]),
   candidate_features: z.array(z.any()).default([]),
