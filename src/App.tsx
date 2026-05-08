@@ -38,7 +38,7 @@ const App = () => {
           <Route path="/" element={<Index />} />
           <Route path="/app" element={<AppShell />}>
             <Route index element={<OnboardingGate requires="goal" pageName="Today" unlocksWhen="Today shows your one decisive next move and the tasks pulled toward your goal."><Dashboard /></OnboardingGate>} />
-            <Route path="chat" element={<Chat />} />
+            <Route path="chat" element={<OnboardingGate><Chat /></OnboardingGate>} />
             <Route path="plan" element={<OnboardingGate requires="goal" pageName="Plan" unlocksWhen="Plan builds your day and week around your goal."><Plan /></OnboardingGate>} />
             <Route path="mission" element={<OnboardingGate requires="goal" pageName="Mission" unlocksWhen="Mission tracks workstream health, signals, and trends for your goal."><Mission /></OnboardingGate>} />
             <Route path="tasks" element={<OnboardingGate requires="goal" pageName="Tasks" unlocksWhen="Tasks holds the concrete moves toward your goal."><Tasks /></OnboardingGate>} />
