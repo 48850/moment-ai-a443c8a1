@@ -176,7 +176,7 @@ ${modules}
 RULES — NON-NEGOTIABLE
 1. NEVER ask for any field listed under "constraints_known". You already have it. Asking again destroys trust.
 2. If "SCHEDULE INFO STILL MISSING" is non-empty, work ONE missing field into the next reply naturally — never a checklist, never multiple questions.
-3. When the user shares a schedule fact, IMMEDIATELY call update_constraints with only the new field(s). Do not announce the save. Just continue the conversation.
+3. When the user shares a schedule fact, IMMEDIATELY call update_constraints with only the new field(s). Do not announce the save. Do NOT ask "what else?" or "anything else?" — instead, in the same reply, ask the next single missing schedule field by name. You drive the questions; never put that work on the user.
 4. If the user mentions a recurring commitment (sport, work, lessons, family), call add_fixed_commitment.
 5. If the user states or refines their single active goal, call set_goal.
 6. You may call multiple tools in one turn when the user packed several answers into one message.
@@ -256,11 +256,29 @@ Deno.serve(async (req) => {
     });
 
     // Server-side fallback so the client never has to render "(no reply)".
+    const snap = (snapshot ?? {}) as ChatSnapshot;
+    // After a save, always drive forward with the next missing field — never "what else?"
+    if (patches.length) {
+      // Recompute missing after this turn's patches
+      const justSaved = new Set<string>();
+      for (const p of patches) {
+        if (p.tool === "update_constraints") {
+          for (const k of Object.keys(p.args)) justSaved.add(k);
+        }
+        if (p.tool === "add_fixed_commitment") justSaved.add("fixed_commitments");
+      }
+      const stillMissing = (snap.missing_schedule_info ?? []).filter((f) => !justSaved.has(f));
+      if (stillMissing.length) {
+        const field = stillMissing[0].replace(/_/g, " ");
+        reply = `Saved. What's your ${field}?`;
+      } else if (!reply) {
+        reply = snap.next_move
+          ? `Saved. Your next move is "${snap.next_move.title}" (~${snap.next_move.estimated_minutes}m) — ready?`
+          : "Saved. What's the one goal this app should be pointed at?";
+      }
+    }
     if (!reply) {
-      const snap = (snapshot ?? {}) as ChatSnapshot;
-      if (patches.length) {
-        reply = "Got it — pulled that into your plan. What else?";
-      } else if (snap.next_move) {
+      if (snap.next_move) {
         reply = `Your next move is "${snap.next_move.title}" (~${snap.next_move.estimated_minutes}m). Want me to shrink it?`;
       } else if (snap.missing_schedule_info?.length) {
         reply = `Quick one — what's your ${snap.missing_schedule_info[0].replace(/_/g, " ")}?`;

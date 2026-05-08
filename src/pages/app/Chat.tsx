@@ -190,12 +190,10 @@ const Chat = () => {
 
       let display = reply.trim();
       if (!display) {
-        if (patches.length) {
-          display = "Got it — pulled that into your plan. What else?";
+        if (snapshot.missing_schedule_info.length) {
+          display = `What's your ${snapshot.missing_schedule_info[0].replace(/_/g, " ")}?`;
         } else if (snapshot.next_move) {
           display = `Your next move is "${snapshot.next_move.title}" (${snapshot.next_move.estimated_minutes}m). Want help shrinking it?`;
-        } else if (snapshot.missing_schedule_info.length) {
-          display = `Quickly — what's your ${snapshot.missing_schedule_info[0].replace(/_/g, " ")}?`;
         } else {
           display = "Tell me where you're stuck or what just happened.";
         }
