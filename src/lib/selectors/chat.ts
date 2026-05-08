@@ -8,6 +8,14 @@ import { selectNextBestTask } from "@/lib/engine/next-best-task";
 
 export interface ChatSnapshot {
   display_name: string;
+  profile: {
+    age: number;
+    school_name: string;
+    grade_level: string;
+    weekly_schedule_summary: string;
+    predispositions: string;
+    onboarded: boolean;
+  };
   active_goal: { statement: string; why_it_matters: string; status: string };
   constraints_known: Record<string, string | number | boolean>;
   missing_schedule_info: string[];
@@ -21,6 +29,7 @@ export interface ChatSnapshot {
   active_plan: "plan_a" | "plan_b";
   forge_modules: Array<{ name: string; type: string; runs: number; last_entry?: string }>;
   tone_preference: string;
+  recent_chat: Array<{ role: "user" | "assistant"; content: string }>;
 }
 
 const SCHEDULE_FIELD_MAP: Array<[keyof MomentState["constraints"], string]> = [
@@ -94,6 +103,14 @@ export function selectChatSnapshot(state: MomentState): ChatSnapshot {
 
   return {
     display_name: state.profile.display_name,
+    profile: {
+      age: state.profile.age ?? 0,
+      school_name: state.profile.school_name ?? "",
+      grade_level: state.profile.grade_level ?? "",
+      weekly_schedule_summary: state.profile.weekly_schedule_summary ?? "",
+      predispositions: state.profile.predispositions ?? "",
+      onboarded: !!state.profile.onboarding_completed_at,
+    },
     active_goal: {
       statement: state.active_goal.statement,
       why_it_matters: state.active_goal.why_it_matters,
@@ -118,5 +135,6 @@ export function selectChatSnapshot(state: MomentState): ChatSnapshot {
     active_plan: state.home.active_plan,
     forge_modules: modules,
     tone_preference: state.chat_preferences?.tone ?? "default",
+    recent_chat: (state.chat_messages ?? []).slice(-10).map((m) => ({ role: m.role, content: m.content })),
   };
 }

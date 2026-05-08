@@ -31,6 +31,12 @@ export function createDefaultState(userId: string, displayName: string, timezone
       timezone,
       created_at: now,
       last_active_at: now,
+      age: 0,
+      school_name: "",
+      grade_level: "",
+      weekly_schedule_summary: "",
+      predispositions: "",
+      onboarding_completed_at: "",
     },
     active_goal,
     constraints: {
