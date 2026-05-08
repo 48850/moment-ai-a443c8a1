@@ -54,6 +54,15 @@ export const useStateStore = create<StateStore>((set, get) => ({
       // Backfill fields added after a previous schema version.
       const hydrated: MomentState = {
         ...saved,
+        profile: {
+          ...saved.profile,
+          age: (saved.profile as any).age ?? 0,
+          school_name: (saved.profile as any).school_name ?? "",
+          grade_level: (saved.profile as any).grade_level ?? "",
+          weekly_schedule_summary: (saved.profile as any).weekly_schedule_summary ?? "",
+          predispositions: (saved.profile as any).predispositions ?? "",
+          onboarding_completed_at: (saved.profile as any).onboarding_completed_at ?? "",
+        },
         execution_feedback: saved.execution_feedback ?? [],
         schedule_state: {
           ...saved.schedule_state,
