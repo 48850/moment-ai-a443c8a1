@@ -20,6 +20,13 @@ function buildSnapshot(s: MomentState | null) {
   if (!s) return {};
   return {
     display_name: s.profile.display_name,
+    profile: {
+      age: s.profile.age ?? 0,
+      school_name: s.profile.school_name ?? "",
+      grade_level: s.profile.grade_level ?? "",
+      weekly_schedule_summary: s.profile.weekly_schedule_summary ?? "",
+      predispositions: s.profile.predispositions ?? "",
+    },
     active_goal: {
       statement: s.active_goal.statement,
       why_it_matters: s.active_goal.why_it_matters,
@@ -28,6 +35,7 @@ function buildSnapshot(s: MomentState | null) {
     recent_reflections: (s.reflections ?? [])
       .slice(-3)
       .map((r) => ({ date: r.date, energy: r.energy_rating, win: r.accomplishment, struggle: r.struggle })),
+    recent_chat: (s.chat_messages ?? []).slice(-10).map((m) => ({ role: m.role, content: m.content })),
     constraints: {
       energy_pattern: s.constraints?.energy_pattern,
       preferred_work_window: s.constraints?.preferred_work_window,
