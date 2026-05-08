@@ -46,7 +46,7 @@ const App = () => {
             <Route path="rescue" element={<OnboardingGate requires="goal" pageName="Rescue" unlocksWhen="Rescue shrinks a stuck task into a gentle next step."><Rescue /></OnboardingGate>} />
             <Route path="audit" element={<OnboardingGate requires="goal" pageName="Audit" unlocksWhen="Audit reads alignment and drift across your execution."><Audit /></OnboardingGate>} />
             <Route path="forge" element={<OnboardingGate requires="goal" pageName="Forge" unlocksWhen="Forge spawns custom tools tuned to your goal."><Forge /></OnboardingGate>} />
-            <Route path="forge/:featureId" element={<OnboardingGate requires="goal" pageName="Forge" unlocksWhen="Forge features run against your goal context."><ForgeFeature /></OnboardingGate>} />}
+            <Route path="forge/:featureId" element={<OnboardingGate requires="goal" pageName="Forge" unlocksWhen="Forge features run against your goal context."><ForgeFeature /></OnboardingGate>} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
