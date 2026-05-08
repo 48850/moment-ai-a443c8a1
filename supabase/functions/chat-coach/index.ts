@@ -256,11 +256,29 @@ Deno.serve(async (req) => {
     });
 
     // Server-side fallback so the client never has to render "(no reply)".
+    const snap = (snapshot ?? {}) as ChatSnapshot;
+    // After a save, always drive forward with the next missing field — never "what else?"
+    if (patches.length) {
+      // Recompute missing after this turn's patches
+      const justSaved = new Set<string>();
+      for (const p of patches) {
+        if (p.tool === "update_constraints") {
+          for (const k of Object.keys(p.args)) justSaved.add(k);
+        }
+        if (p.tool === "add_fixed_commitment") justSaved.add("fixed_commitments");
+      }
+      const stillMissing = (snap.missing_schedule_info ?? []).filter((f) => !justSaved.has(f));
+      if (stillMissing.length) {
+        const field = stillMissing[0].replace(/_/g, " ");
+        reply = `Saved. What's your ${field}?`;
+      } else if (!reply) {
+        reply = snap.next_move
+          ? `Saved. Your next move is "${snap.next_move.title}" (~${snap.next_move.estimated_minutes}m) — ready?`
+          : "Saved. What's the one goal this app should be pointed at?";
+      }
+    }
     if (!reply) {
-      const snap = (snapshot ?? {}) as ChatSnapshot;
-      if (patches.length) {
-        reply = "Got it — pulled that into your plan. What else?";
-      } else if (snap.next_move) {
+      if (snap.next_move) {
         reply = `Your next move is "${snap.next_move.title}" (~${snap.next_move.estimated_minutes}m). Want me to shrink it?`;
       } else if (snap.missing_schedule_info?.length) {
         reply = `Quick one — what's your ${snap.missing_schedule_info[0].replace(/_/g, " ")}?`;
