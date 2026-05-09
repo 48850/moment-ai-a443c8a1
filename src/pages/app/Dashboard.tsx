@@ -52,10 +52,28 @@ const Dashboard = () => {
     }
   };
 
+  const handleResetOnboarding = () => {
+    if (!confirm("Reset onboarding? This clears all local state.")) return;
+    try {
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith("moment_"))
+        .forEach((k) => localStorage.removeItem(k));
+    } catch {}
+    window.location.assign("/onboarding");
+  };
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div>
+      <div className="flex items-start justify-between gap-3">
         <div className="text-xs text-muted-foreground">{vm.greeting}</div>
+        <button
+          onClick={handleResetOnboarding}
+          className="rounded-md border border-border px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground hover:bg-muted"
+        >
+          Reset onboarding
+        </button>
+      </div>
+      <div>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">
           Hey {state.profile.display_name} 👋
         </h1>
