@@ -63,7 +63,23 @@ export const AppShell = () => {
             <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">/ai</span>
           </span>
         </Link>
-        <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">your moment</div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              if (!confirm("Reset onboarding? This wipes local state.")) return;
+              try {
+                Object.keys(localStorage)
+                  .filter((k) => k.startsWith("moment_"))
+                  .forEach((k) => localStorage.removeItem(k));
+              } catch {}
+              window.location.assign("/onboarding");
+            }}
+            className="rounded-md border border-border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            Reset onboarding
+          </button>
+          <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">your moment</div>
+        </div>
       </header>
 
 
