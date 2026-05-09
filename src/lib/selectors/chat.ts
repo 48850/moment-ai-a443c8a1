@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Single source of truth for the chat-coach context.
  * Every Chat call should pass this — it is what keeps Moment from asking

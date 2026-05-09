@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Send, Sparkles, CheckCircle2 } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";

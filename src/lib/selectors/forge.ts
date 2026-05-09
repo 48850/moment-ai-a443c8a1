@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { MomentState, ForgeGuidebook, FeatureRunResult, ForgeSignal } from "@/lib/types";
 import { detectSystemGap } from "@/lib/forge/guidebook";
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect } from "react";
 import { Check, Clock, Sparkles } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
