@@ -11,6 +11,7 @@ export const MODE_TRANSITIONS: Record<AppMode, AppMode[]> = {
 };
 
 const ALL_WRITABLE: (keyof MomentState)[] = [
+   "profile",
    "active_goal",
    "constraints",
    "pathway",
