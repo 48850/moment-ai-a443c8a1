@@ -1,17 +1,8 @@
 // Unified AI brain for Moment. One endpoint, many intents.
 // Body: { intent: string, snapshot: any, payload?: any }
 // Returns: { result: any } shaped per intent.
-//
-// Intents:
-//  - next_move_rationale  → { why_now, next_proof }
-//  - reframe_rescue       → { reframed_title, micro_steps[], gentle_note }
-//  - daily_debrief        → { headline, win, friction, tomorrow_intention }
-//  - goal_audit           → { drift_score, status, reasons[], recommendation }
-//  - forge_modules        → { modules:[{name,description,module_type,why}] }
-//  - rescue_protocol      → { title, steps[], soft_note }
-//  - suggest_tasks        → { tasks:[{title,estimated_minutes,category,priority,why}] }
-//  - reflect_summary      → { pattern, encouragement }
-//  - mission_insight      → { observation, suggestion }
+
+import { MOMENT_AI_DOCTRINE } from "../_shared/moment-ai-doctrine.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,26 +12,8 @@ const corsHeaders = {
 
 const MODEL = "google/gemini-3-flash-preview";
 
-const TONE = `You are Moment — a calm, sharp coach for an ambitious teenager. Speak like a thoughtful older friend, never a productivity app. Short sentences. No emojis unless the user used one. Never preach. Never shame. When the plan is wrong, blame the plan, not the person. Be specific to THIS user's goal and signals — never generic.
-
-DIAGNOSTIC LOOP (apply every response):
-1. Read known context first (goal, recent feedback, reflections, mission analytics, matched scenarios).
-2. Identify the likely bottleneck — not what the user says, what's actually blocking them.
-3. NEVER re-ask information already in state.
-4. Ask one sharp probe only if a critical fact is missing. Otherwise act.
-5. Generate a specific next move (named, sized, owns the first physical step).
-6. Suggest or activate a relevant Forge feature when it would close the loop.
-7. Make the user feel the app is protecting their actual future.
-
-ANTI-PATTERNS (never do these):
-- Generic productivity advice ("break it down", "stay consistent", "just start").
-- Cheerleading without a concrete next move.
-- Dumping a giant plan when triage is needed.
-- Naming features generically ("Daily Tracker") instead of domain-specific ("Serve Toss Tracker", "Rebuttal Challenger").
-- Treating energy as flat across the week.
-- Fake certainty. If unsure, name what you'd need to know.
-
-If matched_scenarios appear in the snapshot, treat their inferred_bottleneck and probe as the most reliable read on this user, and prefer their named forge_features over inventing generic ones.`;
+// Canonical doctrine — replaces the old generic TONE string
+const TONE = MOMENT_AI_DOCTRINE;
 
 function tools(intent: string) {
   const T: Record<string, any> = {
@@ -101,7 +74,7 @@ function tools(intent: string) {
     },
     forge_modules: {
       name: "answer",
-      description: "Propose 3 indispensable, build-ready feature modules for THIS user's goal. Each must include a runnable config (fields/steps/drills/slots).",
+      description: "Propose 3 indispensable, build-ready feature modules for THIS user's goal.",
       parameters: {
         type: "object",
         properties: {
@@ -111,46 +84,17 @@ function tools(intent: string) {
             items: {
               type: "object",
               properties: {
-                name: { type: "string", description: "Short, distinctive name." },
+                name: { type: "string" },
                 description: { type: "string" },
                 module_type: { type: "string", enum: ["practice_system", "planner", "tracker", "rescue_protocol", "evidence_log"] },
-                why: { type: "string", description: "Why this user specifically needs it." },
+                why: { type: "string" },
                 config: {
                   type: "object",
-                  description: "Runnable config. Include the relevant shape for the module_type.",
                   properties: {
-                    fields: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          key: { type: "string" },
-                          label: { type: "string" },
-                          kind: { type: "string", enum: ["number", "text", "rating"] },
-                        },
-                        required: ["key", "label", "kind"],
-                        additionalProperties: false,
-                      },
-                    },
+                    fields: { type: "array", items: { type: "object", properties: { key: { type: "string" }, label: { type: "string" }, kind: { type: "string", enum: ["number", "text", "rating"] } }, required: ["key", "label", "kind"], additionalProperties: false } },
                     steps: { type: "array", items: { type: "string" } },
-                    drills: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: { name: { type: "string" }, minutes: { type: "number" } },
-                        required: ["name", "minutes"],
-                        additionalProperties: false,
-                      },
-                    },
-                    slots: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: { label: { type: "string" }, cadence: { type: "string" } },
-                        required: ["label", "cadence"],
-                        additionalProperties: false,
-                      },
-                    },
+                    drills: { type: "array", items: { type: "object", properties: { name: { type: "string" }, minutes: { type: "number" } }, required: ["name", "minutes"], additionalProperties: false } },
+                    slots: { type: "array", items: { type: "object", properties: { label: { type: "string" }, cadence: { type: "string" } }, required: ["label", "cadence"], additionalProperties: false } },
                   },
                   additionalProperties: false,
                 },
@@ -193,6 +137,8 @@ function tools(intent: string) {
                 category: { type: "string", enum: ["goal_direct", "bottleneck_removal", "discovery", "maintenance"] },
                 priority: { type: "string", enum: ["high", "medium", "low"] },
                 why: { type: "string" },
+                why_now: { type: "string", description: "Why this task fits the user's current stage — not generic motivation." },
+                user_stage_fit: { type: "string", enum: ["strong", "okay", "weak", "premature"] },
               },
               required: ["title", "estimated_minutes", "category", "priority"],
               additionalProperties: false,
@@ -227,175 +173,124 @@ function tools(intent: string) {
         additionalProperties: false,
       },
     },
-    forge_guidebook: {
+    refine_task: {
       name: "answer",
-      description: "Design a complete guidebook for a goal-related feature: inputs, AI functions, sections, safety rules.",
-      parameters: {
-        type: "object",
-        properties: {
-          title: { type: "string" },
-          subtitle: { type: "string" },
-          purpose: { type: "string" },
-          bottleneck_addressed: { type: "string" },
-          feature_type: { type: "string" },
-          required_inputs: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                id: { type: "string" },
-                label: { type: "string" },
-                type: { type: "string", enum: ["text", "textarea", "select", "scale", "number", "date"] },
-                placeholder: { type: "string" },
-                required: { type: "boolean" },
-                options: { type: "array", items: { type: "string" } },
-              },
-              required: ["id", "label", "type"],
-              additionalProperties: false,
-            },
-          },
-          ai_functions: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                id: { type: "string" },
-                name: { type: "string" },
-                description: { type: "string" },
-                function_type: { type: "string", enum: ["generate", "rank", "critique", "score", "plan", "reflect", "diagnose", "rewrite", "summarize", "decide"] },
-                prompt_contract: { type: "string" },
-                input_sources: { type: "array", items: { type: "string" } },
-                writes_to_state: { type: "boolean" },
-                allowed_state_actions: { type: "array", items: { type: "string" } },
-              },
-              required: ["id", "name", "function_type", "prompt_contract"],
-              additionalProperties: false,
-            },
-          },
-          sections: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                id: { type: "string" },
-                title: { type: "string" },
-                section_type: { type: "string", enum: ["input_panel", "ai_output", "saved_entries", "task_list", "scorecard", "timeline", "protocol_steps", "decision_result", "reflection_box", "audit_summary"] },
-                description: { type: "string" },
-                linked_ai_function_id: { type: "string" },
-              },
-              required: ["id", "title", "section_type"],
-              additionalProperties: false,
-            },
-          },
-          safety_rules: { type: "array", items: { type: "string" } },
-        },
-        required: ["title", "purpose", "required_inputs", "ai_functions", "sections"],
-        additionalProperties: true,
-      },
-    },
-    forge_feature_ai: {
-      name: "answer",
-      description: "Run a guidebook AI function. Return the structured result keys requested in the prompt.",
-      parameters: {
-        type: "object",
-        properties: {
-          next_action: { type: "string" },
-          why: { type: "string" },
-          today_tasks: { type: "array", items: { type: "string" } },
-          summary: { type: "string" },
-          score: { type: "number" },
-          total_score: { type: "number" },
-          proof_score: { type: "number" },
-          notes: { type: "string" },
-        },
-        additionalProperties: true,
-      },
-    },
-    tune_refine: {
-      name: "answer",
-      description:
-        "Given a user's recent Tune feedback on a task, propose targeted edits. ONLY return fields that should change. The heuristic engine has already applied a first-pass mutation; your job is to refine title clarity and description specificity for THIS goal.",
+      description: "Given a user's recent Tune feedback on a task, propose targeted edits.",
       parameters: {
         type: "object",
         properties: {
           changes: {
             type: "object",
             properties: {
-              title: { type: "string", description: "Rewritten task title — concrete, first-step framed, under 80 chars." },
-              description: { type: "string", description: "Optional one-sentence description with the actual first physical step." },
-              estimated_minutes: { type: "number", description: "Override the estimate only if it's clearly wrong." },
+              title: { type: "string" },
+              description: { type: "string" },
+              estimated_minutes: { type: "number" },
               priority: { type: "string", enum: ["high", "medium", "low"] },
             },
             additionalProperties: false,
           },
-          reasoning: { type: "string", description: "One sentence on why these edits help." },
+          reasoning: { type: "string" },
         },
         required: ["changes"],
         additionalProperties: false,
       },
     },
   };
-  T.refine_task = T.tune_refine;
   return T[intent];
 }
 
-function userPrompt(intent: string, snapshot: any, payload: any): string {
+function buildContextHeader(snapshot: any): string {
+  const age_bracket = snapshot?.user?.age_bracket ?? "unknown";
+  const school_year = snapshot?.user?.school_year;
+  const current_stage = snapshot?.active_goal?.current_stage ?? "";
+  const target_stage = snapshot?.active_goal?.target_stage ?? "";
+  const reality_gap = snapshot?.active_goal?.reality_gap ?? "";
+  const risk = snapshot?.active_goal?.feasibility?.risk_of_bad_advice ?? "low";
+  const premature = (snapshot?.active_goal?.feasibility?.premature_recommendations ?? []).join(", ");
+  const appropriate = (snapshot?.active_goal?.feasibility?.appropriate_focus_now ?? []).join(", ");
+  const unknowns = (snapshot?.onboarding?.understanding?.unknowns ?? []).join(", ");
+  const assumptions = (snapshot?.pursuit?.assumptions ?? []).join("; ");
+  const capabilities = (snapshot?.pursuit?.capability_clusters ?? [])
+    .map((c: any) => `${c.name}: ${c.status}`).join(", ");
+  const active_mode = snapshot?.pursuit?.active_mode ?? "";
+  const available_min = snapshot?.current_reality?.available_study_minutes ?? 60;
   const goal = snapshot?.active_goal?.statement || "(no goal set)";
   const why = snapshot?.active_goal?.why_it_matters || "";
-  const fb = (snapshot?.recent_feedback ?? []).slice(-10).join(", ") || "none";
-  const reflections = (snapshot?.recent_reflections ?? []).slice(-3);
-  const p = snapshot?.profile ?? {};
-  const recentChat = (snapshot?.recent_chat ?? []).slice(-6)
-    .map((m: any) => `${m.role}: ${m.content}`).join("\n") || "none";
+  const fb = (snapshot?.signals?.recent_feedback ?? []).slice(-10).join(", ") || "none";
+  const reflections = (snapshot?.signals?.recent_reflections ?? []).slice(-3);
 
-  const userBlock = `USER PROFILE (CRITICAL — every suggestion MUST fit this person):
-- Name: ${snapshot?.display_name || "(unknown)"}
-- Age: ${p.age || "(unknown)"} ${p.age && p.age < 18 ? "← MINOR. Do NOT suggest college/grad-school/professional-track tasks unless the goal explicitly is that." : ""}
-- School: ${p.school_name || "(unknown)"} — Grade: ${p.grade_level || "(unknown)"}
-- Weekly schedule: ${p.weekly_schedule_summary || "(unknown)"}
-- Predispositions / context: ${p.predispositions || "(none)"}
+  return `USER: ${age_bracket}${school_year ? ` · ${school_year}` : ""}
+Current stage: ${current_stage || "unknown"} → Target: ${target_stage || "not set"}
+Available study time: ~${available_min}min | Mode: ${active_mode || "default"}
+Risk of bad advice: ${risk}
 
-HARD RULE: Calibrate vocabulary, time estimates, examples, and assumed life-stage to this user's actual age and grade. A 15-year-old in high school should NEVER receive med-school, residency, or college-level task framings unless their stated goal explicitly is one of those. When in doubt, frame for the user's CURRENT life stage.`;
+GOAL: ${goal}
+Why: ${why}
+Reality gap: ${reality_gap || "not yet assessed"}${risk === "high" ? `\n\n⚠️ HIGH RISK: Do NOT generate tasks involving: ${premature}` : ""}${appropriate ? `\nAppropriate focus now: ${appropriate}` : ""}${unknowns ? `\nWhat Moment still doesn't know: ${unknowns} — do not invent these.` : ""}
 
-  const ctx = `${userBlock}\n\nGoal: ${goal}\nWhy it matters: ${why}\nRecent feedback signals: ${fb}\nRecent reflections: ${JSON.stringify(reflections)}\nRecent chat:\n${recentChat}`;
+Pursuit assumptions: ${assumptions || "none"}
+Capabilities: ${capabilities || "not assessed"}
+
+Signals — Feedback: ${fb} | Reflections: ${JSON.stringify(reflections)}`.trim();
+}
+
+function userPrompt(intent: string, snapshot: any, payload: any): string {
+  const ctx = buildContextHeader(snapshot);
+  const goal = snapshot?.active_goal?.statement || "(no goal set)";
+  const current_stage = snapshot?.active_goal?.current_stage ?? "unknown";
+  const target_stage = snapshot?.active_goal?.target_stage ?? "not defined";
+  const risk = snapshot?.active_goal?.feasibility?.risk_of_bad_advice ?? "low";
+  const premature = (snapshot?.active_goal?.feasibility?.premature_recommendations ?? []).join(", ");
 
   switch (intent) {
     case "next_move_rationale":
-      return `${ctx}\n\nThe next task: "${payload?.task?.title}" (${payload?.task?.estimated_minutes ?? "?"}m).\nExplain why doing this now moves the goal forward. One vivid sentence.`;
+      return `${ctx}\n\nThe next task: "${payload?.task?.title}" (${payload?.task?.estimated_minutes ?? "?"}m).\nExplain why doing this now moves the goal forward. One vivid sentence. Be specific to THIS stage.`;
+
     case "reframe_rescue":
       return `${ctx}\n\nThe user is stuck on: "${payload?.task?.title}". Their note: "${payload?.note ?? ""}".\nShrink it. Keep the direction. Make the very next step impossible to avoid.`;
+
     case "daily_debrief":
       return `${ctx}\n\nToday's tasks: ${JSON.stringify(payload?.tasks ?? [])}\nGenerate a short, honest debrief. Plan-blame, not user-blame.`;
+
     case "goal_audit":
       return `${ctx}\n\nLast 14 days feedback: ${JSON.stringify(payload?.feedback ?? [])}\nReflections: ${JSON.stringify(payload?.reflections ?? [])}\nReport drift honestly. Suggest recommit / pivot / shrink.`;
+
     case "forge_modules":
       return `${ctx}
 
 Interview answers: ${JSON.stringify(payload?.answers ?? [])}
 
 Propose exactly 3 features that would feel indispensable to THIS user pursuing THIS goal. Rules:
-- Names must reference the user's domain (e.g. "Serve Toss Tracker" not "Practice Tracker"). Avoid generic words like "Daily", "System", "Loop" unless paired with a domain word.
-- Each "why" must cite something the user actually said in the interview answers. One sentence.
-- Configs must be domain-specific:
-  • tracker fields: name the actual signals to log (e.g. {key:"first_serve_pct", label:"1st serve %", kind:"number"}). 2-4 fields.
-  • rescue_protocol steps: 3-4 steps written for THIS goal's typical stall, not generic mindfulness.
-  • practice_system drills: 3-5 drills with realistic minutes, named after real techniques in the domain.
-  • planner slots: 2-4 slots with cadences that fit a teen's week.
-- Pick module_types that match the user's stated needs (structure/depth/speed/accountability). Don't return 3 of the same type unless clearly warranted.`;
+- Names must reference the user's domain. Avoid generic words unless paired with a domain word.
+- Each "why" must cite something the user actually said in the interview answers.
+- Configs must be domain-specific with realistic signals, steps, or drills.
+- Pick module_types that match the user's stated needs.`;
+
     case "rescue_protocol":
       return `${ctx}\n\nThe user feels: "${payload?.reason}". Give a gentle 3-4 step protocol. No motivation-speak.`;
+
     case "suggest_tasks":
-      return `${ctx}\n\nCurrent tasks: ${JSON.stringify(payload?.tasks ?? [])}\nPropose up to 5 next tasks that move the goal forward. Concrete, atomic, sized to a teen's day.`;
+      return `${ctx}
+
+Current tasks: ${JSON.stringify(payload?.tasks ?? [])}
+
+STAGE ENFORCEMENT:
+The user is at stage: ${current_stage}.
+Target stage: ${target_stage}.${risk === "high" ? `\n⚠️ This user is NOT at the professional/advanced stage yet. You MUST NOT generate tasks involving: ${premature}.` : ""}
+Generate only tasks appropriate for their current stage.
+For each task, include why_now (one sentence: why this fits their current stage specifically) and user_stage_fit.
+Mark any task that is borderline premature as user_stage_fit: "premature" — the app will handle it appropriately.
+Propose up to 5 tasks. Prefer foundational, exploratory, and pathway-clarity tasks for school-age users.`;
+
     case "reflect_summary":
       return `${ctx}\n\nReflections: ${JSON.stringify(payload?.reflections ?? [])}\nName one true pattern (energy, friction, timing). One line of honest encouragement.`;
+
     case "mission_insight":
-      return `${ctx}\n\nPursuit model: ${JSON.stringify(payload?.pursuit ?? null)}\nWorkstream statuses: ${JSON.stringify(payload?.workstreams ?? [])}\nWhat's the one thing the user should notice?`;
+      return `${ctx}\n\nPursuit model: ${JSON.stringify(snapshot?.pursuit ?? null)}\nWorkstream statuses: ${JSON.stringify(payload?.workstreams ?? [])}\nWhat's the one thing the user should notice about their pathway right now?`;
+
     case "refine_task":
-      return `Goal: ${payload?.goal || goal}\n\nTask after first-pass shrink: ${JSON.stringify(payload?.task ?? {})}\nUser's Tune feedback: "${payload?.feedback}".\n\nRefine ONLY the fields that need it. Lead with the first physical step. If the title is already concrete, leave it alone (return an empty title — do not invent one). Be specific to THIS goal — never generic productivity-speak.`;
-    case "forge_guidebook":
-      return `${ctx}\n\nFeature type: ${payload?.feature_type}\nUser's description: "${payload?.description}"\nBottleneck (if any): ${payload?.bottleneck ?? ""}\n\nDesign a full Guidebook tailored to THIS goal. Generate concrete IDs (e.g. "input_context", "fn_generate"). 1–4 inputs, 1–3 AI functions, 2–4 sections that include at least an input_panel and an ai_output linked to the first function. Be domain-specific.`;
-    case "forge_feature_ai":
-      return `Feature: ${payload?.feature_title}\nFunction type: ${payload?.function_type}\nPrompt contract: ${payload?.prompt_contract}\nUser inputs: ${JSON.stringify(payload?.inputs ?? {})}\nExpected output keys: ${JSON.stringify(payload?.output_schema ?? {})}\n\nReturn only the keys the contract requires. Be specific and useful.`;
+      return `Goal: ${payload?.goal || goal}\n\nTask after first-pass shrink: ${JSON.stringify(payload?.task ?? {})}\nUser's Tune feedback: "${payload?.feedback}".\n\nRefine ONLY the fields that need it. Lead with the first physical step. Be specific to THIS goal.`;
+
     default:
       return ctx;
   }

@@ -1,8 +1,8 @@
 import { create } from "zustand";
-import type { MomentState, AppMode, ExecutionFeedbackItem, ScheduleBlock, ForgeInterviewAnswer } from "@/lib/types";
+import type { MomentState, AppMode, ExecutionFeedbackItem, ScheduleBlock, ForgeInterviewAnswer, ForgeState } from "@/lib/types";
 import type { MomentAction } from "@/lib/types/actions";
 import { storage } from "@/lib/storage/local";
-import { createDefaultState } from "@/lib/state/defaults";
+import { createDefaultState, createEmptyUserState } from "@/lib/state/defaults";
 import { resolveMode, filterPatchByMode } from "@/lib/state/modes";
 import { compilePursuitModel } from "@/lib/pursuit/compiler";
 import {
@@ -12,6 +12,8 @@ import {
   instantiateModuleManifests,
 } from "@/lib/forge/compiler";
 import { seedWeekPlan, reformWeekPlan, sortBlocks as weekSort } from "@/lib/engine/week-plan";
+import { evaluateGoalFeasibility } from "@/lib/engine/goal-feasibility";
+import { filterStageAppropriateTasks } from "@/lib/engine/task-stage-filter";
 
 interface StateStore {
   state: MomentState | null;
@@ -47,22 +49,48 @@ export const useStateStore = create<StateStore>((set, get) => ({
       storage.setSession(session.userId, session.displayName);
     }
     const saved = await storage.getState(session.userId);
-    // Force a clean onboarding for users still holding the old Stanford seed.
-    const isLegacySeed =
-      !!saved && saved.active_goal?.statement === "Stanford CS, class of 2027";
-    if (saved && !isLegacySeed) {
+    if (saved) {
       // Backfill fields added after a previous schema version.
+      const isDemo = typeof window !== "undefined" &&
+        (new URLSearchParams(window.location.search).get("demo") === "true" ||
+         import.meta.env.VITE_ENABLE_DEMO_STATE === "true");
+
+      // Backfill onboarding for users who existed before onboarding was added
+      let onboardingBackfill = (saved as any).onboarding;
+      if (!onboardingBackfill) {
+        const hasGoal = Boolean(saved.active_goal?.statement?.trim());
+        onboardingBackfill = {
+          completed: hasGoal,
+          current_stage: saved.active_goal?.current_stage ?? "",
+          answers: {},
+          last_updated: "",
+          understanding: { knowns: [], unknowns: [], assumptions: [], confidence: "low" as const },
+        };
+      }
+
+      // Backfill profile extended fields
+      const profileBackfill = {
+        age_bracket: "unknown" as const,
+        commitments: [] as string[],
+        preferences: { tone: "calm" as const, strictness: "soft" as const, schedule_style: "flexible" as const, support_style: "coach" as const },
+        ...((saved.profile as any) ?? {}),
+      };
+
+      // Backfill active_goal extended fields
+      const goalBackfill = saved.active_goal
+        ? {
+            desired_identity: "",
+            success_definition: "",
+            current_stage: "",
+            target_stage: "",
+            ...saved.active_goal,
+          }
+        : saved.active_goal;
+
       const hydrated: MomentState = {
         ...saved,
-        profile: {
-          ...saved.profile,
-          age: (saved.profile as any).age ?? 0,
-          school_name: (saved.profile as any).school_name ?? "",
-          grade_level: (saved.profile as any).grade_level ?? "",
-          weekly_schedule_summary: (saved.profile as any).weekly_schedule_summary ?? "",
-          predispositions: (saved.profile as any).predispositions ?? "",
-          onboarding_completed_at: (saved.profile as any).onboarding_completed_at ?? "",
-        },
+        profile: profileBackfill,
+        active_goal: goalBackfill,
         execution_feedback: saved.execution_feedback ?? [],
         schedule_state: {
           ...saved.schedule_state,
@@ -78,19 +106,40 @@ export const useStateStore = create<StateStore>((set, get) => ({
           reasons: [],
         },
         home: saved.home ?? { active_plan: "plan_a" },
-        forge_state: saved.forge_state ?? {
-          interview_answers: [], candidate_features: [], selected_feature_ids: [],
-          generated_modules: [], compiler_status: "idle",
-        },
+        forge_state: {
+          interview_answers: [],
+          candidate_features: [],
+          selected_feature_ids: [],
+          generated_modules: [],
+          compiler_status: "idle" as const,
+          ...(saved.forge_state ?? {}),
+          guidebooks: (saved.forge_state as any)?.guidebooks ?? [],
+          feature_runs: (saved.forge_state as any)?.feature_runs ?? [],
+          forge_signals: (saved.forge_state as any)?.forge_signals ?? [],
+          guidebook_build_status: ((saved.forge_state as any)?.guidebook_build_status ?? "idle") as ForgeState["guidebook_build_status"],
+          draft_guidebook: (saved.forge_state as any)?.draft_guidebook ?? null,
+        } as ForgeState,
         pursuit_model: "pursuit_model" in saved ? saved.pursuit_model : null,
         rescue_signals: (saved as any).rescue_signals ?? [],
         chat_preferences: (saved as any).chat_preferences ?? { tone: "default" },
-        mission_history: (saved as any).mission_history ?? [],
-        chat_messages: (saved as any).chat_messages ?? [],
+        onboarding: onboardingBackfill,
       };
-      set({ state: hydrated, isHydrated: true });
+      // In demo mode, use demo state instead of saved (only for fresh demo sessions)
+      if (isDemo && !saved.active_goal?.statement?.trim()) {
+        const demo = createDefaultState(session.userId, session.displayName, tz());
+        persist(demo);
+        set({ state: demo, isHydrated: true });
+      } else {
+        set({ state: hydrated, isHydrated: true });
+      }
     } else {
-      const fresh = createDefaultState(session.userId, session.displayName, tz());
+      // New user — use empty state (no demo data); onboarding will capture their goal
+      const isDemo = typeof window !== "undefined" &&
+        (new URLSearchParams(window.location.search).get("demo") === "true" ||
+         import.meta.env.VITE_ENABLE_DEMO_STATE === "true");
+      const fresh = isDemo
+        ? createDefaultState(session.userId, session.displayName, tz())
+        : createEmptyUserState(session.userId, session.displayName, tz());
       persist(fresh);
       set({ state: fresh, isHydrated: true });
     }
@@ -144,9 +193,35 @@ export const useStateStore = create<StateStore>((set, get) => ({
     let next: MomentState = s;
 
     switch (action.type) {
-      case "task/add":
-        next = { ...s, tasks: [...s.tasks, action.payload] };
+      case "task/add": {
+        let taskToAdd = action.payload;
+        // Run stage filter for AI-created tasks at the state boundary
+        if (taskToAdd.created_by === "ai") {
+          const [filtered] = filterStageAppropriateTasks([taskToAdd], {
+            age_bracket: s.profile.age_bracket ?? "unknown",
+            current_stage: s.active_goal.current_stage ?? "",
+            feasibility: s.active_goal.feasibility,
+          });
+          taskToAdd = { ...taskToAdd, ...filtered };
+        }
+        next = { ...s, tasks: [...s.tasks, taskToAdd] };
         break;
+      }
+
+      case "task/bulk_add": {
+        const filtered = filterStageAppropriateTasks(
+          action.payload.filter((t) => t.created_by === "ai"),
+          {
+            age_bracket: s.profile.age_bracket ?? "unknown",
+            current_stage: s.active_goal.current_stage ?? "",
+            feasibility: s.active_goal.feasibility,
+          },
+        );
+        const userTasks = action.payload.filter((t) => t.created_by !== "ai");
+        const allNew = [...userTasks, ...filtered];
+        next = { ...s, tasks: [...s.tasks, ...allNew] };
+        break;
+      }
       case "task/update":
         next = {
           ...s,
@@ -277,22 +352,124 @@ export const useStateStore = create<StateStore>((set, get) => ({
         next = { ...s, home: { ...s.home, active_plan: action.payload } };
         break;
 
-      case "goal/set":
+      case "goal/set": {
+        const newGoal = action.payload;
+        let feasibility = newGoal.feasibility;
+        if (!feasibility && newGoal.statement.trim() && s.profile.age_bracket !== "unknown") {
+          feasibility = evaluateGoalFeasibility({
+            goal: newGoal.statement,
+            age_bracket: s.profile.age_bracket ?? "unknown",
+            school_year: s.profile.school_year,
+            stage_of_life: s.profile.academic_context,
+            pursuit_family: s.pursuit_model?.pursuit_family ?? "generic",
+            current_stage: newGoal.current_stage ?? s.active_goal.current_stage ?? "",
+          });
+        }
+        const goalWithFeasibility = feasibility
+          ? {
+              ...newGoal,
+              feasibility,
+              current_stage: feasibility.user_stage,
+              target_stage: feasibility.target_stage,
+              reality_gap: feasibility.reality_gap,
+            }
+          : newGoal;
         next = {
           ...s,
-          active_goal: action.payload,
-          pursuit_model: action.payload.statement.trim()
-            ? compilePursuitModel(action.payload, s.pursuit_model)
+          active_goal: goalWithFeasibility,
+          pursuit_model: newGoal.statement.trim()
+            ? compilePursuitModel(goalWithFeasibility, s.pursuit_model)
             : null,
         };
         break;
+      }
       case "goal/patch": {
         const merged = { ...s.active_goal, ...action.payload, last_updated_at: now() };
+        let feasibility = merged.feasibility;
+        if (action.payload.statement !== undefined && merged.statement.trim() &&
+            s.profile.age_bracket !== "unknown") {
+          feasibility = evaluateGoalFeasibility({
+            goal: merged.statement,
+            age_bracket: s.profile.age_bracket ?? "unknown",
+            school_year: s.profile.school_year,
+            stage_of_life: s.profile.academic_context,
+            pursuit_family: s.pursuit_model?.pursuit_family ?? "generic",
+            current_stage: merged.current_stage ?? "",
+          });
+        }
+        const mergedWithFeasibility = feasibility
+          ? {
+              ...merged,
+              feasibility,
+              current_stage: feasibility.user_stage,
+              target_stage: feasibility.target_stage,
+              reality_gap: feasibility.reality_gap,
+            }
+          : merged;
         next = {
           ...s,
-          active_goal: merged,
-          pursuit_model: merged.statement.trim() ? compilePursuitModel(merged, s.pursuit_model) : null,
+          active_goal: mergedWithFeasibility,
+          pursuit_model: mergedWithFeasibility.statement.trim()
+            ? compilePursuitModel(mergedWithFeasibility, s.pursuit_model)
+            : null,
         };
+        break;
+      }
+
+      case "profile/patch":
+        next = { ...s, profile: { ...s.profile, ...action.payload } };
+        break;
+
+      case "onboarding/set_answer":
+        next = {
+          ...s,
+          onboarding: {
+            ...s.onboarding,
+            answers: { ...s.onboarding.answers, [action.payload.key]: action.payload.value },
+          },
+        };
+        break;
+
+      case "onboarding/complete": {
+        const { profile_patch, goal_patch, constraints_patch, answers, understanding, feasibility: providedFeasibility } = action.payload;
+        const newGoalStatement = goal_patch.statement ?? s.active_goal.statement;
+        const newAgeBracket = profile_patch.age_bracket ?? s.profile.age_bracket ?? "unknown";
+
+        // Use provided feasibility (computed in the onboarding UI before dispatch)
+        const feasibility = providedFeasibility;
+
+        const updatedGoal = {
+          ...s.active_goal,
+          ...goal_patch,
+          ...(feasibility ? {
+            feasibility,
+            current_stage: feasibility.user_stage,
+            target_stage: feasibility.target_stage,
+            reality_gap: feasibility.reality_gap,
+          } : {}),
+          last_updated_at: now(),
+        };
+
+        next = {
+          ...s,
+          profile: { ...s.profile, ...profile_patch },
+          active_goal: updatedGoal,
+          constraints: constraints_patch
+            ? { ...s.constraints, ...constraints_patch }
+            : s.constraints,
+          onboarding: {
+            completed: true,
+            current_stage: feasibility?.user_stage ?? "",
+            answers,
+            last_updated: now(),
+            understanding,
+          },
+          pursuit_model: newGoalStatement.trim()
+            ? compilePursuitModel(updatedGoal, s.pursuit_model)
+            : null,
+        };
+        // Suppress unused variable warning
+        void newAgeBracket;
         break;
       }
 
@@ -554,65 +731,131 @@ export const useStateStore = create<StateStore>((set, get) => ({
             selected_feature_ids: [],
             generated_modules: s.forge_state.generated_modules ?? [],
             compiler_status: "idle",
+            guidebook_build_status: "idle",
+            draft_guidebook: null,
           },
         };
         break;
       }
+
+      // ─── Guidebook system ───────────────────────────────────────────────────
+      case "forge/set_draft_guidebook": {
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            draft_guidebook: { ...(s.forge_state.draft_guidebook ?? {}), ...action.payload },
+          },
+        };
+        break;
+      }
+      case "forge/clear_draft_guidebook": {
+        next = {
+          ...s,
+          forge_state: { ...s.forge_state, draft_guidebook: null, guidebook_build_status: "idle" },
+        };
+        break;
+      }
+      case "forge/set_build_status": {
+        next = {
+          ...s,
+          forge_state: { ...s.forge_state, guidebook_build_status: action.payload as ForgeState["guidebook_build_status"] },
+        };
+        break;
+      }
       case "forge/create_guidebook": {
-        const list = ((s.forge_state as any).guidebooks ?? []) as any[];
-        next = { ...s, forge_state: { ...s.forge_state, guidebooks: [...list, action.payload] } as any };
+        const existing = s.forge_state.guidebooks ?? [];
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            guidebooks: [...existing, action.payload],
+            draft_guidebook: null,
+            guidebook_build_status: "done",
+          },
+        };
         break;
       }
       case "forge/update_guidebook": {
-        const list = ((s.forge_state as any).guidebooks ?? []) as any[];
         next = {
           ...s,
           forge_state: {
             ...s.forge_state,
-            guidebooks: list.map((g) => g.id === action.payload.id ? { ...g, ...action.payload.changes, updated_at: now() } : g),
-          } as any,
+            guidebooks: (s.forge_state.guidebooks ?? []).map((g) =>
+              g.id === action.payload.id
+                ? { ...g, ...action.payload.changes, updated_at: now() }
+                : g,
+            ),
+          },
         };
         break;
       }
-      case "forge/pause_guidebook":
-      case "forge/activate_guidebook":
+      case "forge/activate_guidebook": {
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            guidebooks: (s.forge_state.guidebooks ?? []).map((g) =>
+              g.id === action.payload.id ? { ...g, status: "active", updated_at: now() } : g,
+            ),
+          },
+        };
+        break;
+      }
+      case "forge/pause_guidebook": {
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            guidebooks: (s.forge_state.guidebooks ?? []).map((g) =>
+              g.id === action.payload.id ? { ...g, status: "paused", updated_at: now() } : g,
+            ),
+          },
+        };
+        break;
+      }
       case "forge/archive_guidebook": {
-        const newStatus = action.type === "forge/pause_guidebook" ? "paused"
-          : action.type === "forge/activate_guidebook" ? "active" : "archived";
-        const list = ((s.forge_state as any).guidebooks ?? []) as any[];
         next = {
           ...s,
           forge_state: {
             ...s.forge_state,
-            guidebooks: list.map((g) => g.id === action.payload.id ? { ...g, status: newStatus, updated_at: now() } : g),
-          } as any,
-        };
-        break;
-      }
-      case "forge/delete_guidebook": {
-        const list = ((s.forge_state as any).guidebooks ?? []) as any[];
-        next = { ...s, forge_state: { ...s.forge_state, guidebooks: list.filter((g) => g.id !== action.payload.id) } as any };
-        break;
-      }
-      case "forge/touch_guidebook": {
-        const list = ((s.forge_state as any).guidebooks ?? []) as any[];
-        next = {
-          ...s,
-          forge_state: {
-            ...s.forge_state,
-            guidebooks: list.map((g) => g.id === action.payload.id ? { ...g, last_used_at: now() } : g),
-          } as any,
+            guidebooks: (s.forge_state.guidebooks ?? []).map((g) =>
+              g.id === action.payload.id ? { ...g, status: "archived", updated_at: now() } : g,
+            ),
+          },
         };
         break;
       }
       case "forge/log_feature_run": {
-        const runs = ((s.forge_state as any).feature_runs ?? []) as any[];
-        next = { ...s, forge_state: { ...s.forge_state, feature_runs: [...runs, action.payload] } as any };
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            feature_runs: [...(s.forge_state.feature_runs ?? []), action.payload],
+          },
+        };
         break;
       }
       case "forge/log_signal": {
-        const sigs = ((s.forge_state as any).forge_signals ?? []) as any[];
-        next = { ...s, forge_state: { ...s.forge_state, forge_signals: [...sigs, action.payload] } as any };
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            forge_signals: [...(s.forge_state.forge_signals ?? []), action.payload],
+          },
+        };
+        break;
+      }
+      case "forge/touch_guidebook": {
+        next = {
+          ...s,
+          forge_state: {
+            ...s.forge_state,
+            guidebooks: (s.forge_state.guidebooks ?? []).map((g) =>
+              g.id === action.payload.id ? { ...g, last_used_at: now() } : g,
+            ),
+          },
+        };
         break;
       }
 
@@ -647,31 +890,6 @@ export const useStateStore = create<StateStore>((set, get) => ({
           ...s,
           chat_preferences: { ...(s.chat_preferences ?? { tone: "default" }), ...action.payload },
         };
-        break;
-      }
-
-      case "chat/append": {
-        const msg = {
-          id: action.payload.id,
-          role: action.payload.role,
-          content: action.payload.content,
-          created_at: action.payload.created_at ?? now(),
-        };
-        const existing = (s as any).chat_messages ?? [];
-        next = { ...s, chat_messages: [...existing, msg].slice(-200) } as any;
-        break;
-      }
-
-      case "chat/clear": {
-        next = { ...s, chat_messages: [] } as any;
-        break;
-      }
-
-      case "mission/snapshot": {
-        const snap = action.payload;
-        const history = ((s as any).mission_history ?? []).filter((h: any) => h.date !== snap.date);
-        const merged = [...history, snap].slice(-60);
-        next = { ...s, mission_history: merged } as any;
         break;
       }
     }

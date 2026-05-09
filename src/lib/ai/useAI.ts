@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStateStore } from "@/stores/state-store";
-import type { MomentState } from "@/lib/types";
+import { buildContextPacket } from "@/lib/ai/context-packet";
 
 export type AIIntent =
   | "next_move_rationale"
@@ -16,33 +16,6 @@ export type AIIntent =
   | "reflect_summary"
   | "mission_insight";
 
-function buildSnapshot(s: MomentState | null) {
-  if (!s) return {};
-  return {
-    display_name: s.profile.display_name,
-    profile: {
-      age: s.profile.age ?? 0,
-      school_name: s.profile.school_name ?? "",
-      grade_level: s.profile.grade_level ?? "",
-      weekly_schedule_summary: s.profile.weekly_schedule_summary ?? "",
-      predispositions: s.profile.predispositions ?? "",
-    },
-    active_goal: {
-      statement: s.active_goal.statement,
-      why_it_matters: s.active_goal.why_it_matters,
-    },
-    recent_feedback: (s.execution_feedback ?? []).slice(-15).map((f) => f.feedback),
-    recent_reflections: (s.reflections ?? [])
-      .slice(-3)
-      .map((r) => ({ date: r.date, energy: r.energy_rating, win: r.accomplishment, struggle: r.struggle })),
-    recent_chat: (s.chat_messages ?? []).slice(-10).map((m) => ({ role: m.role, content: m.content })),
-    constraints: {
-      energy_pattern: s.constraints?.energy_pattern,
-      preferred_work_window: s.constraints?.preferred_work_window,
-    },
-  };
-}
-
 export function useAI<T = any>(intent: AIIntent) {
   const state = useStateStore((s) => s.state);
   const [loading, setLoading] = useState(false);
@@ -54,7 +27,7 @@ export function useAI<T = any>(intent: AIIntent) {
       setLoading(true); setError(null);
       try {
         const { data, error: fnErr } = await supabase.functions.invoke("app-intelligence", {
-          body: { intent, snapshot: buildSnapshot(state), payload },
+          body: { intent, snapshot: buildContextPacket(state), payload },
         });
         if (fnErr) throw fnErr;
         if (data?.error) throw new Error(data.error);

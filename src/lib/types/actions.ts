@@ -14,7 +14,10 @@ import type {
   AppMode,
   RescueSignal,
   ChatPreferences,
-  MissionSnapshot,
+  ForgeGuidebook,
+  FeatureRunResult,
+  ForgeSignal,
+  GoalFeasibilityReport,
 } from "@/lib/types";
 
 /**
@@ -41,9 +44,6 @@ export type MomentAction =
   | { type: "home/setPlan"; payload: "plan_a" | "plan_b" }
   | { type: "rescue/log"; payload: RescueSignal }
   | { type: "chat/setPreferences"; payload: Partial<ChatPreferences> }
-  | { type: "chat/append"; payload: { id: string; role: "user" | "assistant"; content: string; created_at?: string } }
-  | { type: "chat/clear" }
-  | { type: "mission/snapshot"; payload: MissionSnapshot }
   | { type: "goal/set"; payload: MomentState["active_goal"] }
   | { type: "goal/patch"; payload: Partial<MomentState["active_goal"]> }
   | { type: "pursuit/set_model"; payload: CompiledPursuitModel }
@@ -56,6 +56,7 @@ export type MomentAction =
   | { type: "pursuit/patch_evidence_signal"; payload: { id: string; last_value: string; last_checked_at: string } }
   | { type: "pursuit/recompile" }
   | { type: "system/set_mode"; payload: AppMode }
+  // ─── Legacy forge actions ──────────────────────────────────────────────────
   | { type: "forge/start_interview" }
   | { type: "forge/answer"; payload: { question_key: string; question_text: string; answer_text: string } }
   | { type: "forge/generate_candidates" }
@@ -67,12 +68,32 @@ export type MomentAction =
   | { type: "forge/delete_module"; payload: { id: string } }
   | { type: "forge/log_entry"; payload: { module_id: string; entry: import("@/lib/types").ModuleEntry } }
   | { type: "forge/reset" }
-  | { type: "forge/create_guidebook"; payload: import("@/lib/types").ForgeGuidebook }
-  | { type: "forge/update_guidebook"; payload: { id: string; changes: Partial<import("@/lib/types").ForgeGuidebook> } }
-  | { type: "forge/pause_guidebook"; payload: { id: string } }
+  // ─── Guidebook system actions ──────────────────────────────────────────────
+  | { type: "forge/set_draft_guidebook"; payload: Partial<ForgeGuidebook> }
+  | { type: "forge/clear_draft_guidebook" }
+  | { type: "forge/set_build_status"; payload: ForgeGuidebook["status"] | "asking" | "generating" | "preview" | "done" | "idle" }
+  | { type: "forge/create_guidebook"; payload: ForgeGuidebook }
+  | { type: "forge/update_guidebook"; payload: { id: string; changes: Partial<ForgeGuidebook> } }
   | { type: "forge/activate_guidebook"; payload: { id: string } }
+  | { type: "forge/pause_guidebook"; payload: { id: string } }
   | { type: "forge/archive_guidebook"; payload: { id: string } }
-  | { type: "forge/delete_guidebook"; payload: { id: string } }
+  | { type: "forge/log_feature_run"; payload: FeatureRunResult }
+  | { type: "forge/log_signal"; payload: ForgeSignal }
   | { type: "forge/touch_guidebook"; payload: { id: string } }
-  | { type: "forge/log_feature_run"; payload: import("@/lib/types").FeatureRunResult }
-  | { type: "forge/log_signal"; payload: import("@/lib/types").ForgeSignal };
+  // ─── Profile + onboarding ──────────────────────────────────────────────────
+  | { type: "profile/patch"; payload: Partial<MomentState["profile"]> }
+  | { type: "onboarding/set_answer"; payload: { key: string; value: unknown } }
+  | { type: "onboarding/complete"; payload: {
+      profile_patch: Partial<MomentState["profile"]>;
+      goal_patch: Partial<MomentState["active_goal"]>;
+      constraints_patch?: Partial<MomentState["constraints"]>;
+      answers: Record<string, unknown>;
+      understanding: {
+        knowns: string[];
+        unknowns: string[];
+        assumptions: string[];
+        confidence: "low" | "medium" | "high";
+      };
+      feasibility: GoalFeasibilityReport;
+    } }
+  | { type: "task/bulk_add"; payload: Task[] };
