@@ -1,11 +1,12 @@
 import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useNavigate, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import Onboarding from "./pages/Onboarding.tsx";
 import { AppShell } from "./components/app/AppShell";
 import Dashboard from "./pages/app/Dashboard";
 import Chat from "./pages/app/Chat";
@@ -18,9 +19,39 @@ import Audit from "./pages/app/Audit";
 import Forge from "./pages/app/Forge";
 import ForgeFeature from "./pages/app/ForgeFeature";
 import { useStateStore } from "./stores/state-store";
-import { OnboardingGate } from "./components/app/OnboardingGate";
 
 const queryClient = new QueryClient();
+
+// Redirect guard — must not loop; checks pathname before navigating.
+function OnboardingGuard() {
+  const isHydrated = useStateStore((s) => s.isHydrated);
+  const state = useStateStore((s) => s.state);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!isHydrated || !state) return;
+
+    const isOnOnboarding = location.pathname === "/onboarding";
+    const onboardingDone = state.onboarding?.completed === true;
+    const hasGoal = Boolean(state.active_goal?.statement?.trim());
+
+    if (onboardingDone || hasGoal) {
+      // User is ready for the app — only redirect away from /onboarding
+      if (isOnOnboarding) {
+        navigate("/app", { replace: true });
+      }
+      return;
+    }
+
+    // Onboarding not done and no goal — send to /onboarding (but don't loop)
+    if (!isOnOnboarding && location.pathname !== "/" && location.pathname !== "") {
+      navigate("/onboarding", { replace: true });
+    }
+  }, [isHydrated, state?.onboarding?.completed, state?.active_goal?.statement, location.pathname, navigate, state]);
+
+  return null;
+}
 
 const App = () => {
   const hydrate = useStateStore((s) => s.hydrate);
@@ -28,32 +59,35 @@ const App = () => {
   useEffect(() => {
     if (!isHydrated) hydrate();
   }, [isHydrated, hydrate]);
+
   return (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/app" element={<AppShell />}>
-            <Route index element={<OnboardingGate requires="goal" pageName="Today" unlocksWhen="Today shows your one decisive next move and the tasks pulled toward your goal."><Dashboard /></OnboardingGate>} />
-            <Route path="chat" element={<OnboardingGate><Chat /></OnboardingGate>} />
-            <Route path="plan" element={<OnboardingGate requires="goal" pageName="Plan" unlocksWhen="Plan builds your day and week around your goal."><Plan /></OnboardingGate>} />
-            <Route path="mission" element={<OnboardingGate requires="goal" pageName="Mission" unlocksWhen="Mission tracks workstream health, signals, and trends for your goal."><Mission /></OnboardingGate>} />
-            <Route path="tasks" element={<OnboardingGate requires="goal" pageName="Tasks" unlocksWhen="Tasks holds the concrete moves toward your goal."><Tasks /></OnboardingGate>} />
-            <Route path="reflect" element={<OnboardingGate requires="goal" pageName="Reflect" unlocksWhen="Reflect captures today's energy, win, and friction — anchored to your goal."><Reflect /></OnboardingGate>} />
-            <Route path="rescue" element={<OnboardingGate requires="goal" pageName="Rescue" unlocksWhen="Rescue shrinks a stuck task into a gentle next step."><Rescue /></OnboardingGate>} />
-            <Route path="audit" element={<OnboardingGate requires="goal" pageName="Audit" unlocksWhen="Audit reads alignment and drift across your execution."><Audit /></OnboardingGate>} />
-            <Route path="forge" element={<OnboardingGate requires="goal" pageName="Forge" unlocksWhen="Forge spawns custom tools tuned to your goal."><Forge /></OnboardingGate>} />
-            <Route path="forge/:featureId" element={<OnboardingGate requires="goal" pageName="Forge" unlocksWhen="Forge features run against your goal context."><ForgeFeature /></OnboardingGate>} />
-          </Route>
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <OnboardingGuard />
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/app" element={<AppShell />}>
+              <Route index element={<Dashboard />} />
+              <Route path="chat" element={<Chat />} />
+              <Route path="plan" element={<Plan />} />
+              <Route path="mission" element={<Mission />} />
+              <Route path="tasks" element={<Tasks />} />
+              <Route path="reflect" element={<Reflect />} />
+              <Route path="rescue" element={<Rescue />} />
+              <Route path="audit" element={<Audit />} />
+              <Route path="forge" element={<Forge />} />
+              <Route path="forge/:featureId" element={<ForgeFeature />} />
+            </Route>
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
   );
 };
 

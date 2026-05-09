@@ -2,13 +2,14 @@ import { useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
   ArrowLeft, Zap, CheckCircle2, Clock, Target, Loader2, ChevronDown, ChevronRight,
-  BookOpen, AlertTriangle, Sparkles, Send, BarChart2,
-  ClipboardList, ListChecks, Activity,
+  Plus, RotateCcw, BookOpen, AlertTriangle, Sparkles, Send, BarChart2,
+  ClipboardList, ListChecks, Activity, Brain,
 } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { getGuidebookById, getFeatureRunsForGuidebook, getSignalsForGuidebook } from "@/lib/selectors/forge";
 import { useAI } from "@/lib/ai/useAI";
 import { FEATURE_TYPE_LABELS, FUNCTION_TYPE_LABELS } from "@/lib/forge/guidebook";
+import { computeStallPattern } from "@/lib/selectors/audit";
 import type {
   ForgeGuidebook,
   GuidebookInput,
@@ -16,39 +17,260 @@ import type {
   GuidebookSection,
   FeatureRunResult,
   Task,
+  MomentState,
+  ExecutionFeedbackItem,
 } from "@/lib/types";
 
+// ─── Context awareness panel ──────────────────────────────────────────────────
+
+function ContextAwarenessPanel({
+  guidebook,
+  state,
+}: {
+  guidebook: ForgeGuidebook;
+  state: MomentState;
+}) {
+  const stall = computeStallPattern(state);
+  const recentFeedback: ExecutionFeedbackItem[] = (state.execution_feedback ?? []).slice(-7);
+  const bottleneck = state.pursuit_model?.workstreams?.find((w) => w.bottleneck)?.bottleneck ?? null;
+  const runCount = (state.forge_state?.feature_runs ?? []).filter((r) => r.feature_id === guidebook.id).length;
+  const rescueCount7d = (state.rescue_signals ?? []).filter(
+    (r) => Date.now() - new Date(r.created_at).getTime() <= 7 * 86400_000,
+  ).length;
+
+  const hasSignal =
+    stall.stall_type !== "unclear" ||
+    recentFeedback.length > 0 ||
+    bottleneck ||
+    rescueCount7d > 0;
+
+  if (!hasSignal) return null;
+
+  return (
+    <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+      <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.15em] text-primary">
+        <Brain className="h-3.5 w-3.5" /> Why this feature exists right now
+      </div>
+
+      {stall.stall_type !== "unclear" && (
+        <div className="space-y-1.5">
+          <div className="text-xs font-medium text-foreground">{stall.label}</div>
+          <div className="flex flex-wrap gap-1.5">
+            {stall.evidence_chips.map((chip, i) => (
+              <span key={i} className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] text-primary">
+                {chip}
+              </span>
+            ))}
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+              stall.confidence === "high" ? "bg-red-500/10 text-red-500" :
+              stall.confidence === "medium" ? "bg-amber-500/10 text-amber-500" :
+              "bg-secondary text-muted-foreground"
+            }`}>
+              {stall.confidence} confidence
+            </span>
+          </div>
+        </div>
+      )}
+
+      {recentFeedback.length > 0 && (
+        <div>
+          <div className="mb-1 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Recent feedback</div>
+          <div className="flex flex-wrap gap-1">
+            {recentFeedback.map((fb, i) => (
+              <span key={i} className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
+                {fb.feedback.replace(/_/g, " ")}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {bottleneck && (
+        <div className="text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Bottleneck: </span>{bottleneck}
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-4 text-[11px] text-muted-foreground">
+        {runCount > 0 && <span>{runCount} run{runCount !== 1 ? "s" : ""} on this feature</span>}
+        {rescueCount7d > 0 && <span>{rescueCount7d} rescue call{rescueCount7d !== 1 ? "s" : ""} this week</span>}
+      </div>
+    </div>
+  );
+}
+
+// ─── Current target card ──────────────────────────────────────────────────────
+
+function CurrentTargetCard({
+  state,
+  guidebook,
+}: {
+  state: MomentState;
+  guidebook: ForgeGuidebook;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  const pending = (state.tasks ?? [])
+    .filter((t) => t.status === "pending")
+    .sort((a, b) => (priorityOrder[a.priority] ?? 3) - (priorityOrder[b.priority] ?? 3));
+
+  if (pending.length === 0) return null;
+
+  const primary = pending[0];
+  const rest = pending.slice(1, 5);
+
+  const priorityChipClass: Record<string, string> = {
+    high: "bg-red-500/10 text-red-500",
+    medium: "bg-amber-500/10 text-amber-500",
+    low: "bg-secondary text-muted-foreground",
+  };
+
+  return (
+    <div className="rounded-2xl border border-border bg-card/60 p-4 space-y-2">
+      <div className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+        Current target · {guidebook.feature_type}
+      </div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium">{primary.title}</span>
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${priorityChipClass[primary.priority] ?? "bg-secondary text-muted-foreground"}`}>
+              {primary.priority}
+            </span>
+          </div>
+          {primary.estimated_minutes && (
+            <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Clock className="h-3 w-3" /> {primary.estimated_minutes}m
+            </div>
+          )}
+        </div>
+        {rest.length > 0 && (
+          <button
+            onClick={() => setExpanded((e) => !e)}
+            className="shrink-0 text-[11px] text-muted-foreground hover:text-foreground"
+          >
+            {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+          </button>
+        )}
+      </div>
+      {expanded && rest.length > 0 && (
+        <div className="mt-1 space-y-1 border-t border-border/60 pt-2">
+          <div className="text-[10px] text-muted-foreground">Other pending</div>
+          {rest.map((t) => (
+            <div key={t.id} className="flex items-center justify-between text-xs">
+              <span className="truncate text-foreground">{t.title}</span>
+              <span className={`ml-2 shrink-0 rounded-full px-1.5 py-0.5 text-[10px] ${priorityChipClass[t.priority] ?? ""}`}>
+                {t.priority}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Input renderer ───────────────────────────────────────────────────────────
+
 function InputField({
-  input, value, onChange,
-}: { input: GuidebookInput; value: string; onChange: (v: string) => void }) {
-  const baseClass = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none";
-  if (input.type === "textarea") return <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={input.placeholder} rows={3} className={`${baseClass} resize-none`} />;
+  input,
+  value,
+  onChange,
+}: {
+  input: GuidebookInput;
+  value: string;
+  onChange: (val: string) => void;
+}) {
+  const baseClass =
+    "w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none";
+
+  if (input.type === "textarea") {
+    return (
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={input.placeholder}
+        rows={3}
+        className={`${baseClass} resize-none`}
+      />
+    );
+  }
+
   if (input.type === "select" && input.options) {
     return (
       <select value={value} onChange={(e) => onChange(e.target.value)} className={baseClass}>
         <option value="">Select…</option>
-        {input.options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+        {input.options.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt}
+          </option>
+        ))}
       </select>
     );
   }
+
   if (input.type === "scale") {
-    const max = 10; const parsed = parseInt(value) || 0;
+    const max = 10;
+    const parsed = parseInt(value) || 0;
     return (
       <div className="space-y-1">
-        <input type="range" min={1} max={max} value={parsed || 5} onChange={(e) => onChange(e.target.value)} className="w-full accent-primary" />
+        <input
+          type="range"
+          min={1}
+          max={max}
+          value={parsed || 5}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full accent-primary"
+        />
         <div className="flex justify-between text-[10px] text-muted-foreground">
-          <span>1</span><span className="font-medium text-foreground">{parsed || 5}</span><span>{max}</span>
+          <span>1</span>
+          <span className="font-medium text-foreground">{parsed || 5}</span>
+          <span>{max}</span>
         </div>
       </div>
     );
   }
-  if (input.type === "number") return <input type="number" value={value} onChange={(e) => onChange(e.target.value)} placeholder={input.placeholder} className={baseClass} />;
-  if (input.type === "date") return <input type="date" value={value} onChange={(e) => onChange(e.target.value)} className={baseClass} />;
-  return <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={input.placeholder} className={baseClass} />;
+
+  if (input.type === "number") {
+    return (
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={input.placeholder}
+        className={baseClass}
+      />
+    );
+  }
+
+  if (input.type === "date") {
+    return (
+      <input
+        type="date"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={baseClass}
+      />
+    );
+  }
+
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={input.placeholder}
+      className={baseClass}
+    />
+  );
 }
+
+// ─── AI function output renderer ──────────────────────────────────────────────
 
 function AIOutputDisplay({ output }: { output: Record<string, unknown> }) {
   if (!output || Object.keys(output).length === 0) return null;
+
   const renderValue = (val: unknown): React.ReactNode => {
     if (Array.isArray(val)) {
       return (
@@ -66,7 +288,10 @@ function AIOutputDisplay({ output }: { output: Record<string, unknown> }) {
       return (
         <div className="flex items-center gap-2">
           <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-secondary">
-            <div className="absolute inset-y-0 left-0 rounded-full bg-primary" style={{ width: `${Math.min(100, (val / 10) * 100)}%` }} />
+            <div
+              className="absolute inset-y-0 left-0 rounded-full bg-primary"
+              style={{ width: `${Math.min(100, (val / 10) * 100)}%` }}
+            />
           </div>
           <span className="text-sm font-medium tabular-nums">{val}/10</span>
         </div>
@@ -74,12 +299,17 @@ function AIOutputDisplay({ output }: { output: Record<string, unknown> }) {
     }
     return <p className="text-sm text-foreground">{String(val)}</p>;
   };
-  const keyLabel = (k: string) => k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+  const keyLabel = (k: string) =>
+    k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
   return (
     <div className="space-y-4">
       {Object.entries(output).map(([key, val]) => (
         <div key={key}>
-          <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{keyLabel(key)}</div>
+          <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+            {keyLabel(key)}
+          </div>
           {renderValue(val)}
         </div>
       ))}
@@ -87,22 +317,44 @@ function AIOutputDisplay({ output }: { output: Record<string, unknown> }) {
   );
 }
 
+// ─── Section renderer ─────────────────────────────────────────────────────────
+
 function SectionIcon({ type }: { type: GuidebookSection["section_type"] }) {
   const icons: Record<string, React.ComponentType<{ className?: string }>> = {
-    input_panel: ClipboardList, ai_output: Sparkles, saved_entries: BookOpen, task_list: ListChecks,
-    scorecard: BarChart2, timeline: Activity, protocol_steps: ListChecks, decision_result: Target,
-    reflection_box: BookOpen, audit_summary: BarChart2,
+    input_panel: ClipboardList,
+    ai_output: Sparkles,
+    saved_entries: BookOpen,
+    task_list: ListChecks,
+    scorecard: BarChart2,
+    timeline: Activity,
+    protocol_steps: ListChecks,
+    decision_result: Target,
+    reflection_box: BookOpen,
+    audit_summary: BarChart2,
   };
   const Icon = icons[type] ?? Zap;
   return <Icon className="h-3.5 w-3.5" />;
 }
 
-interface PendingStateWrite { action: string; label: string; data: Record<string, unknown>; }
+// ─── State write approvals ────────────────────────────────────────────────────
+
+interface PendingStateWrite {
+  action: string;
+  label: string;
+  data: Record<string, unknown>;
+}
 
 function StateWritePanel({
-  pending, onApprove, onDismiss,
-}: { pending: PendingStateWrite[]; onApprove: (w: PendingStateWrite) => void; onDismiss: (w: PendingStateWrite) => void }) {
+  pending,
+  onApprove,
+  onDismiss,
+}: {
+  pending: PendingStateWrite[];
+  onApprove: (write: PendingStateWrite) => void;
+  onDismiss: (write: PendingStateWrite) => void;
+}) {
   if (pending.length === 0) return null;
+
   return (
     <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
       <div className="flex items-center gap-2 text-xs font-medium text-amber-500">
@@ -117,8 +369,18 @@ function StateWritePanel({
               <div className="truncate text-sm text-foreground">{write.label}</div>
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
-              <button onClick={() => onDismiss(write)} className="rounded px-2 py-1 text-xs text-muted-foreground hover:text-foreground">Skip</button>
-              <button onClick={() => onApprove(write)} className="rounded bg-amber-500/15 px-2 py-1 text-xs font-medium text-amber-600 hover:bg-amber-500/25">Apply</button>
+              <button
+                onClick={() => onDismiss(write)}
+                className="rounded px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                Skip
+              </button>
+              <button
+                onClick={() => onApprove(write)}
+                className="rounded bg-amber-500/15 px-2 py-1 text-xs font-medium text-amber-600 hover:bg-amber-500/25"
+              >
+                Apply
+              </button>
             </div>
           </div>
         ))}
@@ -126,6 +388,8 @@ function StateWritePanel({
     </div>
   );
 }
+
+// ─── History entry ────────────────────────────────────────────────────────────
 
 function HistoryEntry({ run, guidebook }: { run: FeatureRunResult; guidebook: ForgeGuidebook }) {
   const [expanded, setExpanded] = useState(false);
@@ -138,9 +402,13 @@ function HistoryEntry({ run, guidebook }: { run: FeatureRunResult; guidebook: Fo
     if (hrs < 24) return `${hrs}h ago`;
     return `${Math.floor(hrs / 24)}d ago`;
   })();
+
   return (
     <div className="rounded-xl border border-border bg-card">
-      <button onClick={() => setExpanded((e) => !e)} className="flex w-full items-center justify-between px-4 py-3 text-left">
+      <button
+        onClick={() => setExpanded((e) => !e)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left"
+      >
         <div className="flex items-center gap-3">
           <div className="text-sm font-medium">{fn?.name ?? run.function_type}</div>
           {run.tasks_created?.length > 0 && (
@@ -181,15 +449,22 @@ function HistoryEntry({ run, guidebook }: { run: FeatureRunResult; guidebook: Fo
   );
 }
 
+// ─── AI Function Panel ────────────────────────────────────────────────────────
+
 function AIFunctionPanel({
-  fn, inputs, featureId, featureTitle, guidebook, onRunComplete,
+  fn,
+  inputs,
+  featureId,
+  featureTitle,
+  guidebook,
+  onRunComplete,
 }: {
   fn: GuidebookAIFunction;
   inputs: Record<string, string>;
   featureId: string;
   featureTitle: string;
   guidebook: ForgeGuidebook;
-  onRunComplete: (result: Record<string, unknown>, fnId: string, fnType: string, pending: PendingStateWrite[]) => void;
+  onRunComplete: (result: Record<string, unknown>, fnId: string, fnType: string, pendingWrites: PendingStateWrite[]) => void;
 }) {
   const ai = useAI<Record<string, unknown>>("forge_feature_ai");
   const [collapsed, setCollapsed] = useState(false);
@@ -203,37 +478,57 @@ function AIFunctionPanel({
       output_schema: fn.output_schema,
       feature_title: featureTitle,
     });
+
     if (result) {
-      const pending: PendingStateWrite[] = [];
+      const pendingWrites: PendingStateWrite[] = [];
+
       if (fn.writes_to_state) {
         if (fn.allowed_state_actions.includes("task/create") && result.next_action) {
-          pending.push({
+          pendingWrites.push({
             action: "Add to Today",
-            label: String(result.next_action ?? "AI task"),
-            data: { type: "task", title: String(result.next_action ?? "AI task"), feature_id: featureId },
+            label: String(result.next_action ?? result.first_move ?? result.task_title ?? "AI-generated task"),
+            data: { type: "task", title: String(result.next_action ?? result.task_title ?? "AI task"), feature_id: featureId },
           });
         }
-        if (fn.allowed_state_actions.includes("task/create") && Array.isArray(result.today_tasks)) {
+        if (fn.allowed_state_actions.includes("task/create") && result.today_tasks && Array.isArray(result.today_tasks)) {
           for (const t of result.today_tasks) {
-            pending.push({ action: "Add to Today", label: String(t), data: { type: "task", title: String(t), feature_id: featureId } });
+            pendingWrites.push({
+              action: "Add to Today",
+              label: String(t),
+              data: { type: "task", title: String(t), feature_id: featureId },
+            });
           }
         }
         if (fn.allowed_state_actions.includes("forge/log_signal") && result.proof_score != null) {
-          pending.push({ action: "Log signal", label: `Proof score: ${result.proof_score}`, data: { type: "signal", key: "proof_score", value: String(result.proof_score), feature_id: featureId } });
+          pendingWrites.push({
+            action: "Log signal",
+            label: `Proof score: ${result.proof_score}`,
+            data: { type: "signal", key: "proof_score", value: String(result.proof_score), feature_id: featureId },
+          });
         }
         if (fn.allowed_state_actions.includes("forge/log_signal") && result.total_score != null) {
-          pending.push({ action: "Log signal", label: `Score: ${result.total_score}/10`, data: { type: "signal", key: "total_score", value: String(result.total_score), feature_id: featureId } });
+          pendingWrites.push({
+            action: "Log signal",
+            label: `Score: ${result.total_score}/10`,
+            data: { type: "signal", key: "total_score", value: String(result.total_score), feature_id: featureId },
+          });
         }
       }
-      onRunComplete(result, fn.id, fn.function_type, pending);
+
+      onRunComplete(result, fn.id, fn.function_type, pendingWrites);
     }
   };
 
-  const missingRequired = guidebook.required_inputs.filter((i) => i.required).some((i) => !inputs[i.id]?.trim());
+  const missingRequired = guidebook.required_inputs
+    .filter((i) => i.required)
+    .some((i) => !inputs[i.id]?.trim());
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
-      <button onClick={() => setCollapsed((c) => !c)} className="flex w-full items-center justify-between px-4 py-3 text-left">
+      <button
+        onClick={() => setCollapsed((c) => !c)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left"
+      >
         <div className="flex items-center gap-2">
           <Zap className="h-3.5 w-3.5 text-primary" />
           <span className="text-sm font-medium">{fn.name}</span>
@@ -243,15 +538,29 @@ function AIFunctionPanel({
         </div>
         {collapsed ? <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
       </button>
+
       {!collapsed && (
         <div className="border-t border-border px-4 pb-4 pt-3 space-y-3">
           <p className="text-xs text-muted-foreground">{fn.description}</p>
           {missingRequired && (
-            <div className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-600">Fill in all required inputs above before running this function.</div>
+            <div className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-600">
+              Fill in all required inputs above before running this function.
+            </div>
           )}
-          <button onClick={run} disabled={ai.loading || missingRequired}
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
-            {ai.loading ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Running…</> : <><Send className="h-3.5 w-3.5" /> Run</>}
+          <button
+            onClick={run}
+            disabled={ai.loading || missingRequired}
+            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+          >
+            {ai.loading ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Running…
+              </>
+            ) : (
+              <>
+                <Send className="h-3.5 w-3.5" /> Run
+              </>
+            )}
           </button>
           {ai.error && <p className="text-xs text-destructive">{ai.error}</p>}
         </div>
@@ -260,8 +569,18 @@ function AIFunctionPanel({
   );
 }
 
+// ─── Section renderer ─────────────────────────────────────────────────────────
+
 function FeatureSection({
-  section, guidebook, inputs, onInputChange, latestOutput, runs, featureId, featureTitle, onRunComplete,
+  section,
+  guidebook,
+  inputs,
+  onInputChange,
+  latestOutput,
+  runs,
+  featureId,
+  featureTitle,
+  onRunComplete,
 }: {
   section: GuidebookSection;
   guidebook: ForgeGuidebook;
@@ -271,73 +590,112 @@ function FeatureSection({
   runs: FeatureRunResult[];
   featureId: string;
   featureTitle: string;
-  onRunComplete: (result: Record<string, unknown>, fnId: string, fnType: string, pending: PendingStateWrite[]) => void;
+  onRunComplete: (result: Record<string, unknown>, fnId: string, fnType: string, pendingWrites: PendingStateWrite[]) => void;
 }) {
   const linkedFn = guidebook.ai_functions.find((f) => f.id === section.linked_ai_function_id);
+
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <div className="flex items-center gap-2 border-b border-border/60 px-4 py-3">
         <SectionIcon type={section.section_type} />
         <h3 className="text-sm font-medium">{section.title}</h3>
-        {section.description && <span className="ml-auto text-xs text-muted-foreground">{section.description}</span>}
+        {section.description && (
+          <span className="ml-auto text-xs text-muted-foreground">{section.description}</span>
+        )}
       </div>
+
       <div className="p-4">
         {section.section_type === "input_panel" && (
           <div className="space-y-4">
             {guidebook.required_inputs.map((inp) => (
               <div key={inp.id}>
                 <div className="mb-1.5 flex items-center gap-1 text-xs font-medium">
-                  {inp.label}{inp.required && <span className="text-destructive">*</span>}
+                  {inp.label}
+                  {inp.required && <span className="text-destructive">*</span>}
                 </div>
                 <InputField input={inp} value={inputs[inp.id] ?? ""} onChange={(v) => onInputChange(inp.id, v)} />
               </div>
             ))}
           </div>
         )}
+
         {section.section_type === "ai_output" && linkedFn && (
-          <AIFunctionPanel fn={linkedFn} inputs={inputs} featureId={featureId} featureTitle={featureTitle} guidebook={guidebook} onRunComplete={onRunComplete} />
+          <AIFunctionPanel
+            fn={linkedFn}
+            inputs={inputs}
+            featureId={featureId}
+            featureTitle={featureTitle}
+            guidebook={guidebook}
+            onRunComplete={onRunComplete}
+          />
         )}
-        {section.section_type === "ai_output" && !linkedFn && latestOutput && <AIOutputDisplay output={latestOutput} />}
-        {section.section_type === "scorecard" && latestOutput && <AIOutputDisplay output={latestOutput} />}
-        {section.section_type === "decision_result" && latestOutput && <AIOutputDisplay output={latestOutput} />}
+
+        {section.section_type === "ai_output" && !linkedFn && latestOutput && (
+          <AIOutputDisplay output={latestOutput} />
+        )}
+
+        {section.section_type === "scorecard" && latestOutput && (
+          <AIOutputDisplay output={latestOutput} />
+        )}
+
+        {section.section_type === "decision_result" && latestOutput && (
+          <AIOutputDisplay output={latestOutput} />
+        )}
+
         {section.section_type === "reflection_box" && (
-          <textarea value={inputs[`reflection_${section.id}`] ?? ""} onChange={(e) => onInputChange(`reflection_${section.id}`, e.target.value)}
-            placeholder="Type your response or reflection here…" rows={4}
-            className="w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none" />
+          <textarea
+            value={inputs[`reflection_${section.id}`] ?? ""}
+            onChange={(e) => onInputChange(`reflection_${section.id}`, e.target.value)}
+            placeholder="Type your response or reflection here…"
+            rows={4}
+            className="w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+          />
         )}
+
         {section.section_type === "saved_entries" && (
           <div className="space-y-2">
             {runs.length === 0 ? (
               <p className="text-sm text-muted-foreground">No saved entries yet. Run an AI function to get started.</p>
             ) : (
-              runs.slice().reverse().slice(0, 10).map((run) => <HistoryEntry key={run.id} run={run} guidebook={guidebook} />)
+              runs.slice().reverse().slice(0, 10).map((run) => (
+                <HistoryEntry key={run.id} run={run} guidebook={guidebook} />
+              ))
             )}
           </div>
         )}
+
         {section.section_type === "task_list" && latestOutput && (
           <div className="space-y-2">
-            {Array.isArray(latestOutput.today_tasks) && latestOutput.today_tasks.map((t: unknown, i: number) => (
-              <div key={i} className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-muted-foreground" /><span>{String(t)}</span>
-              </div>
-            ))}
+            {latestOutput.today_tasks && Array.isArray(latestOutput.today_tasks) && (
+              latestOutput.today_tasks.map((t: unknown, i: number) => (
+                <div key={i} className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span>{String(t)}</span>
+                </div>
+              ))
+            )}
             {latestOutput.next_action && !latestOutput.today_tasks && (
               <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-muted-foreground" /><span>{String(latestOutput.next_action)}</span>
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span>{String(latestOutput.next_action)}</span>
               </div>
             )}
           </div>
         )}
+
         {section.section_type === "protocol_steps" && (
           <div className="space-y-2">
             {guidebook.task_outputs.map((to, i) => (
               <div key={i} className="flex items-start gap-3 rounded-lg border border-border bg-background px-3 py-2">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-medium text-primary">{i + 1}</span>
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-medium text-primary">
+                  {i + 1}
+                </span>
                 <span className="text-sm">{to.title_template}</span>
               </div>
             ))}
           </div>
         )}
+
         {section.section_type === "audit_summary" && (
           <div className="space-y-2">
             {guidebook.audit_hooks.map((hook) => (
@@ -353,10 +711,13 @@ function FeatureSection({
   );
 }
 
+// ─── Main Feature Page ────────────────────────────────────────────────────────
+
 export default function ForgeFeature() {
   const { featureId } = useParams<{ featureId: string }>();
   const state = useStateStore((s) => s.state);
   const dispatch = useStateStore((s) => s.dispatch);
+
   const guidebook = getGuidebookById(state, featureId ?? "");
   const runs = getFeatureRunsForGuidebook(state, featureId ?? "");
   const signals = getSignalsForGuidebook(state, featureId ?? "");
@@ -374,6 +735,7 @@ export default function ForgeFeature() {
     (result: Record<string, unknown>, fnId: string, fnType: string, writes: PendingStateWrite[]) => {
       setLatestOutputs((prev) => ({ ...prev, [fnId]: result }));
       setPendingWrites((prev) => [...prev, ...writes]);
+
       const run: FeatureRunResult = {
         id: crypto.randomUUID(),
         feature_id: featureId ?? "",
@@ -385,6 +747,7 @@ export default function ForgeFeature() {
         state_writes_approved: [],
         tasks_created: [],
       };
+
       dispatch({ type: "forge/log_feature_run", payload: run });
       dispatch({ type: "forge/touch_guidebook", payload: { id: featureId ?? "" } });
     },
@@ -400,14 +763,9 @@ export default function ForgeFeature() {
           description: `Generated by ${guidebook?.title ?? "Forge feature"}`,
           status: "pending",
           priority: "medium",
-          goal_id: "",
-          domain_id: "",
           estimated_minutes: 30,
           category: "goal_direct",
           created_at: new Date().toISOString(),
-          completed_at: "",
-          due_date: "",
-          tune_notes: [],
         };
         dispatch({ type: "task/add", payload: task });
       } else if (write.data.type === "signal") {
@@ -422,6 +780,36 @@ export default function ForgeFeature() {
             created_at: new Date().toISOString(),
           },
         });
+      } else if (write.data.type === "feedback") {
+        dispatch({
+          type: "feedback/add",
+          payload: {
+            id: crypto.randomUUID(),
+            task_id: String(write.data.task_id ?? ""),
+            task_title: String(write.data.task_title ?? ""),
+            feedback: String(write.data.feedback ?? "not_relevant") as ExecutionFeedbackItem["feedback"],
+            created_at: new Date().toISOString(),
+          },
+        });
+      } else if (write.data.type === "task_tune") {
+        dispatch({
+          type: "task/tune",
+          payload: {
+            id: String(write.data.id ?? ""),
+            feedback: String(write.data.feedback ?? "too_big"),
+            change: String(write.data.change ?? "rewritten"),
+            changes: (write.data.changes ?? {}) as Partial<Task>,
+          },
+        });
+      } else if (write.data.type === "rescue") {
+        dispatch({
+          type: "rescue/log",
+          payload: {
+            id: crypto.randomUUID(),
+            reason: String(write.data.reason ?? "stuck") as "overwhelmed" | "tired" | "stuck" | "anxious",
+            created_at: new Date().toISOString(),
+          },
+        });
       }
       setPendingWrites((prev) => prev.filter((w) => w !== write));
     },
@@ -432,11 +820,17 @@ export default function ForgeFeature() {
     setPendingWrites((prev) => prev.filter((w) => w !== write));
   }, []);
 
-  if (!state) return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
+  if (!state) {
+    return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
+  }
+
   if (!guidebook) {
     return (
       <div className="mx-auto max-w-2xl py-12 space-y-4">
-        <Link to="/app/forge" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          to="/app/forge"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-3.5 w-3.5" /> Back to Forge
         </Link>
         <div className="rounded-2xl border border-border bg-card p-8 text-center">
@@ -456,65 +850,104 @@ export default function ForgeFeature() {
   const latestRun = runs[runs.length - 1];
   const latestOutputForSection = (sectionFnId?: string) => {
     if (!sectionFnId) {
-      const all = Object.values(latestOutputs);
-      return all[all.length - 1] ?? null;
+      const allOutputs = Object.values(latestOutputs);
+      return allOutputs[allOutputs.length - 1] ?? null;
     }
     return latestOutputs[sectionFnId] ?? null;
   };
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <Link to="/app/forge" className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground">
+      {/* Back nav */}
+      <Link
+        to="/app/forge"
+        className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-3 w-3" /> Forge
       </Link>
 
+      {/* Header */}
       <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-semibold tracking-tight">{guidebook.title}</h1>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${statusColors[guidebook.status] ?? "bg-secondary text-muted-foreground"}`}>{guidebook.status}</span>
-              <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">{FEATURE_TYPE_LABELS[guidebook.feature_type]}</span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${statusColors[guidebook.status] ?? "bg-secondary text-muted-foreground"}`}>
+                {guidebook.status}
+              </span>
+              <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
+                {FEATURE_TYPE_LABELS[guidebook.feature_type]}
+              </span>
             </div>
-            {guidebook.subtitle && <p className="mt-1 text-sm text-muted-foreground">{guidebook.subtitle}</p>}
+            {guidebook.subtitle && (
+              <p className="mt-1 text-sm text-muted-foreground">{guidebook.subtitle}</p>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-1">
             {guidebook.status === "active" && (
-              <button onClick={() => dispatch({ type: "forge/pause_guidebook", payload: { id: guidebook.id } })}
-                className="rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground">Pause</button>
+              <button
+                onClick={() => dispatch({ type: "forge/pause_guidebook", payload: { id: guidebook.id } })}
+                className="rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+              >
+                Pause
+              </button>
             )}
             {guidebook.status === "paused" && (
-              <button onClick={() => dispatch({ type: "forge/activate_guidebook", payload: { id: guidebook.id } })}
-                className="rounded-md border border-primary/40 bg-primary/5 px-2.5 py-1.5 text-xs text-primary">Resume</button>
+              <button
+                onClick={() => dispatch({ type: "forge/activate_guidebook", payload: { id: guidebook.id } })}
+                className="rounded-md border border-primary/40 bg-primary/5 px-2.5 py-1.5 text-xs text-primary"
+              >
+                Resume
+              </button>
             )}
           </div>
         </div>
 
+        {/* Stats row */}
         <div className="flex flex-wrap gap-4">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Activity className="h-3 w-3" /><span>{runs.length} run{runs.length !== 1 ? "s" : ""}</span></div>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><BarChart2 className="h-3 w-3" /><span>{signals.length} signal{signals.length !== 1 ? "s" : ""}</span></div>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Activity className="h-3 w-3" />
+            <span>{runs.length} run{runs.length !== 1 ? "s" : ""}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <BarChart2 className="h-3 w-3" />
+            <span>{signals.length} signal{signals.length !== 1 ? "s" : ""}</span>
+          </div>
           {latestRun && (
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><Clock className="h-3 w-3" /><span>Last run {new Date(latestRun.run_at).toLocaleDateString()}</span></div>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              <span>Last run {new Date(latestRun.run_at).toLocaleDateString()}</span>
+            </div>
           )}
         </div>
       </div>
 
+      {/* Purpose card */}
       <div className="rounded-2xl border border-border bg-card/50 px-5 py-4">
-        <div className="mb-1 text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">Purpose</div>
+        <div className="mb-1 text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+          Purpose
+        </div>
         <p className="text-sm leading-relaxed text-foreground">{guidebook.purpose}</p>
         {guidebook.bottleneck_addressed && (
           <p className="mt-2 text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">Bottleneck: </span>{guidebook.bottleneck_addressed}
+            <span className="font-medium text-foreground">Bottleneck: </span>
+            {guidebook.bottleneck_addressed}
           </p>
         )}
       </div>
 
+      {/* Tab bar for Run / History */}
       <div className="flex gap-1.5">
         {(["run", "history"] as const).map((tab) => (
-          <button key={tab} onClick={() => setActiveTab(tab)}
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
             className={`rounded-full border px-3 py-1 text-xs transition-colors capitalize ${
-              activeTab === tab ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:text-foreground"
-            }`}>
+              activeTab === tab
+                ? "border-primary/40 bg-primary/10 text-primary"
+                : "border-border bg-card text-muted-foreground hover:text-foreground"
+            }`}
+          >
             {tab === "history" ? `History (${runs.length})` : "Run"}
           </button>
         ))}
@@ -522,18 +955,48 @@ export default function ForgeFeature() {
 
       {activeTab === "run" && (
         <>
-          <StateWritePanel pending={pendingWrites} onApprove={handleApproveWrite} onDismiss={handleDismissWrite} />
+          {/* Context awareness */}
+          {state && <ContextAwarenessPanel guidebook={guidebook} state={state} />}
+
+          {/* Current target */}
+          {state && <CurrentTargetCard state={state} guidebook={guidebook} />}
+
+          {/* Pending state write approvals */}
+          <StateWritePanel
+            pending={pendingWrites}
+            onApprove={handleApproveWrite}
+            onDismiss={handleDismissWrite}
+          />
+
+          {/* Sections */}
           {guidebook.sections.map((section) => (
-            <FeatureSection key={section.id} section={section} guidebook={guidebook}
-              inputs={inputs} onInputChange={handleInputChange}
+            <FeatureSection
+              key={section.id}
+              section={section}
+              guidebook={guidebook}
+              inputs={inputs}
+              onInputChange={handleInputChange}
               latestOutput={latestOutputForSection(section.linked_ai_function_id)}
-              runs={runs} featureId={guidebook.id} featureTitle={guidebook.title}
-              onRunComplete={handleRunComplete} />
+              runs={runs}
+              featureId={guidebook.id}
+              featureTitle={guidebook.title}
+              onRunComplete={handleRunComplete}
+            />
           ))}
-          {guidebook.ai_functions.filter((fn) => !guidebook.sections.some((s) => s.linked_ai_function_id === fn.id)).map((fn) => (
+
+          {/* Standalone AI functions not linked to sections */}
+          {guidebook.ai_functions.filter(
+            (fn) => !guidebook.sections.some((s) => s.linked_ai_function_id === fn.id)
+          ).map((fn) => (
             <div key={fn.id}>
-              <AIFunctionPanel fn={fn} inputs={inputs} featureId={guidebook.id} featureTitle={guidebook.title}
-                guidebook={guidebook} onRunComplete={handleRunComplete} />
+              <AIFunctionPanel
+                fn={fn}
+                inputs={inputs}
+                featureId={guidebook.id}
+                featureTitle={guidebook.title}
+                guidebook={guidebook}
+                onRunComplete={handleRunComplete}
+              />
               {latestOutputs[fn.id] && (
                 <div className="mt-2 rounded-xl border border-border bg-card p-4">
                   <div className="mb-2 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Result</div>
@@ -542,13 +1005,16 @@ export default function ForgeFeature() {
               )}
             </div>
           ))}
+
+          {/* Safety rules */}
           {guidebook.safety_rules.length > 0 && (
             <div className="rounded-xl border border-border/50 px-4 py-3">
               <div className="mb-2 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Safety boundaries</div>
               <ul className="space-y-1">
                 {guidebook.safety_rules.map((rule, i) => (
                   <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
-                    <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-border" />{rule}
+                    <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-border" />
+                    {rule}
                   </li>
                 ))}
               </ul>
@@ -564,7 +1030,9 @@ export default function ForgeFeature() {
               <p className="text-sm text-muted-foreground">No runs yet. Go to the Run tab to get started.</p>
             </div>
           ) : (
-            runs.slice().reverse().map((run) => <HistoryEntry key={run.id} run={run} guidebook={guidebook} />)
+            runs.slice().reverse().map((run) => (
+              <HistoryEntry key={run.id} run={run} guidebook={guidebook} />
+            ))
           )}
         </div>
       )}

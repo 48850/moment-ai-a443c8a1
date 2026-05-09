@@ -4,6 +4,107 @@
  */
 import type { MomentState } from "@/lib/types";
 
+// ─── Stall detection ──────────────────────────────────────────────────────────
+
+export type StallType =
+  | "task_too_vague"
+  | "task_too_large"
+  | "low_energy"
+  | "needs_clarity"
+  | "fear_of_failure"
+  | "capacity_threshold"
+  | "wrong_conditions"
+  | "unclear";
+
+export interface StallPattern {
+  stall_type: StallType;
+  label: string;
+  evidence_chips: string[];
+  confidence: "high" | "medium" | "low";
+}
+
+export function computeStallPattern(state: MomentState): StallPattern {
+  const fb = state.execution_feedback ?? [];
+  const bd: Record<string, number> = {};
+  fb.forEach((f) => { bd[f.feedback] = (bd[f.feedback] ?? 0) + 1; });
+
+  const rescue = state.rescue_signals ?? [];
+  const rescueRecent = rescue.filter((r) => Date.now() - new Date(r.created_at).getTime() <= 7 * 86400_000).length;
+
+  const tooVague = bd.too_vague ?? 0;
+  const tooBig = bd.too_big ?? 0;
+  const tired = (bd.tired ?? 0) + (bd.overwhelmed ?? 0);
+  const needHelp = (bd.need_help ?? 0) + (bd.dont_understand ?? 0);
+  const fearful = bd.feels_unrealistic ?? 0;
+  const wrongTime = bd.wrong_time ?? 0;
+
+  if (rescueRecent >= 2) {
+    return {
+      stall_type: "capacity_threshold",
+      label: "Capacity threshold hit",
+      evidence_chips: [
+        `${rescueRecent} rescue calls this week`,
+        ...(tired > 0 ? [`${tired}× tired/overwhelmed`] : []),
+      ],
+      confidence: rescueRecent >= 3 ? "high" : "medium",
+    };
+  }
+  if (tooVague >= 2) {
+    return {
+      stall_type: "task_too_vague",
+      label: "Tasks are too vague to start",
+      evidence_chips: [`${tooVague}× too vague`, "first step not defined"],
+      confidence: tooVague >= 3 ? "high" : "medium",
+    };
+  }
+  if (tooBig >= 2) {
+    return {
+      stall_type: "task_too_large",
+      label: "Tasks are too large to start",
+      evidence_chips: [`${tooBig}× too big`, "plan over-scoped"],
+      confidence: tooBig >= 3 ? "high" : "medium",
+    };
+  }
+  if (tired >= 2) {
+    return {
+      stall_type: "low_energy",
+      label: "Energy is consistently low",
+      evidence_chips: [`${tired}× tired/overwhelmed`],
+      confidence: tired >= 3 ? "high" : "medium",
+    };
+  }
+  if (needHelp >= 2) {
+    return {
+      stall_type: "needs_clarity",
+      label: "Stuck on understanding",
+      evidence_chips: [`${needHelp}× need help / don't understand`],
+      confidence: needHelp >= 3 ? "high" : "medium",
+    };
+  }
+  if (fearful >= 2) {
+    return {
+      stall_type: "fear_of_failure",
+      label: "Fear of failure is blocking action",
+      evidence_chips: [`${fearful}× feels unrealistic`],
+      confidence: "medium",
+    };
+  }
+  if (wrongTime >= 1) {
+    return {
+      stall_type: "wrong_conditions",
+      label: "Wrong time or conditions",
+      evidence_chips: [`${wrongTime}× wrong time`],
+      confidence: wrongTime >= 2 ? "medium" : "low",
+    };
+  }
+  return {
+    stall_type: "unclear",
+    label: "No clear stall pattern yet",
+    evidence_chips: [],
+    confidence: "low",
+  };
+}
+
 export interface AuditMetrics {
   // Tasks
   tasks_total: number;
