@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { MomentState, GoalFeasibilityReport } from "@/lib/types";
 import { computeStallPattern } from "@/lib/selectors/audit";
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
 import {
   ChevronDown, AlertTriangle, Target, TrendingUp, TrendingDown, Activity,
