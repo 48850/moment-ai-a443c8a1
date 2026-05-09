@@ -2,23 +2,144 @@ import type { MomentState } from "@/lib/types";
 import { compilePursuitModel } from "@/lib/pursuit/compiler";
 import { seedWeekPlan } from "@/lib/engine/week-plan";
 
+const now = () => new Date().toISOString();
+
 /**
- * Build a fresh MomentState seeded with demo content so the redesigned
- * UI has something to render before any AI orchestration runs.
+ * For real new users: no demo data, no fake goal.
+ * Every required field is present; all content is empty/safe.
  */
-export function createDefaultState(userId: string, displayName: string, timezone: string): MomentState {
-  const now = new Date().toISOString();
+export function createEmptyUserState(userId: string, displayName: string, timezone: string): MomentState {
+  const ts = now();
+  return {
+    user_id: userId,
+    profile: {
+      display_name: displayName,
+      timezone,
+      created_at: ts,
+      last_active_at: ts,
+      age_bracket: "unknown",
+      commitments: [],
+      preferences: { tone: "calm", strictness: "soft", schedule_style: "flexible", support_style: "coach" },
+    },
+    active_goal: {
+      statement: "",
+      why_it_matters: "",
+      status: "forming",
+      phase: "clarifying",
+      seriousness_score: 0,
+      stability_score: 0,
+      reality_gap: "",
+      last_updated_at: ts,
+      desired_identity: "",
+      success_definition: "",
+      current_stage: "",
+      target_stage: "",
+    },
+    constraints: {
+      school_end_time: "",
+      commute_minutes: 0,
+      sleep_floor_time: "23:30",
+      sleep_target_time: "23:00",
+      exercise_minutes_daily: 0,
+      study_minutes_daily: 60,
+      fixed_commitments: [],
+      preferred_work_window: "",
+      energy_pattern: "unknown",
+      fixed_commitments_checked: false,
+      missing_fields: ["school_end_time", "commute_minutes", "study_minutes_daily"],
+    },
+    pathway: { domains: [] },
+    today_state: {
+      date: ts.slice(0, 10),
+      energy: "unknown",
+      stress: "unknown",
+      alignment_signal: "unknown",
+      current_bottleneck: "",
+      decisive_move: "",
+      decisive_move_reason: "",
+      available_time_blocks: [],
+      day_context_notes: "",
+    },
+    schedule_state: {
+      day_plan: [],
+      day_plan_a_snapshot: [],
+      week_plan: [],
+      week_plan_generated_at: "",
+      assumptions: [],
+      confidence: 0,
+      last_plan_generated_at: ts,
+      reform_note: "",
+      relationships: [],
+    },
+    progress_state: {
+      last_planned_action: "",
+      last_outcome: "unknown",
+      blockers: [],
+      what_changed: "",
+      last_checked_at: "",
+    },
+    memory_state: {
+      stable_facts: {},
+      semi_stable_patterns: {},
+      open_questions: [],
+      expiring_assumptions: [],
+    },
+    system_state: {
+      current_mode: "lock_goal",
+      last_response_type: "",
+      state_version: 1,
+    },
+    tasks: [],
+    reflections: [],
+    execution_feedback: [],
+    alignment: {
+      status: "aligned",
+      drift_score: 0,
+      last_updated: ts,
+      reasons: [],
+    },
+    home: { active_plan: "plan_a" },
+    forge_state: {
+      interview_answers: [],
+      candidate_features: [],
+      selected_feature_ids: [],
+      generated_modules: [],
+      compiler_status: "idle",
+    },
+    pursuit_model: null,
+    rescue_signals: [],
+    chat_preferences: { tone: "default" },
+    onboarding: {
+      completed: false,
+      current_stage: "",
+      answers: {},
+      last_updated: ts,
+      understanding: { knowns: [], unknowns: [], assumptions: [], confidence: "low" },
+    },
+  };
+}
+
+/**
+ * For dev/demo only — loaded when ?demo=true or VITE_ENABLE_DEMO_STATE=true.
+ * Never shown to real new users.
+ */
+export function createDemoState(userId: string, displayName: string, timezone: string): MomentState {
+  const ts = now();
+  const base = createEmptyUserState(userId, displayName, timezone);
 
   const active_goal: MomentState["active_goal"] = {
     statement: "Stanford CS, class of 2027",
-    why_it_matters:
-      "I want to build things that matter at the level Stanford CS opens up.",
+    why_it_matters: "I want to build things that matter at the level Stanford CS opens up.",
     status: "active",
     phase: "building",
     seriousness_score: 78,
     stability_score: 65,
     reality_gap: "Essay opener still unclear; SAT below target.",
-    last_updated_at: now,
+    last_updated_at: ts,
+    desired_identity: "A builder who ships things that matter.",
+    success_definition: "Admitted to Stanford CS class of 2027.",
+    current_stage: "high school junior with strong math and some CS",
+    target_stage: "Stanford admitted applicant",
   };
 
   const tasks: MomentState["tasks"] = [
@@ -32,9 +153,10 @@ export function createDefaultState(userId: string, displayName: string, timezone
       domain_id: "",
       estimated_minutes: 25,
       category: "goal_direct",
-      created_at: now,
+      created_at: ts,
       completed_at: "",
       due_date: "",
+      created_by: "user",
     },
     {
       id: "t1",
@@ -46,9 +168,10 @@ export function createDefaultState(userId: string, displayName: string, timezone
       domain_id: "",
       estimated_minutes: 15,
       category: "goal_direct",
-      created_at: now,
+      created_at: ts,
       completed_at: "",
       due_date: "",
+      created_by: "user",
     },
     {
       id: "t2",
@@ -60,9 +183,10 @@ export function createDefaultState(userId: string, displayName: string, timezone
       domain_id: "",
       estimated_minutes: 30,
       category: "goal_direct",
-      created_at: now,
+      created_at: ts,
       completed_at: "",
       due_date: "",
+      created_by: "user",
     },
     {
       id: "t3",
@@ -74,9 +198,10 @@ export function createDefaultState(userId: string, displayName: string, timezone
       domain_id: "",
       estimated_minutes: 10,
       category: "maintenance",
-      created_at: now,
-      completed_at: now,
+      created_at: ts,
+      completed_at: ts,
       due_date: "",
+      created_by: "user",
     },
     {
       id: "u1",
@@ -88,9 +213,10 @@ export function createDefaultState(userId: string, displayName: string, timezone
       domain_id: "",
       estimated_minutes: 5,
       category: "maintenance",
-      created_at: now,
+      created_at: ts,
       completed_at: "",
       due_date: "",
+      created_by: "user",
     },
   ];
 
@@ -155,13 +281,14 @@ export function createDefaultState(userId: string, displayName: string, timezone
     },
   ];
 
-  const base: MomentState = {
-    user_id: userId,
+  const demo: MomentState = {
+    ...base,
     profile: {
-      display_name: displayName,
-      timezone,
-      created_at: now,
-      last_active_at: now,
+      ...base.profile,
+      age: 17,
+      age_bracket: "teen_16_18",
+      school_year: "Year 12",
+      academic_context: "High school junior in the US",
     },
     active_goal,
     constraints: {
@@ -177,9 +304,8 @@ export function createDefaultState(userId: string, displayName: string, timezone
       fixed_commitments_checked: true,
       missing_fields: [],
     },
-    pathway: { domains: [] },
     today_state: {
-      date: now.slice(0, 10),
+      date: ts.slice(0, 10),
       energy: "medium",
       stress: "medium",
       alignment_signal: "aligned",
@@ -193,51 +319,38 @@ export function createDefaultState(userId: string, displayName: string, timezone
       day_plan,
       day_plan_a_snapshot: [],
       week_plan: [],
+      week_plan_generated_at: "",
       assumptions: ["You have ~2 focused hours after school today."],
       confidence: 70,
-      last_plan_generated_at: now,
+      last_plan_generated_at: ts,
       reform_note: "",
       relationships: [],
     },
-    progress_state: {
-      last_planned_action: "",
-      last_outcome: "unknown",
-      blockers: [],
-      what_changed: "",
-      last_checked_at: "",
-    },
-    memory_state: {
-      stable_facts: {},
-      semi_stable_patterns: {},
-      open_questions: [],
-      expiring_assumptions: [],
-    },
-    system_state: {
-      current_mode: "build_day_plan",
-      last_response_type: "",
-      state_version: 1,
-    },
     tasks,
-    reflections: [],
-    execution_feedback: [],
-    alignment: {
-      status: "aligned",
-      drift_score: 15,
-      last_updated: now,
-      reasons: [],
+    onboarding: {
+      completed: true,
+      current_stage: "high school junior with strong math",
+      answers: { stage_of_life: "school", horizon: "years" },
+      last_updated: ts,
+      understanding: {
+        knowns: ["goal", "why", "school year", "age"],
+        unknowns: [],
+        assumptions: ["User is in the US education system"],
+        confidence: "high",
+      },
     },
-    home: { active_plan: "plan_a" },
-    forge_state: {
-      interview_answers: [], candidate_features: [], selected_feature_ids: [],
-      generated_modules: [], compiler_status: "idle",
-    },
-    pursuit_model: null,
-    rescue_signals: [],
-    chat_preferences: { tone: "default" },
   };
 
-  base.pursuit_model = compilePursuitModel(base.active_goal, null);
-  base.schedule_state.week_plan = seedWeekPlan(base);
-  base.schedule_state.week_plan_generated_at = now;
-  return base;
+  demo.pursuit_model = compilePursuitModel(demo.active_goal, null);
+  demo.schedule_state.week_plan = seedWeekPlan(demo);
+  demo.schedule_state.week_plan_generated_at = ts;
+  return demo;
+}
+
+/**
+ * Legacy export — points to demo state for existing callers.
+ * New code should call createEmptyUserState or createDemoState directly.
+ */
+export function createDefaultState(userId: string, displayName: string, timezone: string): MomentState {
+  return createDemoState(userId, displayName, timezone);
 }

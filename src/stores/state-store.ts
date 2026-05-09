@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { MomentState, AppMode, ExecutionFeedbackItem, ScheduleBlock, ForgeInterviewAnswer, ForgeState } from "@/lib/types";
 import type { MomentAction } from "@/lib/types/actions";
 import { storage } from "@/lib/storage/local";
-import { createDefaultState } from "@/lib/state/defaults";
+import { createDefaultState, createEmptyUserState } from "@/lib/state/defaults";
 import { resolveMode, filterPatchByMode } from "@/lib/state/modes";
 import { compilePursuitModel } from "@/lib/pursuit/compiler";
 import {
@@ -12,6 +12,8 @@ import {
   instantiateModuleManifests,
 } from "@/lib/forge/compiler";
 import { seedWeekPlan, reformWeekPlan, sortBlocks as weekSort } from "@/lib/engine/week-plan";
+import { evaluateGoalFeasibility } from "@/lib/engine/goal-feasibility";
+import { filterStageAppropriateTasks } from "@/lib/engine/task-stage-filter";
 
 interface StateStore {
   state: MomentState | null;
@@ -49,8 +51,46 @@ export const useStateStore = create<StateStore>((set, get) => ({
     const saved = await storage.getState(session.userId);
     if (saved) {
       // Backfill fields added after a previous schema version.
+      const isDemo = typeof window !== "undefined" &&
+        (new URLSearchParams(window.location.search).get("demo") === "true" ||
+         import.meta.env.VITE_ENABLE_DEMO_STATE === "true");
+
+      // Backfill onboarding for users who existed before onboarding was added
+      let onboardingBackfill = (saved as any).onboarding;
+      if (!onboardingBackfill) {
+        const hasGoal = Boolean(saved.active_goal?.statement?.trim());
+        onboardingBackfill = {
+          completed: hasGoal,
+          current_stage: saved.active_goal?.current_stage ?? "",
+          answers: {},
+          last_updated: "",
+          understanding: { knowns: [], unknowns: [], assumptions: [], confidence: "low" as const },
+        };
+      }
+
+      // Backfill profile extended fields
+      const profileBackfill = {
+        age_bracket: "unknown" as const,
+        commitments: [] as string[],
+        preferences: { tone: "calm" as const, strictness: "soft" as const, schedule_style: "flexible" as const, support_style: "coach" as const },
+        ...((saved.profile as any) ?? {}),
+      };
+
+      // Backfill active_goal extended fields
+      const goalBackfill = saved.active_goal
+        ? {
+            desired_identity: "",
+            success_definition: "",
+            current_stage: "",
+            target_stage: "",
+            ...saved.active_goal,
+          }
+        : saved.active_goal;
+
       const hydrated: MomentState = {
         ...saved,
+        profile: profileBackfill,
+        active_goal: goalBackfill,
         execution_feedback: saved.execution_feedback ?? [],
         schedule_state: {
           ...saved.schedule_state,
@@ -67,15 +107,12 @@ export const useStateStore = create<StateStore>((set, get) => ({
         },
         home: saved.home ?? { active_plan: "plan_a" },
         forge_state: {
-          // Base defaults
           interview_answers: [],
           candidate_features: [],
           selected_feature_ids: [],
           generated_modules: [],
           compiler_status: "idle" as const,
-          // Spread existing saved state (may have legacy fields)
           ...(saved.forge_state ?? {}),
-          // Backfill guidebook fields if missing from older saves
           guidebooks: (saved.forge_state as any)?.guidebooks ?? [],
           feature_runs: (saved.forge_state as any)?.feature_runs ?? [],
           forge_signals: (saved.forge_state as any)?.forge_signals ?? [],
@@ -85,10 +122,24 @@ export const useStateStore = create<StateStore>((set, get) => ({
         pursuit_model: "pursuit_model" in saved ? saved.pursuit_model : null,
         rescue_signals: (saved as any).rescue_signals ?? [],
         chat_preferences: (saved as any).chat_preferences ?? { tone: "default" },
+        onboarding: onboardingBackfill,
       };
-      set({ state: hydrated, isHydrated: true });
+      // In demo mode, use demo state instead of saved (only for fresh demo sessions)
+      if (isDemo && !saved.active_goal?.statement?.trim()) {
+        const demo = createDefaultState(session.userId, session.displayName, tz());
+        persist(demo);
+        set({ state: demo, isHydrated: true });
+      } else {
+        set({ state: hydrated, isHydrated: true });
+      }
     } else {
-      const fresh = createDefaultState(session.userId, session.displayName, tz());
+      // New user — use empty state (no demo data); onboarding will capture their goal
+      const isDemo = typeof window !== "undefined" &&
+        (new URLSearchParams(window.location.search).get("demo") === "true" ||
+         import.meta.env.VITE_ENABLE_DEMO_STATE === "true");
+      const fresh = isDemo
+        ? createDefaultState(session.userId, session.displayName, tz())
+        : createEmptyUserState(session.userId, session.displayName, tz());
       persist(fresh);
       set({ state: fresh, isHydrated: true });
     }
@@ -142,9 +193,35 @@ export const useStateStore = create<StateStore>((set, get) => ({
     let next: MomentState = s;
 
     switch (action.type) {
-      case "task/add":
-        next = { ...s, tasks: [...s.tasks, action.payload] };
+      case "task/add": {
+        let taskToAdd = action.payload;
+        // Run stage filter for AI-created tasks at the state boundary
+        if (taskToAdd.created_by === "ai") {
+          const [filtered] = filterStageAppropriateTasks([taskToAdd], {
+            age_bracket: s.profile.age_bracket ?? "unknown",
+            current_stage: s.active_goal.current_stage ?? "",
+            feasibility: s.active_goal.feasibility,
+          });
+          taskToAdd = { ...taskToAdd, ...filtered };
+        }
+        next = { ...s, tasks: [...s.tasks, taskToAdd] };
         break;
+      }
+
+      case "task/bulk_add": {
+        const filtered = filterStageAppropriateTasks(
+          action.payload.filter((t) => t.created_by === "ai"),
+          {
+            age_bracket: s.profile.age_bracket ?? "unknown",
+            current_stage: s.active_goal.current_stage ?? "",
+            feasibility: s.active_goal.feasibility,
+          },
+        );
+        const userTasks = action.payload.filter((t) => t.created_by !== "ai");
+        const allNew = [...userTasks, ...filtered];
+        next = { ...s, tasks: [...s.tasks, ...allNew] };
+        break;
+      }
       case "task/update":
         next = {
           ...s,
@@ -275,22 +352,124 @@ export const useStateStore = create<StateStore>((set, get) => ({
         next = { ...s, home: { ...s.home, active_plan: action.payload } };
         break;
 
-      case "goal/set":
+      case "goal/set": {
+        const newGoal = action.payload;
+        let feasibility = newGoal.feasibility;
+        if (!feasibility && newGoal.statement.trim() && s.profile.age_bracket !== "unknown") {
+          feasibility = evaluateGoalFeasibility({
+            goal: newGoal.statement,
+            age_bracket: s.profile.age_bracket ?? "unknown",
+            school_year: s.profile.school_year,
+            stage_of_life: s.profile.academic_context,
+            pursuit_family: s.pursuit_model?.pursuit_family ?? "generic",
+            current_stage: newGoal.current_stage ?? s.active_goal.current_stage ?? "",
+          });
+        }
+        const goalWithFeasibility = feasibility
+          ? {
+              ...newGoal,
+              feasibility,
+              current_stage: feasibility.user_stage,
+              target_stage: feasibility.target_stage,
+              reality_gap: feasibility.reality_gap,
+            }
+          : newGoal;
         next = {
           ...s,
-          active_goal: action.payload,
-          pursuit_model: action.payload.statement.trim()
-            ? compilePursuitModel(action.payload, s.pursuit_model)
+          active_goal: goalWithFeasibility,
+          pursuit_model: newGoal.statement.trim()
+            ? compilePursuitModel(goalWithFeasibility, s.pursuit_model)
             : null,
         };
         break;
+      }
       case "goal/patch": {
         const merged = { ...s.active_goal, ...action.payload, last_updated_at: now() };
+        let feasibility = merged.feasibility;
+        if (action.payload.statement !== undefined && merged.statement.trim() &&
+            s.profile.age_bracket !== "unknown") {
+          feasibility = evaluateGoalFeasibility({
+            goal: merged.statement,
+            age_bracket: s.profile.age_bracket ?? "unknown",
+            school_year: s.profile.school_year,
+            stage_of_life: s.profile.academic_context,
+            pursuit_family: s.pursuit_model?.pursuit_family ?? "generic",
+            current_stage: merged.current_stage ?? "",
+          });
+        }
+        const mergedWithFeasibility = feasibility
+          ? {
+              ...merged,
+              feasibility,
+              current_stage: feasibility.user_stage,
+              target_stage: feasibility.target_stage,
+              reality_gap: feasibility.reality_gap,
+            }
+          : merged;
         next = {
           ...s,
-          active_goal: merged,
-          pursuit_model: merged.statement.trim() ? compilePursuitModel(merged, s.pursuit_model) : null,
+          active_goal: mergedWithFeasibility,
+          pursuit_model: mergedWithFeasibility.statement.trim()
+            ? compilePursuitModel(mergedWithFeasibility, s.pursuit_model)
+            : null,
         };
+        break;
+      }
+
+      case "profile/patch":
+        next = { ...s, profile: { ...s.profile, ...action.payload } };
+        break;
+
+      case "onboarding/set_answer":
+        next = {
+          ...s,
+          onboarding: {
+            ...s.onboarding,
+            answers: { ...s.onboarding.answers, [action.payload.key]: action.payload.value },
+          },
+        };
+        break;
+
+      case "onboarding/complete": {
+        const { profile_patch, goal_patch, constraints_patch, answers, understanding, feasibility: providedFeasibility } = action.payload;
+        const newGoalStatement = goal_patch.statement ?? s.active_goal.statement;
+        const newAgeBracket = profile_patch.age_bracket ?? s.profile.age_bracket ?? "unknown";
+
+        // Use provided feasibility (computed in the onboarding UI before dispatch)
+        const feasibility = providedFeasibility;
+
+        const updatedGoal = {
+          ...s.active_goal,
+          ...goal_patch,
+          ...(feasibility ? {
+            feasibility,
+            current_stage: feasibility.user_stage,
+            target_stage: feasibility.target_stage,
+            reality_gap: feasibility.reality_gap,
+          } : {}),
+          last_updated_at: now(),
+        };
+
+        next = {
+          ...s,
+          profile: { ...s.profile, ...profile_patch },
+          active_goal: updatedGoal,
+          constraints: constraints_patch
+            ? { ...s.constraints, ...constraints_patch }
+            : s.constraints,
+          onboarding: {
+            completed: true,
+            current_stage: feasibility?.user_stage ?? "",
+            answers,
+            last_updated: now(),
+            understanding,
+          },
+          pursuit_model: newGoalStatement.trim()
+            ? compilePursuitModel(updatedGoal, s.pursuit_model)
+            : null,
+        };
+        // Suppress unused variable warning
+        void newAgeBracket;
         break;
       }
 

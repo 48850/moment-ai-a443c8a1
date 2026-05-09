@@ -20,9 +20,13 @@ import {
   compiledPursuitModelSchema,
   rescueSignalSchema,
   chatPreferencesSchema,
+  goalFeasibilityReportSchema,
+  onboardingSchema,
 } from "@/lib/state/schema";
 
 export type MomentState = z.infer<typeof momentStateSchema>;
+export type GoalFeasibilityReport = z.infer<typeof goalFeasibilityReportSchema>;
+export type OnboardingState = z.infer<typeof onboardingSchema>;
 export type FixedCommitment = z.infer<typeof fixedCommitmentSchema>;
 export type ScheduleBlock = z.infer<typeof scheduleBlockSchema>;
 export type WeekBlock = z.infer<typeof weekBlockSchema>;

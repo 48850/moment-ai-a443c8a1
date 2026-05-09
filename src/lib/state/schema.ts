@@ -13,6 +13,18 @@ export const fixedCommitmentSchema = z.object({
   importance: z.string().default(""),
 });
 
+export const goalFeasibilityReportSchema = z.object({
+  goal_is_possible: z.boolean(),
+  goal_type: z.enum(["near_term", "long_term", "career", "academic", "creative", "fitness", "business", "other"]),
+  user_stage: z.string(),
+  target_stage: z.string(),
+  reality_gap: z.string(),
+  risk_of_bad_advice: z.enum(["low", "medium", "high"]),
+  premature_recommendations: z.array(z.string()),
+  appropriate_focus_now: z.array(z.string()),
+  next_clarifying_question: z.string().optional(),
+});
+
 export const activeGoalSchema = z.object({
   statement: z.string(),
   why_it_matters: z.string(),
@@ -22,6 +34,12 @@ export const activeGoalSchema = z.object({
   stability_score: z.number().min(0).max(100),
   reality_gap: z.string(),
   last_updated_at: z.string(),
+  horizon: z.enum(["days", "weeks", "months", "years", "decade"]).optional(),
+  desired_identity: z.string().default(""),
+  success_definition: z.string().default(""),
+  current_stage: z.string().default(""),
+  target_stage: z.string().default(""),
+  feasibility: goalFeasibilityReportSchema.optional(),
 });
 
 export const constraintsSchema = z.object({
@@ -162,6 +180,13 @@ export const taskSchema = z.object({
   was_tuned: z.boolean().default(false).optional(),
   /** Original title before the most recent tune (for context only). */
   original_title: z.string().default("").optional(),
+  // Stage-fit enforcement fields (populated by task-stage-filter before tasks enter state)
+  user_stage_fit: z.enum(["strong", "okay", "weak", "premature"]).optional(),
+  why_now: z.string().default("").optional(),
+  difficulty: z.enum(["easy", "medium", "hard"]).optional(),
+  required_resources: z.array(z.string()).default([]).optional(),
+  blocked_reason: z.string().default("").optional(),
+  created_by: z.enum(["user", "ai"]).default("user").optional(),
 });
 
 export const frictionTagSchema = z.enum([
@@ -348,6 +373,20 @@ export const compiledPursuitModelSchema = z.object({
   compiled_from_goal_hash: z.string(),
 });
 
+// --- Onboarding schema ---
+export const onboardingSchema = z.object({
+  completed: z.boolean().default(false),
+  current_stage: z.string().default(""),
+  answers: z.record(z.string(), z.any()).default({}),
+  last_updated: z.string().default(""),
+  understanding: z.object({
+    knowns: z.array(z.string()).default([]),
+    unknowns: z.array(z.string()).default([]),
+    assumptions: z.array(z.string()).default([]),
+    confidence: z.enum(["low", "medium", "high"]).default("low"),
+  }).default({ knowns: [], unknowns: [], assumptions: [], confidence: "low" }),
+});
+
 // --- Full state schema ---
 export const momentStateSchema = z.object({
   user_id: z.string(),
@@ -356,6 +395,18 @@ export const momentStateSchema = z.object({
     timezone: z.string(),
     created_at: z.string(),
     last_active_at: z.string(),
+    age: z.number().optional(),
+    age_bracket: z.enum(["under_13", "teen_13_15", "teen_16_18", "adult", "unknown"]).default("unknown"),
+    school_year: z.string().optional(),
+    academic_context: z.string().optional(),
+    normal_weekday: z.string().optional(),
+    commitments: z.array(z.string()).default([]),
+    preferences: z.object({
+      tone: z.enum(["gentle", "direct", "energising", "calm", "strict"]).default("calm"),
+      strictness: z.enum(["soft", "firm", "minimal"]).default("soft"),
+      schedule_style: z.enum(["structured", "flexible", "mixed"]).default("flexible"),
+      support_style: z.enum(["coach", "advisor", "accountability", "cheerleader"]).default("coach"),
+    }).default({ tone: "calm", strictness: "soft", schedule_style: "flexible", support_style: "coach" }),
   }),
   active_goal: activeGoalSchema,
   constraints: constraintsSchema,
@@ -378,4 +429,11 @@ export const momentStateSchema = z.object({
   pursuit_model: compiledPursuitModelSchema.nullable(),
   rescue_signals: z.array(rescueSignalSchema).default([]),
   chat_preferences: chatPreferencesSchema.default({ tone: "default" }),
+  onboarding: onboardingSchema.default({
+    completed: false,
+    current_stage: "",
+    answers: {},
+    last_updated: "",
+    understanding: { knowns: [], unknowns: [], assumptions: [], confidence: "low" },
+  }),
 });

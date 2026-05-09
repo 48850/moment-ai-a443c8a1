@@ -17,6 +17,7 @@ import type {
   ForgeGuidebook,
   FeatureRunResult,
   ForgeSignal,
+  GoalFeasibilityReport,
 } from "@/lib/types";
 
 /**
@@ -78,4 +79,21 @@ export type MomentAction =
   | { type: "forge/archive_guidebook"; payload: { id: string } }
   | { type: "forge/log_feature_run"; payload: FeatureRunResult }
   | { type: "forge/log_signal"; payload: ForgeSignal }
-  | { type: "forge/touch_guidebook"; payload: { id: string } };
+  | { type: "forge/touch_guidebook"; payload: { id: string } }
+  // ─── Profile + onboarding ──────────────────────────────────────────────────
+  | { type: "profile/patch"; payload: Partial<MomentState["profile"]> }
+  | { type: "onboarding/set_answer"; payload: { key: string; value: unknown } }
+  | { type: "onboarding/complete"; payload: {
+      profile_patch: Partial<MomentState["profile"]>;
+      goal_patch: Partial<MomentState["active_goal"]>;
+      constraints_patch?: Partial<MomentState["constraints"]>;
+      answers: Record<string, unknown>;
+      understanding: {
+        knowns: string[];
+        unknowns: string[];
+        assumptions: string[];
+        confidence: "low" | "medium" | "high";
+      };
+      feasibility: GoalFeasibilityReport;
+    } }
+  | { type: "task/bulk_add"; payload: Task[] };
