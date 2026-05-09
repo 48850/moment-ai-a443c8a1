@@ -344,8 +344,20 @@ function userPrompt(intent: string, snapshot: any, payload: any): string {
   const why = snapshot?.active_goal?.why_it_matters || "";
   const fb = (snapshot?.recent_feedback ?? []).slice(-10).join(", ") || "none";
   const reflections = (snapshot?.recent_reflections ?? []).slice(-3);
+  const p = snapshot?.profile ?? {};
+  const recentChat = (snapshot?.recent_chat ?? []).slice(-6)
+    .map((m: any) => `${m.role}: ${m.content}`).join("\n") || "none";
 
-  const ctx = `Goal: ${goal}\nWhy it matters: ${why}\nRecent feedback signals: ${fb}\nRecent reflections: ${JSON.stringify(reflections)}`;
+  const userBlock = `USER PROFILE (CRITICAL — every suggestion MUST fit this person):
+- Name: ${snapshot?.display_name || "(unknown)"}
+- Age: ${p.age || "(unknown)"} ${p.age && p.age < 18 ? "← MINOR. Do NOT suggest college/grad-school/professional-track tasks unless the goal explicitly is that." : ""}
+- School: ${p.school_name || "(unknown)"} — Grade: ${p.grade_level || "(unknown)"}
+- Weekly schedule: ${p.weekly_schedule_summary || "(unknown)"}
+- Predispositions / context: ${p.predispositions || "(none)"}
+
+HARD RULE: Calibrate vocabulary, time estimates, examples, and assumed life-stage to this user's actual age and grade. A 15-year-old in high school should NEVER receive med-school, residency, or college-level task framings unless their stated goal explicitly is one of those. When in doubt, frame for the user's CURRENT life stage.`;
+
+  const ctx = `${userBlock}\n\nGoal: ${goal}\nWhy it matters: ${why}\nRecent feedback signals: ${fb}\nRecent reflections: ${JSON.stringify(reflections)}\nRecent chat:\n${recentChat}`;
 
   switch (intent) {
     case "next_move_rationale":
