@@ -105,11 +105,11 @@ export function selectChatSnapshot(state: MomentState): ChatSnapshot {
     display_name: state.profile.display_name,
     profile: {
       age: state.profile.age ?? 0,
-      school_name: state.profile.school_name ?? "",
-      grade_level: state.profile.grade_level ?? "",
-      weekly_schedule_summary: state.profile.weekly_schedule_summary ?? "",
-      predispositions: state.profile.predispositions ?? "",
-      onboarded: !!state.profile.onboarding_completed_at,
+      age_bracket: state.profile.age_bracket ?? "unknown",
+      school_year: state.profile.school_year ?? "",
+      academic_context: state.profile.academic_context ?? "",
+      normal_weekday: state.profile.normal_weekday ?? "",
+      onboarded: !!state.onboarding?.completed,
     },
     active_goal: {
       statement: state.active_goal.statement,
