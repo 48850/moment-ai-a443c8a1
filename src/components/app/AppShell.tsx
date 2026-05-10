@@ -1,5 +1,6 @@
-import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
+import { NavLink, Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { Home, Calendar, Target, ArrowLeft, MessageSquare, Heart, LifeBuoy, ListChecks, Hammer, BarChart3 } from "lucide-react";
+import { useStateStore } from "@/stores/state-store";
 
 type SubTab = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; end?: boolean };
 
@@ -42,6 +43,8 @@ const tabs: { to: string; label: string; icon: React.ComponentType<{ className?:
 
 export const AppShell = () => {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const reset = useStateStore((s) => s.reset);
   // forge/:featureId routes should keep the Plan group (Forge sub-tab) active
   const normalizedPath = pathname.startsWith("/app/forge/") ? "/app/forge" : pathname;
   const activeGroup =
@@ -67,12 +70,8 @@ export const AppShell = () => {
           <button
             onClick={() => {
               if (!confirm("Reset onboarding? This wipes local state.")) return;
-              try {
-                Object.keys(localStorage)
-                  .filter((k) => k.startsWith("moment_"))
-                  .forEach((k) => localStorage.removeItem(k));
-              } catch {}
-              window.location.assign("/onboarding");
+              reset();
+              navigate("/onboarding", { replace: true });
             }}
             className="rounded-md border border-border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:bg-muted hover:text-foreground"
           >
