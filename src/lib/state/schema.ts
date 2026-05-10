@@ -290,6 +290,18 @@ export const chatPreferencesSchema = z.object({
   tone: z.enum(["default", "gentler", "more_direct"]).default("default"),
 });
 
+export const chatStateSchema = z.object({
+  post_onboarding_specialisation_required: z.boolean().default(false),
+  specialisation_phase: z.enum([
+    "explain_goal",
+    "map_reality",
+    "locate_user",
+    "choose_first_path",
+    "activate_first_move",
+    "complete",
+  ]).default("explain_goal"),
+});
+
 export const forgeStateSchema = z.object({
   interview_answers: z.array(z.any()).default([]),
   candidate_features: z.array(z.any()).default([]),
@@ -429,6 +441,10 @@ export const momentStateSchema = z.object({
   pursuit_model: compiledPursuitModelSchema.nullable(),
   rescue_signals: z.array(rescueSignalSchema).default([]),
   chat_preferences: chatPreferencesSchema.default({ tone: "default" }),
+  chat_state: chatStateSchema.default({
+    post_onboarding_specialisation_required: false,
+    specialisation_phase: "explain_goal",
+  }),
   onboarding: onboardingSchema.default({
     completed: false,
     current_stage: "",

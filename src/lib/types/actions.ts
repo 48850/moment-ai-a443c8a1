@@ -96,4 +96,13 @@ export type MomentAction =
       };
       feasibility: GoalFeasibilityReport;
     } }
-  | { type: "task/bulk_add"; payload: Task[] };
+  | { type: "task/bulk_add"; payload: Task[] }
+  // ─── Goal-specialisation chat flow ────────────────────────────────────────
+  | { type: "chat/begin_specialisation" }
+  | { type: "chat/set_specialisation_phase"; payload: {
+      phase: "explain_goal" | "map_reality" | "locate_user" | "choose_first_path" | "activate_first_move" | "complete";
+    } }
+  | { type: "chat/complete_specialisation"; payload: {
+      goal_patch: Partial<MomentState["active_goal"]>;
+      first_task: Task;
+    } };

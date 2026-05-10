@@ -122,6 +122,10 @@ export const useStateStore = create<StateStore>((set, get) => ({
         pursuit_model: "pursuit_model" in saved ? saved.pursuit_model : null,
         rescue_signals: (saved as any).rescue_signals ?? [],
         chat_preferences: (saved as any).chat_preferences ?? { tone: "default" },
+        chat_state: (saved as any).chat_state ?? {
+          post_onboarding_specialisation_required: false,
+          specialisation_phase: "explain_goal" as const,
+        },
         onboarding: onboardingBackfill,
       };
       // In demo mode, use demo state instead of saved (only for fresh demo sessions)
@@ -463,6 +467,11 @@ export const useStateStore = create<StateStore>((set, get) => ({
             answers,
             last_updated: now(),
             understanding,
+          },
+          chat_state: {
+            ...(s.chat_state ?? { post_onboarding_specialisation_required: false, specialisation_phase: "explain_goal" as const }),
+            post_onboarding_specialisation_required: true,
+            specialisation_phase: "explain_goal" as const,
           },
           pursuit_model: newGoalStatement.trim()
             ? compilePursuitModel(updatedGoal, s.pursuit_model)
@@ -889,6 +898,48 @@ export const useStateStore = create<StateStore>((set, get) => ({
         next = {
           ...s,
           chat_preferences: { ...(s.chat_preferences ?? { tone: "default" }), ...action.payload },
+        };
+        break;
+      }
+
+      case "chat/begin_specialisation": {
+        next = {
+          ...s,
+          chat_state: {
+            ...(s.chat_state ?? { post_onboarding_specialisation_required: false, specialisation_phase: "explain_goal" as const }),
+            post_onboarding_specialisation_required: true,
+            specialisation_phase: "explain_goal" as const,
+          },
+        };
+        break;
+      }
+
+      case "chat/set_specialisation_phase": {
+        next = {
+          ...s,
+          chat_state: {
+            ...(s.chat_state ?? { post_onboarding_specialisation_required: false, specialisation_phase: "explain_goal" as const }),
+            specialisation_phase: action.payload.phase,
+          },
+        };
+        break;
+      }
+
+      case "chat/complete_specialisation": {
+        const { goal_patch, first_task } = action.payload;
+        const merged = { ...s.active_goal, ...goal_patch, last_updated_at: now() };
+        next = {
+          ...s,
+          active_goal: merged,
+          tasks: [...s.tasks, first_task],
+          chat_state: {
+            ...(s.chat_state ?? { post_onboarding_specialisation_required: false, specialisation_phase: "explain_goal" as const }),
+            post_onboarding_specialisation_required: false,
+            specialisation_phase: "complete" as const,
+          },
+          pursuit_model: merged.statement.trim()
+            ? compilePursuitModel(merged, s.pursuit_model)
+            : null,
         };
         break;
       }

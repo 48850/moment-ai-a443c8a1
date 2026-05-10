@@ -297,7 +297,7 @@ export default function Onboarding() {
       },
     });
 
-    navigate("/app");
+    navigate("/app/chat?mode=goal_specialisation");
   };
 
   return (

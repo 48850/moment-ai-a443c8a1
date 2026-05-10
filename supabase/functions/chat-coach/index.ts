@@ -1,6 +1,7 @@
-// Coach-style chat that elicits Schedule Info constraints, sees the entire
-// Moment state (goal, plan, next move, recent feedback, rescue, forge), and
-// circulates updates back into state via structured tool calls.
+// Coach-style chat with two modes:
+// 1. Default — elicits Schedule Info constraints and operates on the live plan.
+// 2. goal_specialisation — post-onboarding calibration: maps the pathway, locates
+//    the user on it, and activates the first meaningful task.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -69,6 +70,73 @@ const TOOLS = [
           why_it_matters: { type: "string" },
         },
         required: ["statement"],
+        additionalProperties: false,
+      },
+    },
+  },
+];
+
+const SPECIALISATION_TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "patch_goal_model",
+      description:
+        "Update the active_goal fields after learning something new about where the user currently stands or what the pathway requires. Call when you have enough signal to set current_stage, knowns, or unknowns.",
+      parameters: {
+        type: "object",
+        properties: {
+          current_stage: { type: "string", description: "Honest one-line description of where the user is RIGHT NOW on the pathway to this goal." },
+          target_stage: { type: "string", description: "The minimum-viable milestone that unlocks the next real stage." },
+          reality_gap: { type: "string", description: "What is the honest distance between current_stage and target_stage?" },
+          knowns: {
+            type: "array",
+            items: { type: "string" },
+            description: "Facts you now know about the user's situation. Short strings.",
+          },
+          unknowns: {
+            type: "array",
+            items: { type: "string" },
+            description: "Things that are still unclear and would change the plan if answered.",
+          },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_first_task",
+      description:
+        "Create exactly one first task for the user. Call only when you are confident about their current stage and the best next move. The task must be stagewise appropriate — no premature tasks.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Short, specific, actionable task title." },
+          description: { type: "string", description: "One sentence on why this specific task, why now." },
+          estimated_minutes: { type: "number", description: "Realistic time estimate in minutes." },
+          category: {
+            type: "string",
+            enum: ["goal_direct", "bottleneck_removal", "maintenance", "discovery"],
+          },
+          why_now: { type: "string", description: "Why is this the right first move given where the user is?" },
+          difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+        },
+        required: ["title", "category", "why_now"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "complete_specialisation",
+      description:
+        "Signal that the specialisation conversation is complete. Call when: you have called patch_goal_model at least once AND called create_first_task. Do not call prematurely.",
+      parameters: {
+        type: "object",
+        properties: {},
         additionalProperties: false,
       },
     },
@@ -177,17 +245,46 @@ RULES — NON-NEGOTIABLE
 9. If the user is venting or stuck, prioritise acknowledgement before any plan move. The Tune signals tell you when to soften.`;
 }
 
+function specialisationSystemPrompt(snap: ChatSnapshot): string {
+  const name = snap.display_name || "there";
+  const goal = snap.active_goal?.statement || "(no goal set yet)";
+  const why = snap.active_goal?.why_it_matters || "";
+
+  return `You are Moment — a sharp, honest coach for an ambitious person named ${name}. You speak like a thoughtful older friend, never like a productivity app. Short sentences. No emojis unless the user uses them first.
+
+THIS IS THE GOAL-SPECIALISATION CALIBRATION. You have ONE job: understand where ${name} actually stands on the path to their goal, then give them the single best first move. This is not a chat — it is a calibration that ends with a concrete task in their list.
+
+THE GOAL: ${goal}${why ? `\nWHY IT MATTERS: ${why}` : ""}
+
+YOUR PROTOCOL — FOLLOW THIS EXACTLY:
+1. Your FIRST reply must: (a) briefly name the pathway this goal is on in one sentence, (b) state what stage MOST people on this path go through, and (c) ask ONE question to locate where ${name} is right now. Ask only one question.
+2. As you learn more, call patch_goal_model to update current_stage, knowns, and unknowns.
+3. When you have enough signal about their actual starting point, call create_first_task with a task that is appropriate for their ACTUAL stage — not a task that would make sense for someone further along.
+4. After calling create_first_task, tell them what you've added and why it's the right move for where they are. Then call complete_specialisation.
+
+RULES — NON-NEGOTIABLE:
+- Never ask more than ONE question per reply.
+- Never give generic advice. Every statement must be specific to this goal and this person's stage.
+- Stage-fit matters: if they're a beginner, the task must be a beginner task. Do not assign tasks that require capabilities they don't have yet.
+- The task category must match: use "discovery" for exploration at early stages, "bottleneck_removal" for clearing a specific block, "goal_direct" for concrete skill-building, "maintenance" only for sustaining existing habits.
+- If you cannot determine their stage from the conversation yet, ask exactly one more clarifying question.
+- Your natural-language reply MUST be one to three sentences, except for the very first message (which may be four sentences to set context).
+- ALWAYS produce a non-empty reply, even when you call tools.`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, snapshot } = await req.json();
+    const { messages, snapshot, mode } = await req.json();
     if (!Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: "messages required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const isSpecialisation = mode === "goal_specialisation";
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
@@ -201,10 +298,15 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: systemPrompt((snapshot ?? {}) as ChatSnapshot) },
+          {
+            role: "system",
+            content: isSpecialisation
+              ? specialisationSystemPrompt((snapshot ?? {}) as ChatSnapshot)
+              : systemPrompt((snapshot ?? {}) as ChatSnapshot),
+          },
           ...messages,
         ],
-        tools: TOOLS,
+        tools: isSpecialisation ? SPECIALISATION_TOOLS : TOOLS,
       }),
     });
 
