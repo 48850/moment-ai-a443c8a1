@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronDown, AlertTriangle, Target, TrendingUp, TrendingDown, Activity,
   Sparkles, Flag, ArrowUpRight, ArrowDownRight, Minus, Zap,
@@ -51,11 +51,13 @@ const Mission = () => {
   const analytics = useMemo(() => state ? analyzeMission(state) : null, [state]);
 
   // Daily snapshot — fires once per day, persisted via state store (cloud-synced).
+  const snapshotDateRef = useRef<string | null>(null);
   useEffect(() => {
     if (!state || !analytics || analytics.perWorkstream.length === 0) return;
     const today = new Date().toISOString().slice(0, 10);
     const last = (state as any).mission_history?.slice(-1)[0];
-    if (last?.date === today) return;
+    if (last?.date === today || snapshotDateRef.current === today) return;
+    snapshotDateRef.current = today;
     dispatch({
       type: "mission/snapshot",
       payload: {
