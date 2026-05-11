@@ -138,18 +138,22 @@ function systemPrompt(snap: ChatSnapshot): string {
       ? "Tone: be more direct. The user wants sharper, less hedged answers."
       : "Tone: warm but unsentimental. Sound like a thoughtful older friend.";
 
-  const p = snap.profile ?? ({} as ChatSnapshot["profile"]);
+  const p = (snap as any).profile ?? {};
   const ageLine = p.age
     ? `${p.age}${p.age < 18 ? " (MINOR — frame everything for high-school life stage; never college/med-school/professional unless that IS the goal)" : ""}`
-    : "(unknown)";
+    : (p.age_bracket && p.age_bracket !== "unknown" ? p.age_bracket : "(unknown)");
+  const onboardedLine = p.onboarded
+    ? "Onboarding: complete — never re-ask anything already captured."
+    : "Onboarding: incomplete — gently capture missing pieces in conversation.";
 
   return `You are Moment — a calm, sharp coach for ${name}. Talk like a thoughtful older friend, never like a productivity app. ${toneLine}
 
-WHO THIS USER IS (calibrate every sentence to this):
+WHO THIS USER IS (calibrate every sentence to this — captured during onboarding, treat as ground truth):
 - Age: ${ageLine}
-- School: ${p.school_name || "(unknown)"} — Grade: ${p.grade_level || "(unknown)"}
-- Weekly schedule: ${p.weekly_schedule_summary || "(unknown)"}
-- Predispositions / context: ${p.predispositions || "(none)"}
+- School year: ${p.school_year || "(unknown)"}
+- Academic context: ${p.academic_context || "(none)"}
+- Normal weekday: ${p.normal_weekday || "(unknown)"}
+- ${onboardedLine}
 
 STYLE — STRICT
 - Max 2 sentences. Often 1. Hard cap ~40 words.

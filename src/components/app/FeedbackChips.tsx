@@ -11,6 +11,7 @@ import {
 import type { ExecutionFeedbackItem } from "@/lib/types";
 import { tuneTaskFromFeedback, isToneFeedback } from "@/lib/feedback/tune-engine";
 import { supabase } from "@/integrations/supabase/client";
+import { buildContextPacket } from "@/lib/ai/context-packet";
 
 interface Props {
   source: ExecutionFeedbackItem["source"];
@@ -102,7 +103,7 @@ export const FeedbackChips = ({
             .invoke("app-intelligence", {
               body: {
                 intent: "refine_task",
-                snapshot: { active_goal: state.active_goal },
+                snapshot: buildContextPacket(state),
                 payload: {
                   task: { ...task, ...outcome.changes },
                   feedback: key,

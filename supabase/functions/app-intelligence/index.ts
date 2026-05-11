@@ -200,15 +200,31 @@ function tools(intent: string) {
 }
 
 function buildContextHeader(snapshot: any): string {
-  const age_bracket = snapshot?.user?.age_bracket ?? "unknown";
-  const school_year = snapshot?.user?.school_year;
+  const u = snapshot?.user ?? {};
+  const display_name = u.display_name ?? "the user";
+  const age = u.age;
+  const age_bracket = u.age_bracket ?? "unknown";
+  const school_year = u.school_year;
+  const academic_context = u.academic_context ?? "";
+  const normal_weekday = u.normal_weekday ?? "";
+  const commitments = (u.commitments ?? []).join(", ");
+  const tz = u.timezone ?? "";
+  const prefs = u.preferences ?? {};
+  const prefLine = `tone=${prefs.tone ?? "?"} · strictness=${prefs.strictness ?? "?"} · schedule_style=${prefs.schedule_style ?? "?"} · support_style=${prefs.support_style ?? "?"}`;
+
+  const ob = snapshot?.onboarding ?? {};
+  const onboarded = ob.completed ? "complete" : "incomplete";
+  const knowns = (ob.understanding?.knowns ?? []).join("; ");
+  const unknownsList = (ob.understanding?.unknowns ?? []).join(", ");
+  const obAssumptions = (ob.understanding?.assumptions ?? []).join("; ");
+  const obConfidence = ob.understanding?.confidence ?? "low";
+
   const current_stage = snapshot?.active_goal?.current_stage ?? "";
   const target_stage = snapshot?.active_goal?.target_stage ?? "";
   const reality_gap = snapshot?.active_goal?.reality_gap ?? "";
   const risk = snapshot?.active_goal?.feasibility?.risk_of_bad_advice ?? "low";
   const premature = (snapshot?.active_goal?.feasibility?.premature_recommendations ?? []).join(", ");
   const appropriate = (snapshot?.active_goal?.feasibility?.appropriate_focus_now ?? []).join(", ");
-  const unknowns = (snapshot?.onboarding?.understanding?.unknowns ?? []).join(", ");
   const assumptions = (snapshot?.pursuit?.assumptions ?? []).join("; ");
   const capabilities = (snapshot?.pursuit?.capability_clusters ?? [])
     .map((c: any) => `${c.name}: ${c.status}`).join(", ");
@@ -219,14 +235,26 @@ function buildContextHeader(snapshot: any): string {
   const fb = (snapshot?.signals?.recent_feedback ?? []).slice(-10).join(", ") || "none";
   const reflections = (snapshot?.signals?.recent_reflections ?? []).slice(-3);
 
-  return `USER: ${age_bracket}${school_year ? ` · ${school_year}` : ""}
-Current stage: ${current_stage || "unknown"} → Target: ${target_stage || "not set"}
-Available study time: ~${available_min}min | Mode: ${active_mode || "default"}
-Risk of bad advice: ${risk}
+  return `USER (captured during onboarding — treat as ground truth, never re-ask):
+- Name: ${display_name}
+- Age: ${age ?? "?"} (${age_bracket})${school_year ? ` · ${school_year}` : ""}
+- Academic context: ${academic_context || "(none)"}
+- Normal weekday: ${normal_weekday || "(unknown)"}
+- Fixed commitments: ${commitments || "(none)"}
+- Timezone: ${tz || "(unknown)"}
+- Preferences: ${prefLine}
+
+ONBOARDING: ${onboarded} (confidence: ${obConfidence})
+- Knowns: ${knowns || "(none)"}
+- Unknowns: ${unknownsList || "(none)"}
+- Assumptions: ${obAssumptions || "(none)"}
 
 GOAL: ${goal}
 Why: ${why}
-Reality gap: ${reality_gap || "not yet assessed"}${risk === "high" ? `\n\n⚠️ HIGH RISK: Do NOT generate tasks involving: ${premature}` : ""}${appropriate ? `\nAppropriate focus now: ${appropriate}` : ""}${unknowns ? `\nWhat Moment still doesn't know: ${unknowns} — do not invent these.` : ""}
+Current stage: ${current_stage || "unknown"} → Target: ${target_stage || "not set"}
+Reality gap: ${reality_gap || "not yet assessed"}
+Available study time: ~${available_min}min | Mode: ${active_mode || "default"}
+Risk of bad advice: ${risk}${risk === "high" ? `\n⚠️ HIGH RISK: Do NOT generate tasks involving: ${premature}` : ""}${appropriate ? `\nAppropriate focus now: ${appropriate}` : ""}${unknownsList ? `\nWhat Moment still doesn't know: ${unknownsList} — do not invent these.` : ""}
 
 Pursuit assumptions: ${assumptions || "none"}
 Capabilities: ${capabilities || "not assessed"}
