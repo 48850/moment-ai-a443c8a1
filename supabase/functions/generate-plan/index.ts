@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { goal, why, context } = await req.json();
+    const { goal, why, context, snapshot } = await req.json();
     if (!goal || typeof goal !== "string") {
       return new Response(JSON.stringify({ error: "Missing goal" }), {
         status: 400,
@@ -95,13 +95,30 @@ Deno.serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const system = `You are an elite life-design coach for ambitious teenagers. You translate a single goal into a phased plan across four horizons: days, weeks, months, years. Be concrete, specific, age-appropriate, energising, never preachy. Every item should be doable and unmistakably move the goal forward. Avoid generic productivity fluff.`;
+    // Distill the onboarding/context packet so the model plans for THIS user, not a generic one.
+    const u = snapshot?.user ?? {};
+    const ob = snapshot?.onboarding ?? {};
+    const cr = snapshot?.current_reality ?? {};
+    const prefs = u.preferences ?? {};
+    const userBlock = `WHO THIS PLAN IS FOR (from onboarding — adapt every horizon to this):
+- Name: ${u.display_name ?? "?"} · Age: ${u.age ?? "?"} (${u.age_bracket ?? "unknown"})${u.school_year ? ` · ${u.school_year}` : ""}
+- Academic context: ${u.academic_context || "(none)"}
+- Normal weekday: ${u.normal_weekday || "(unknown)"}
+- Fixed commitments: ${(u.commitments ?? []).join(", ") || "(none)"}
+- Available study minutes/day: ~${cr.available_study_minutes ?? 60}
+- Energy pattern: ${cr.energy_pattern ?? "unknown"} · today: ${cr.today_energy ?? "unknown"}
+- Preferences: tone=${prefs.tone ?? "?"} · strictness=${prefs.strictness ?? "?"} · schedule_style=${prefs.schedule_style ?? "?"} · support_style=${prefs.support_style ?? "?"}
+- Onboarding ${ob.completed ? "complete" : "incomplete"} · unknowns: ${(ob.understanding?.unknowns ?? []).join(", ") || "(none)"}`;
 
-    const user = `Goal: ${goal}
+    const system = `You are an elite life-design coach for ambitious teenagers. You translate a single goal into a phased plan across four horizons: days, weeks, months, years. Be concrete, specific, age-appropriate, energising, never preachy. Every item should be doable and unmistakably move the goal forward. Avoid generic productivity fluff. ALWAYS calibrate to the user profile provided — never propose actions that conflict with their age, schedule, or onboarding-confirmed reality.`;
+
+    const user = `${userBlock}
+
+Goal: ${goal}
 Why it matters: ${why || "(not provided)"}
 Context: ${context || "(not provided)"}
 
-Produce a complete multi-horizon plan. Each horizon must contain DIFFERENT actions — days are tactical, weeks are outcomes, months are milestones, years are identity shifts.`;
+Produce a complete multi-horizon plan that fits the person above. Each horizon must contain DIFFERENT actions — days are tactical, weeks are outcomes, months are milestones, years are identity shifts.`;
 
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
