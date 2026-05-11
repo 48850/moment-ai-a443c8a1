@@ -103,7 +103,7 @@ export const FeedbackChips = ({
             .invoke("app-intelligence", {
               body: {
                 intent: "refine_task",
-                snapshot: { active_goal: state.active_goal },
+                snapshot: buildContextPacket(state),
                 payload: {
                   task: { ...task, ...outcome.changes },
                   feedback: key,
