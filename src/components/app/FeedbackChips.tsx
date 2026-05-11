@@ -11,6 +11,7 @@ import {
 import type { ExecutionFeedbackItem } from "@/lib/types";
 import { tuneTaskFromFeedback, isToneFeedback } from "@/lib/feedback/tune-engine";
 import { supabase } from "@/integrations/supabase/client";
+import { buildContextPacket } from "@/lib/ai/context-packet";
 
 interface Props {
   source: ExecutionFeedbackItem["source"];
