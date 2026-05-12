@@ -362,8 +362,9 @@ Deno.serve(async (req) => {
 
   try {
     const { intent, snapshot = {}, payload = {} } = await req.json();
-    const tool = tools(intent);
-    if (!tool) {
+    const isFreeform = FREEFORM_INTENTS.has(intent);
+    const tool = isFreeform ? null : tools(intent);
+    if (!isFreeform && !tool) {
       return new Response(JSON.stringify({ error: "Unknown intent" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -372,18 +373,24 @@ Deno.serve(async (req) => {
     const KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!KEY) throw new Error("LOVABLE_API_KEY not configured");
 
+    const body: Record<string, unknown> = {
+      model: MODEL,
+      messages: [
+        { role: "system", content: TONE },
+        { role: "user", content: userPrompt(intent, snapshot, payload) },
+      ],
+    };
+    if (isFreeform) {
+      body.response_format = { type: "json_object" };
+    } else {
+      body.tools = [{ type: "function", function: tool }];
+      body.tool_choice = { type: "function", function: { name: "answer" } };
+    }
+
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: TONE },
-          { role: "user", content: userPrompt(intent, snapshot, payload) },
-        ],
-        tools: [{ type: "function", function: tool }],
-        tool_choice: { type: "function", function: { name: "answer" } },
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!resp.ok) {
@@ -399,14 +406,22 @@ Deno.serve(async (req) => {
     }
 
     const data = await resp.json();
-    const call = data.choices?.[0]?.message?.tool_calls?.[0];
     let result: any = {};
-    if (call) {
+    if (isFreeform) {
+      const content = data.choices?.[0]?.message?.content ?? "";
       try {
-        result = typeof call.function.arguments === "string"
-          ? JSON.parse(call.function.arguments)
-          : call.function.arguments;
-      } catch (e) { console.error("bad args", e); }
+        const cleaned = String(content).trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
+        result = cleaned ? JSON.parse(cleaned) : {};
+      } catch (e) { console.error("bad freeform json", e, content); }
+    } else {
+      const call = data.choices?.[0]?.message?.tool_calls?.[0];
+      if (call) {
+        try {
+          result = typeof call.function.arguments === "string"
+            ? JSON.parse(call.function.arguments)
+            : call.function.arguments;
+        } catch (e) { console.error("bad args", e); }
+      }
     }
     return new Response(JSON.stringify({ result }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
