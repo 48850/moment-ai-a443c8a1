@@ -319,10 +319,43 @@ Propose up to 5 tasks. Prefer foundational, exploratory, and pathway-clarity tas
     case "refine_task":
       return `Goal: ${payload?.goal || goal}\n\nTask after first-pass shrink: ${JSON.stringify(payload?.task ?? {})}\nUser's Tune feedback: "${payload?.feedback}".\n\nRefine ONLY the fields that need it. Lead with the first physical step. Be specific to THIS goal.`;
 
+    case "forge_guidebook":
+      return `${ctx}
+
+The user wants to forge a new ${payload?.feature_type ?? "custom"} feature.
+Description from user: "${payload?.description ?? ""}"
+Anchor goal: ${payload?.goal ?? goal}
+Bottleneck (if any): ${payload?.bottleneck ?? "none"}
+
+Return ONLY a JSON object (no prose, no markdown fences) shaped like a ForgeGuidebook draft, calibrated to THIS user's age/stage/onboarding context. Suggested fields:
+{
+  "title": string,                     // domain-specific, references the user's world
+  "feature_type": "${payload?.feature_type ?? "custom"}",
+  "purpose": string,                   // why this matters for THEIR goal
+  "trigger": string,                   // when the user opens it
+  "fields": [{ "key": string, "label": string, "kind": "number"|"text"|"rating" }],
+  "steps": [string],                   // the protocol/run loop
+  "success_signal": string,            // what "good" looks like
+  "review_cadence": string             // e.g. "weekly", "after each session"
+}
+Be concrete. No generic productivity language. Reference what the user actually said.`;
+
+    case "forge_feature_ai":
+      return `${ctx}
+
+You are executing a Forge feature run.
+Function type: ${payload?.function_type ?? "analyze"}
+Output contract (FOLLOW EXACTLY): ${payload?.prompt_contract ?? "Return JSON with a 'result' field."}
+Inputs: ${JSON.stringify(payload?.inputs ?? {})}
+
+Return ONLY the JSON object the contract describes — no prose, no markdown, no commentary. Calibrate to the user's stage and onboarding context above.`;
+
     default:
       return ctx;
   }
 }
+
+const FREEFORM_INTENTS = new Set(["forge_guidebook", "forge_feature_ai"]);
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
