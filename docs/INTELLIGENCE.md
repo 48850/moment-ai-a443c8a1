@@ -79,7 +79,20 @@ anything stored in state.
 | 4 | `daily-debrief` ⏳ | End-of-day reflection synthesis | today's tasks + feedback | `reflections[today]` | flash |
 | 5 | `goal-audit` ⏳ | Drift detection + recommit prompt | goal, last 14d feedback, alignment | `alignment` patch + suggestions | pro |
 | 6 | `forge-modules` ⏳ | Custom module proposals | pursuit_model + interview answers | `forge_state.candidate_features` | pro |
-| 7 | `chat` ⏳ | Streaming coach with tool access | full convo + state snapshot | streamed tokens + tool calls that dispatch actions | flash |
+| 7 | `chat-coach` ✅ | Streaming coach; reads onboarding context every turn | full convo + context packet | streamed tokens | flash |
+| 8 | `app-intelligence` ✅ | Single router for all non-chat AI intents below | `{intent, snapshot, payload}` | per-intent JSON | flash |
+
+**Intents routed through `app-intelligence`:**
+`next_move_rationale`, `reframe_rescue`, `daily_debrief`, `goal_audit`,
+`forge_modules`, `forge_guidebook`, `forge_feature_ai`, `rescue_protocol`,
+`suggest_tasks`, `reflect_summary`, `mission_insight`.
+
+**Hard rule (onboarding context):** Every AI call MUST pass
+`buildContextPacket(state)` as `snapshot`. The three edge functions
+(`chat-coach`, `generate-plan`, `app-intelligence`) all derive the user's
+age, school year, academic context, weekday shape, commitments, preferences,
+knowns/unknowns and reality_gap from that packet and inject them into the
+system prompt. No surface may call a model without it.
 
 Legend: ✅ shipped · ⏳ to build
 
