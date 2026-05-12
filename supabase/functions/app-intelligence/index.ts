@@ -319,18 +319,52 @@ Propose up to 5 tasks. Prefer foundational, exploratory, and pathway-clarity tas
     case "refine_task":
       return `Goal: ${payload?.goal || goal}\n\nTask after first-pass shrink: ${JSON.stringify(payload?.task ?? {})}\nUser's Tune feedback: "${payload?.feedback}".\n\nRefine ONLY the fields that need it. Lead with the first physical step. Be specific to THIS goal.`;
 
+    case "forge_guidebook":
+      return `${ctx}
+
+The user wants to forge a new ${payload?.feature_type ?? "custom"} feature.
+Description from user: "${payload?.description ?? ""}"
+Anchor goal: ${payload?.goal ?? goal}
+Bottleneck (if any): ${payload?.bottleneck ?? "none"}
+
+Return ONLY a JSON object (no prose, no markdown fences) shaped like a ForgeGuidebook draft, calibrated to THIS user's age/stage/onboarding context. Suggested fields:
+{
+  "title": string,                     // domain-specific, references the user's world
+  "feature_type": "${payload?.feature_type ?? "custom"}",
+  "purpose": string,                   // why this matters for THEIR goal
+  "trigger": string,                   // when the user opens it
+  "fields": [{ "key": string, "label": string, "kind": "number"|"text"|"rating" }],
+  "steps": [string],                   // the protocol/run loop
+  "success_signal": string,            // what "good" looks like
+  "review_cadence": string             // e.g. "weekly", "after each session"
+}
+Be concrete. No generic productivity language. Reference what the user actually said.`;
+
+    case "forge_feature_ai":
+      return `${ctx}
+
+You are executing a Forge feature run.
+Function type: ${payload?.function_type ?? "analyze"}
+Output contract (FOLLOW EXACTLY): ${payload?.prompt_contract ?? "Return JSON with a 'result' field."}
+Inputs: ${JSON.stringify(payload?.inputs ?? {})}
+
+Return ONLY the JSON object the contract describes — no prose, no markdown, no commentary. Calibrate to the user's stage and onboarding context above.`;
+
     default:
       return ctx;
   }
 }
+
+const FREEFORM_INTENTS = new Set(["forge_guidebook", "forge_feature_ai"]);
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { intent, snapshot = {}, payload = {} } = await req.json();
-    const tool = tools(intent);
-    if (!tool) {
+    const isFreeform = FREEFORM_INTENTS.has(intent);
+    const tool = isFreeform ? null : tools(intent);
+    if (!isFreeform && !tool) {
       return new Response(JSON.stringify({ error: "Unknown intent" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -339,18 +373,24 @@ Deno.serve(async (req) => {
     const KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!KEY) throw new Error("LOVABLE_API_KEY not configured");
 
+    const body: Record<string, unknown> = {
+      model: MODEL,
+      messages: [
+        { role: "system", content: TONE },
+        { role: "user", content: userPrompt(intent, snapshot, payload) },
+      ],
+    };
+    if (isFreeform) {
+      body.response_format = { type: "json_object" };
+    } else {
+      body.tools = [{ type: "function", function: tool }];
+      body.tool_choice = { type: "function", function: { name: "answer" } };
+    }
+
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: TONE },
-          { role: "user", content: userPrompt(intent, snapshot, payload) },
-        ],
-        tools: [{ type: "function", function: tool }],
-        tool_choice: { type: "function", function: { name: "answer" } },
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!resp.ok) {
@@ -366,14 +406,22 @@ Deno.serve(async (req) => {
     }
 
     const data = await resp.json();
-    const call = data.choices?.[0]?.message?.tool_calls?.[0];
     let result: any = {};
-    if (call) {
+    if (isFreeform) {
+      const content = data.choices?.[0]?.message?.content ?? "";
       try {
-        result = typeof call.function.arguments === "string"
-          ? JSON.parse(call.function.arguments)
-          : call.function.arguments;
-      } catch (e) { console.error("bad args", e); }
+        const cleaned = String(content).trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
+        result = cleaned ? JSON.parse(cleaned) : {};
+      } catch (e) { console.error("bad freeform json", e, content); }
+    } else {
+      const call = data.choices?.[0]?.message?.tool_calls?.[0];
+      if (call) {
+        try {
+          result = typeof call.function.arguments === "string"
+            ? JSON.parse(call.function.arguments)
+            : call.function.arguments;
+        } catch (e) { console.error("bad args", e); }
+      }
     }
     return new Response(JSON.stringify({ result }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
