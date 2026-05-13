@@ -21,6 +21,22 @@ export interface ChatSnapshot {
   active_plan: "plan_a" | "plan_b";
   forge_modules: Array<{ name: string; type: string; runs: number; last_entry?: string }>;
   tone_preference: string;
+  // ─── Extended context: prevents redundant questions ────────────────────────
+  user_age_bracket: string;
+  user_school_year: string;
+  user_academic_context: string;
+  user_normal_weekday: string;
+  onboarding_knowns: string[];
+  onboarding_unknowns: string[];
+  goal_current_stage: string;
+  goal_target_stage: string;
+  goal_reality_gap: string;
+  goal_phase: string;
+  goal_appropriate_focus: string[];
+  goal_premature_tasks: string[];
+  goal_risk: string;
+  top_workstream: { name: string; status: string; bottleneck: string } | null;
+  completed_tasks_count: number;
 }
 
 const SCHEDULE_FIELD_MAP: Array<[keyof MomentState["constraints"], string]> = [
@@ -59,16 +75,16 @@ export function selectChatSnapshot(state: MomentState): ChatSnapshot {
   else missing.push("energy_pattern");
 
   const next = selectNextBestTask(state).best;
-  const completed = (state.tasks ?? [])
-    .filter((t) => t.status === "done" && t.completed_at)
+  const allDone = (state.tasks ?? []).filter((t) => t.status === "done" && t.completed_at);
+  const completed = allDone
     .sort((a, b) => b.completed_at.localeCompare(a.completed_at))
-    .slice(0, 3)
+    .slice(0, 5)
     .map((t) => ({ title: t.title, at: t.completed_at }));
 
   const pending = (state.tasks ?? []).filter((t) => t.status !== "done" && t.status !== "skipped").length;
 
   const fb = (state.execution_feedback ?? [])
-    .slice(-6)
+    .slice(-10)
     .map((f) => ({ feedback: f.feedback, task_title: f.task_title || "", at: f.created_at }));
 
   const lastRescue = (state.rescue_signals ?? []).slice(-1)[0];
@@ -91,6 +107,16 @@ export function selectChatSnapshot(state: MomentState): ChatSnapshot {
         last_entry: entries.length ? entries[entries.length - 1].created_at : undefined,
       };
     });
+
+  // ─── Extended context ──────────────────────────────────────────────────────
+  const feasibility = state.active_goal?.feasibility;
+  const pm = state.pursuit_model;
+  const topWs = pm?.workstreams
+    ?.filter((w) => w.status !== "complete")
+    .sort((a, b) => {
+      const p = { critical: 0, high: 1, medium: 2, low: 3 } as const;
+      return (p[a.priority] ?? 4) - (p[b.priority] ?? 4);
+    })[0];
 
   return {
     display_name: state.profile.display_name,
@@ -118,5 +144,23 @@ export function selectChatSnapshot(state: MomentState): ChatSnapshot {
     active_plan: state.home.active_plan,
     forge_modules: modules,
     tone_preference: state.chat_preferences?.tone ?? "default",
+    // ─── Extended ────────────────────────────────────────────────────────────
+    user_age_bracket: state.profile.age_bracket ?? "unknown",
+    user_school_year: state.profile.school_year ?? "",
+    user_academic_context: state.profile.academic_context ?? "",
+    user_normal_weekday: state.profile.normal_weekday ?? "",
+    onboarding_knowns: state.onboarding?.understanding?.knowns ?? [],
+    onboarding_unknowns: state.onboarding?.understanding?.unknowns ?? [],
+    goal_current_stage: state.active_goal.current_stage ?? "",
+    goal_target_stage: state.active_goal.target_stage ?? "",
+    goal_reality_gap: state.active_goal.reality_gap ?? "",
+    goal_phase: state.active_goal.phase ?? "clarifying",
+    goal_appropriate_focus: feasibility?.appropriate_focus_now ?? [],
+    goal_premature_tasks: feasibility?.premature_recommendations ?? [],
+    goal_risk: feasibility?.risk_of_bad_advice ?? "low",
+    top_workstream: topWs
+      ? { name: topWs.name, status: topWs.status, bottleneck: topWs.bottleneck ?? "" }
+      : null,
+    completed_tasks_count: allDone.length,
   };
 }

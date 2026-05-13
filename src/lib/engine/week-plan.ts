@@ -27,6 +27,10 @@ export function seedWeekPlan(state: MomentState, opts?: { variation?: number }):
     ? truncate(state.active_goal.statement, 32)
     : "Goal work";
 
+  const pendingGoalTasks = (state.tasks ?? [])
+    .filter((t) => t.status !== "done" && t.status !== "skipped" && (t.priority === "high" || t.category === "goal_direct"))
+    .slice(0, 5);
+
   const schoolEnd = c?.school_end_time || "15:30";
   const studyMin = Math.max(45, c?.study_minutes_daily ?? 90);
   const exerciseMin = Math.max(20, c?.exercise_minutes_daily ?? 40);
@@ -53,7 +57,9 @@ export function seedWeekPlan(state: MomentState, opts?: { variation?: number }):
       day_index: day,
       start_time: startGoal,
       end_time: endGoal,
-      title: goalLabel,
+      title: pendingGoalTasks.length
+        ? truncate(pendingGoalTasks[day % pendingGoalTasks.length].title, 40)
+        : goalLabel,
       category: "goal",
       notes: "",
       is_locked: false,

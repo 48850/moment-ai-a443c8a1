@@ -50,6 +50,11 @@ const Mission = () => {
     );
   }
 
+  const doneTasks = (state.tasks ?? []).filter((t) => t.status === "done");
+  const pendingTasks = (state.tasks ?? []).filter((t) => t.status !== "done" && t.status !== "skipped");
+  const recentDone = doneTasks.slice(-1)[0];
+  const unknowns = state.onboarding?.understanding?.unknowns ?? [];
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <section className="rounded-2xl border border-border bg-card p-5">
@@ -64,7 +69,50 @@ const Mission = () => {
         </div>
       </section>
 
+      {/* Task progress signals */}
+      {(doneTasks.length > 0 || pendingTasks.length > 0) && (
+        <section className="rounded-2xl border border-border bg-card p-4">
+          <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Progress signals</div>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <div>
+              <span className="text-2xl font-semibold text-emerald-400">{doneTasks.length}</span>
+              <span className="ml-1.5 text-xs text-muted-foreground">completed</span>
+            </div>
+            <div>
+              <span className="text-2xl font-semibold">{pendingTasks.length}</span>
+              <span className="ml-1.5 text-xs text-muted-foreground">pending</span>
+            </div>
+          </div>
+          {recentDone && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Last completed: <span className="text-foreground">{recentDone.title}</span>
+              {recentDone.completed_at && (
+                <span className="ml-1 opacity-60">
+                  · {new Date(recentDone.completed_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                </span>
+              )}
+            </p>
+          )}
+        </section>
+      )}
+
       <PatternBanner />
+
+      {/* Still figuring out */}
+      {unknowns.length > 0 && (
+        <section className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
+          <div className="mb-2 text-xs font-medium uppercase tracking-wider text-amber-400">Still figuring out</div>
+          <p className="mb-2 text-xs text-muted-foreground">Moment doesn't have this context yet. Share it in chat to improve your plan.</p>
+          <ul className="space-y-1">
+            {unknowns.map((u, i) => (
+              <li key={i} className="flex items-center gap-2 text-sm text-foreground/80">
+                <span className="h-1 w-1 rounded-full bg-amber-400/60" />
+                {u}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <AIInsight
         label="moment notices"
