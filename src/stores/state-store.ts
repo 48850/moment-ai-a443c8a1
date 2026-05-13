@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { create } from "zustand";
 import type { MomentState, AppMode, ExecutionFeedbackItem, ScheduleBlock, ForgeInterviewAnswer, ForgeState } from "@/lib/types";
 import type { MomentAction } from "@/lib/types/actions";

@@ -246,15 +246,31 @@ function tools(intent: string) {
 }
 
 function buildContextHeader(snapshot: any): string {
-  const age_bracket = snapshot?.user?.age_bracket ?? "unknown";
-  const school_year = snapshot?.user?.school_year;
+  const u = snapshot?.user ?? {};
+  const display_name = u.display_name ?? "the user";
+  const age = u.age;
+  const age_bracket = u.age_bracket ?? "unknown";
+  const school_year = u.school_year;
+  const academic_context = u.academic_context ?? "";
+  const normal_weekday = u.normal_weekday ?? "";
+  const commitments = (u.commitments ?? []).join(", ");
+  const tz = u.timezone ?? "";
+  const prefs = u.preferences ?? {};
+  const prefLine = `tone=${prefs.tone ?? "?"} · strictness=${prefs.strictness ?? "?"} · schedule_style=${prefs.schedule_style ?? "?"} · support_style=${prefs.support_style ?? "?"}`;
+
+  const ob = snapshot?.onboarding ?? {};
+  const onboarded = ob.completed ? "complete" : "incomplete";
+  const knowns = (ob.understanding?.knowns ?? []).join("; ");
+  const unknownsList = (ob.understanding?.unknowns ?? []).join(", ");
+  const obAssumptions = (ob.understanding?.assumptions ?? []).join("; ");
+  const obConfidence = ob.understanding?.confidence ?? "low";
+
   const current_stage = snapshot?.active_goal?.current_stage ?? "";
   const target_stage = snapshot?.active_goal?.target_stage ?? "";
   const reality_gap = snapshot?.active_goal?.reality_gap ?? "";
   const risk = snapshot?.active_goal?.feasibility?.risk_of_bad_advice ?? "low";
   const premature = (snapshot?.active_goal?.feasibility?.premature_recommendations ?? []).join(", ");
   const appropriate = (snapshot?.active_goal?.feasibility?.appropriate_focus_now ?? []).join(", ");
-  const unknowns = (snapshot?.onboarding?.understanding?.unknowns ?? []).join(", ");
   const assumptions = (snapshot?.pursuit?.assumptions ?? []).join("; ");
   const capabilities = (snapshot?.pursuit?.capability_clusters ?? [])
     .map((c: any) => `${c.name}: ${c.status}`).join(", ");
@@ -265,14 +281,26 @@ function buildContextHeader(snapshot: any): string {
   const fb = (snapshot?.signals?.recent_feedback ?? []).slice(-10).join(", ") || "none";
   const reflections = (snapshot?.signals?.recent_reflections ?? []).slice(-3);
 
-  return `USER: ${age_bracket}${school_year ? ` · ${school_year}` : ""}
-Current stage: ${current_stage || "unknown"} → Target: ${target_stage || "not set"}
-Available study time: ~${available_min}min | Mode: ${active_mode || "default"}
-Risk of bad advice: ${risk}
+  return `USER (captured during onboarding — treat as ground truth, never re-ask):
+- Name: ${display_name}
+- Age: ${age ?? "?"} (${age_bracket})${school_year ? ` · ${school_year}` : ""}
+- Academic context: ${academic_context || "(none)"}
+- Normal weekday: ${normal_weekday || "(unknown)"}
+- Fixed commitments: ${commitments || "(none)"}
+- Timezone: ${tz || "(unknown)"}
+- Preferences: ${prefLine}
+
+ONBOARDING: ${onboarded} (confidence: ${obConfidence})
+- Knowns: ${knowns || "(none)"}
+- Unknowns: ${unknownsList || "(none)"}
+- Assumptions: ${obAssumptions || "(none)"}
 
 GOAL: ${goal}
 Why: ${why}
-Reality gap: ${reality_gap || "not yet assessed"}${risk === "high" ? `\n\n⚠️ HIGH RISK: Do NOT generate tasks involving: ${premature}` : ""}${appropriate ? `\nAppropriate focus now: ${appropriate}` : ""}${unknowns ? `\nWhat Moment still doesn't know: ${unknowns} — do not invent these.` : ""}
+Current stage: ${current_stage || "unknown"} → Target: ${target_stage || "not set"}
+Reality gap: ${reality_gap || "not yet assessed"}
+Available study time: ~${available_min}min | Mode: ${active_mode || "default"}
+Risk of bad advice: ${risk}${risk === "high" ? `\n⚠️ HIGH RISK: Do NOT generate tasks involving: ${premature}` : ""}${appropriate ? `\nAppropriate focus now: ${appropriate}` : ""}${unknownsList ? `\nWhat Moment still doesn't know: ${unknownsList} — do not invent these.` : ""}
 
 Pursuit assumptions: ${assumptions || "none"}
 Capabilities: ${capabilities || "not assessed"}
@@ -352,9 +380,9 @@ Explain in 1–2 sentences exactly WHY the plan is changing (based on their feed
     }
 
     case "forge_guidebook": {
-      const featureName = payload?.feature_name ?? "this feature";
-      const featureDesc = payload?.feature_description ?? "";
-      const moduleType = payload?.module_type ?? "tracker";
+      const featureName = payload?.feature_name ?? payload?.description ?? "this feature";
+      const featureDesc = payload?.feature_description ?? payload?.description ?? "";
+      const moduleType = payload?.module_type ?? payload?.feature_type ?? "tracker";
       return `${ctx}
 
 Generate a complete, build-ready guidebook spec for the Forge feature: "${featureName}".
@@ -370,18 +398,31 @@ The guidebook must:
 - safety_rules must list what the feature must never assume or do.`;
     }
 
+    case "forge_feature_ai":
+      return `${ctx}
+
+You are executing a Forge feature run.
+Function type: ${payload?.function_type ?? "analyze"}
+Output contract (FOLLOW EXACTLY): ${payload?.prompt_contract ?? "Return JSON with a 'result' field."}
+Inputs: ${JSON.stringify(payload?.inputs ?? {})}
+
+Return ONLY the JSON object the contract describes — no prose, no markdown, no commentary. Calibrate to the user's stage and onboarding context above.`;
+
     default:
       return ctx;
   }
 }
+
+const FREEFORM_INTENTS = new Set(["forge_guidebook", "forge_feature_ai"]);
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { intent, snapshot = {}, payload = {} } = await req.json();
-    const tool = tools(intent);
-    if (!tool) {
+    const isFreeform = FREEFORM_INTENTS.has(intent);
+    const tool = isFreeform ? null : tools(intent);
+    if (!isFreeform && !tool) {
       return new Response(JSON.stringify({ error: "Unknown intent" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -390,18 +431,24 @@ Deno.serve(async (req) => {
     const KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!KEY) throw new Error("LOVABLE_API_KEY not configured");
 
+    const body: Record<string, unknown> = {
+      model: MODEL,
+      messages: [
+        { role: "system", content: TONE },
+        { role: "user", content: userPrompt(intent, snapshot, payload) },
+      ],
+    };
+    if (isFreeform) {
+      body.response_format = { type: "json_object" };
+    } else {
+      body.tools = [{ type: "function", function: tool }];
+      body.tool_choice = { type: "function", function: { name: "answer" } };
+    }
+
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: TONE },
-          { role: "user", content: userPrompt(intent, snapshot, payload) },
-        ],
-        tools: [{ type: "function", function: tool }],
-        tool_choice: { type: "function", function: { name: "answer" } },
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!resp.ok) {
@@ -417,14 +464,22 @@ Deno.serve(async (req) => {
     }
 
     const data = await resp.json();
-    const call = data.choices?.[0]?.message?.tool_calls?.[0];
     let result: any = {};
-    if (call) {
+    if (isFreeform) {
+      const content = data.choices?.[0]?.message?.content ?? "";
       try {
-        result = typeof call.function.arguments === "string"
-          ? JSON.parse(call.function.arguments)
-          : call.function.arguments;
-      } catch (e) { console.error("bad args", e); }
+        const cleaned = String(content).trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
+        result = cleaned ? JSON.parse(cleaned) : {};
+      } catch (e) { console.error("bad freeform json", e, content); }
+    } else {
+      const call = data.choices?.[0]?.message?.tool_calls?.[0];
+      if (call) {
+        try {
+          result = typeof call.function.arguments === "string"
+            ? JSON.parse(call.function.arguments)
+            : call.function.arguments;
+        } catch (e) { console.error("bad args", e); }
+      }
     }
     return new Response(JSON.stringify({ result }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
