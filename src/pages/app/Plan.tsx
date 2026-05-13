@@ -319,6 +319,16 @@ const Plan = () => {
                 </div>
               )}
 
+              {/* Why the plan changed */}
+              {vm.activePlan === "plan_b" && vm.reformNote && (
+                <div className="rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary/80">
+                    Plan adjusted ·
+                  </span>{" "}
+                  <span className="text-foreground">{vm.reformNote}</span>
+                </div>
+              )}
+
               {/* Today schedule */}
               <section className="overflow-hidden rounded-2xl border border-border bg-card">
                 <div className="border-b border-border bg-secondary/30 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
