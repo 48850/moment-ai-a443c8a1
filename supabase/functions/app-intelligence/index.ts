@@ -195,6 +195,52 @@ function tools(intent: string) {
         additionalProperties: false,
       },
     },
+    plan_reform: {
+      name: "answer",
+      description: "Explain why the plan needs to change and what adjustments to make.",
+      parameters: {
+        type: "object",
+        properties: {
+          explanation: { type: "string", description: "One to two sentences explaining why the plan is being adjusted based on feedback and recent task signals." },
+          key_adjustments: { type: "array", items: { type: "string" }, maxItems: 3, description: "Specific changes being made." },
+          focus_suggestion: { type: "string", description: "The single highest-leverage thing to focus on in the adjusted plan." },
+        },
+        required: ["explanation", "key_adjustments"],
+        additionalProperties: false,
+      },
+    },
+    forge_guidebook: {
+      name: "answer",
+      description: "Generate a rich, build-ready guidebook spec for a Forge feature.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          purpose: { type: "string" },
+          feature_type: { type: "string", enum: ["practice_system", "planner", "tracker", "rescue_protocol", "evidence_log"] },
+          required_inputs: { type: "array", items: { type: "string" } },
+          ai_functions: { type: "array", items: { type: "string" } },
+          sections: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                heading: { type: "string" },
+                content_type: { type: "string", enum: ["text", "checklist", "number_input", "rating", "timer", "ai_response"] },
+                prompt_hint: { type: "string" },
+              },
+              required: ["heading", "content_type"],
+              additionalProperties: false,
+            },
+          },
+          state_writes: { type: "array", items: { type: "string" } },
+          route_slug: { type: "string" },
+          safety_rules: { type: "array", items: { type: "string" } },
+        },
+        required: ["title", "purpose", "feature_type", "sections", "route_slug"],
+        additionalProperties: false,
+      },
+    },
   };
   return T[intent];
 }
@@ -319,26 +365,38 @@ Propose up to 5 tasks. Prefer foundational, exploratory, and pathway-clarity tas
     case "refine_task":
       return `Goal: ${payload?.goal || goal}\n\nTask after first-pass shrink: ${JSON.stringify(payload?.task ?? {})}\nUser's Tune feedback: "${payload?.feedback}".\n\nRefine ONLY the fields that need it. Lead with the first physical step. Be specific to THIS goal.`;
 
-    case "forge_guidebook":
+    case "plan_reform": {
+      const completedTasks = (payload?.completed_tasks ?? []) as Array<{ title: string; feedback?: string }>;
+      const feedbackBreakdown = payload?.feedback_breakdown ?? {};
+      const reformNote = payload?.reform_note ?? "";
       return `${ctx}
 
-The user wants to forge a new ${payload?.feature_type ?? "custom"} feature.
-Description from user: "${payload?.description ?? ""}"
-Anchor goal: ${payload?.goal ?? goal}
-Bottleneck (if any): ${payload?.bottleneck ?? "none"}
+The user wants to adjust their day plan. Their note: "${reformNote}"
 
-Return ONLY a JSON object (no prose, no markdown fences) shaped like a ForgeGuidebook draft, calibrated to THIS user's age/stage/onboarding context. Suggested fields:
-{
-  "title": string,                     // domain-specific, references the user's world
-  "feature_type": "${payload?.feature_type ?? "custom"}",
-  "purpose": string,                   // why this matters for THEIR goal
-  "trigger": string,                   // when the user opens it
-  "fields": [{ "key": string, "label": string, "kind": "number"|"text"|"rating" }],
-  "steps": [string],                   // the protocol/run loop
-  "success_signal": string,            // what "good" looks like
-  "review_cadence": string             // e.g. "weekly", "after each session"
-}
-Be concrete. No generic productivity language. Reference what the user actually said.`;
+Recent completed tasks: ${completedTasks.length ? completedTasks.map((t) => `"${t.title}"${t.feedback ? ` (feedback: ${t.feedback})` : ""}`).join(", ") : "none"}
+Feedback breakdown: ${Object.keys(feedbackBreakdown).length ? JSON.stringify(feedbackBreakdown) : "none yet"}
+
+Explain in 1–2 sentences exactly WHY the plan is changing (based on their feedback and task signals, not generically). Then list 2–3 specific adjustments being made. Then name the single most important focus for the adjusted plan.`;
+    }
+
+    case "forge_guidebook": {
+      const featureName = payload?.feature_name ?? payload?.description ?? "this feature";
+      const featureDesc = payload?.feature_description ?? payload?.description ?? "";
+      const moduleType = payload?.module_type ?? payload?.feature_type ?? "tracker";
+      return `${ctx}
+
+Generate a complete, build-ready guidebook spec for the Forge feature: "${featureName}".
+Feature description: ${featureDesc}
+Module type: ${moduleType}
+
+The guidebook must:
+- Be directly tied to THIS user's goal: ${goal}
+- Reference their current stage: ${current_stage || "not assessed"}
+- Avoid overpromising. Only include sections that a teen could meaningfully complete.
+- Each section must have a clear content_type and a short prompt_hint.
+- state_writes must name what actually gets saved (e.g. "score logged to progress tracker", "session added to evidence log").
+- safety_rules must list what the feature must never assume or do.`;
+    }
 
     case "forge_feature_ai":
       return `${ctx}

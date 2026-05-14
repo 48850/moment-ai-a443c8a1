@@ -11,6 +11,7 @@ import type { MomentState, ScheduleBlock } from "@/lib/types";
 import { FeedbackChips } from "@/components/app/FeedbackChips";
 import { PatternBanner } from "@/components/app/PatternBanner";
 import { WeeklyGrid } from "@/components/app/WeeklyGrid";
+import { buildContextPacket } from "@/lib/ai/context-packet";
 
 /* ----- pursuit tiles (kept) ----- */
 interface PursuitTile {
@@ -113,10 +114,41 @@ const Plan = () => {
 
   const setActivePlan = (plan: "plan_a" | "plan_b") => dispatch({ type: "home/setPlan", payload: plan });
 
-  const onReform = () => {
+  const onReform = async () => {
     if (!reformNote.trim()) return;
     setReforming(true);
-    setTimeout(() => {
+    try {
+      // Build feedback breakdown from execution_feedback
+      const feedbackBreakdown: Record<string, number> = {};
+      for (const f of state.execution_feedback ?? []) {
+        feedbackBreakdown[f.feedback] = (feedbackBreakdown[f.feedback] ?? 0) + 1;
+      }
+      const completedTasks = (state.tasks ?? [])
+        .filter((t) => t.status === "done")
+        .slice(-5)
+        .map((t) => ({ title: t.title, feedback: undefined as string | undefined }));
+
+      // Ask AI why the plan is changing
+      let reformExplanation = reformNote.trim();
+      let focusSuggestion = "";
+      try {
+        const { data } = await supabase.functions.invoke("app-intelligence", {
+          body: {
+            intent: "plan_reform",
+            snapshot: buildContextPacket(state),
+            payload: {
+              reform_note: reformNote.trim(),
+              completed_tasks: completedTasks,
+              feedback_breakdown: feedbackBreakdown,
+            },
+          },
+        });
+        if (data?.result?.explanation) {
+          reformExplanation = data.result.explanation;
+          focusSuggestion = data.result.focus_suggestion ?? "";
+        }
+      } catch { /* fall back to note text */ }
+
       const recentBad = new Set(
         (state.execution_feedback ?? [])
           .filter((f) => f.feedback === "too_vague" || f.feedback === "too_big")
@@ -126,7 +158,9 @@ const Plan = () => {
       const reformed: ScheduleBlock[] = [
         {
           id: `reform-${Date.now()}`,
-          title: `Revised: ${reformNote.trim()}`,
+          title: focusSuggestion
+            ? `Focus: ${focusSuggestion.slice(0, 50)}`
+            : `Revised: ${reformNote.trim().slice(0, 50)}`,
           type: "goal_work",
           start_time: "16:00",
           end_time: "16:30",
@@ -140,11 +174,13 @@ const Plan = () => {
         },
         ...basePlan.filter((b) => !(b.linked_task_ids ?? []).some((id) => recentBad.has(id))),
       ];
-      dispatch({ type: "plan/reform", payload: { reformed_plan: reformed, reform_note: reformNote.trim() } });
-      setReforming(false);
+      dispatch({ type: "plan/reform", payload: { reformed_plan: reformed, reform_note: reformExplanation } });
+      toast.success("Plan adjusted", { description: reformExplanation });
       setReformOpen(false);
       setReformNote("");
-    }, 500);
+    } finally {
+      setReforming(false);
+    }
   };
 
   const generatePlan = async () => {

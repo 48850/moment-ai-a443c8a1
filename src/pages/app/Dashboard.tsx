@@ -1,5 +1,4 @@
-// @ts-nocheck
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Check, Clock, Sparkles } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { selectHomeViewModel } from "@/lib/selectors/home";
@@ -8,38 +7,87 @@ import { FeedbackChips } from "@/components/app/FeedbackChips";
 import { PatternBanner } from "@/components/app/PatternBanner";
 import { AIInsight } from "@/components/app/AIInsight";
 import { useAI } from "@/lib/ai/useAI";
+import type { ExecutionFeedbackItem } from "@/lib/types";
 
+const DONE_FEEDBACK = [
+  { key: "easy" as const, label: "Easy" },
+  { key: "hard" as const, label: "Tough" },
+  { key: "valuable" as const, label: "Moved my goal" },
+  { key: "not_relevant" as const, label: "Not sure it helped" },
+];
+
+function DmDoneFeedback({
+  taskId,
+  taskTitle,
+  onDone,
+}: {
+  taskId: string;
+  taskTitle: string;
+  onDone: () => void;
+}) {
+  const dispatch = useStateStore((s) => s.dispatch);
+
+  useEffect(() => {
+    const t = setTimeout(onDone, 8000);
+    return () => clearTimeout(t);
+  }, [onDone]);
+
+  const pick = (fb: ExecutionFeedbackItem["feedback"]) => {
+    dispatch({
+      type: "feedback/add",
+      payload: {
+        id: crypto.randomUUID(),
+        task_id: taskId,
+        task_title: taskTitle,
+        completed_at: new Date().toISOString(),
+        feedback: fb,
+        note: "",
+        created_at: new Date().toISOString(),
+        source: "task",
+        target_id: taskId,
+      },
+    });
+    onDone();
+  };
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-1.5">
+      <span className="text-[10px] text-muted-foreground mr-1">How was it?</span>
+      {DONE_FEEDBACK.map(({ key, label }) => (
+        <button
+          key={key}
+          onClick={() => pick(key)}
+          className="rounded-full border border-border bg-secondary px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+        >
+          {label}
+        </button>
+      ))}
+      <button
+        onClick={onDone}
+        className="ml-auto text-[10px] text-muted-foreground hover:text-foreground"
+        aria-label="Skip feedback"
+      >
+        skip
+      </button>
+    </div>
+  );
+}
 
 const Dashboard = () => {
   const state = useStateStore((s) => s.state);
   const dispatch = useStateStore((s) => s.dispatch);
+  const [justCompletedId, setJustCompletedId] = useState<string | null>(null);
   const rationale = useAI<{ why_now: string; next_proof?: string }>("next_move_rationale");
 
   const vm = state ? selectHomeViewModel(state) : null;
   const dm = vm?.decisiveMove;
-  const dmTask = dm ? state?.tasks.find((t) => t.id === dm.id) : undefined;
-  const cachedWhyNow = dmTask?.why_now || "";
-  const cachedNextProof = dmTask?.next_proof || "";
 
   useEffect(() => {
-    if (!dm || !state?.active_goal?.statement) return;
-    if (cachedWhyNow) return; // already have it — don't re-spend tokens
-    if (rationale.loading) return;
-    rationale
-      .run({ task: { title: dm.title, estimated_minutes: dm.estimatedMinutes } })
-      .then((res) => {
-        if (res?.why_now) {
-          dispatch({
-            type: "task/update",
-            payload: {
-              id: dm.id,
-              changes: { why_now: res.why_now, next_proof: res.next_proof || "" },
-            },
-          });
-        }
-      });
+    if (dm && state?.active_goal?.statement && !rationale.loading) {
+      rationale.run({ task: { title: dm.title, estimated_minutes: dm.estimatedMinutes } });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dm?.id, cachedWhyNow]);
+  }, [dm?.id]);
 
   if (!state || !vm) return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
 
@@ -55,8 +103,8 @@ const Dashboard = () => {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div className="text-xs text-muted-foreground">{vm.greeting}</div>
       <div>
+        <div className="text-xs text-muted-foreground">{vm.greeting}</div>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">
           Hey {state.profile.display_name} 👋
         </h1>
@@ -75,14 +123,10 @@ const Dashboard = () => {
           </div>
           <h2 className="mt-2 text-xl font-semibold leading-tight">{dm.title}</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            {cachedWhyNow || rationale.result?.why_now || (
-              <>Why this? It moves you toward <span className="text-foreground">{vm.goalSnippet}</span>.</>
-            )}
+            {rationale.result?.why_now ?? <>Why this? It moves you toward <span className="text-foreground">{vm.goalSnippet}</span>.</>}
           </p>
-          {(cachedNextProof || rationale.result?.next_proof) && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Unlocks: <span className="text-foreground">{cachedNextProof || rationale.result?.next_proof}</span>
-            </p>
+          {rationale.result?.next_proof && (
+            <p className="mt-1 text-xs text-muted-foreground">Unlocks: <span className="text-foreground">{rationale.result.next_proof}</span></p>
           )}
           <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
             <Clock className="h-3 w-3" /> about {dm.estimatedMinutes} min
@@ -120,47 +164,33 @@ const Dashboard = () => {
       {/* Task list */}
       <section>
         <div className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Today</div>
-        {vm.tasks.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              No tasks yet. Generate your AI plan and we'll seed Today with your first moves.
-            </p>
-            <a
-              href="/app/plan"
-              className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground hover:opacity-90"
-            >
-              <Sparkles className="h-3.5 w-3.5" /> Generate plan
-            </a>
-          </div>
-        ) : (
-          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
-            {vm.tasks.map((t) => {
-              const done = t.status === "done";
-              return (
-                <li key={t.id} className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => onComplete(t.id)}
-                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
-                        done ? "border-primary bg-primary text-primary-foreground" : "border-border"
-                      }`}
-                      aria-label={done ? "Mark incomplete" : "Mark complete"}
-                    >
-                      {done && <Check className="h-3 w-3" strokeWidth={3} />}
-                    </button>
-                    <span className={`flex-1 text-sm ${done ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                      {t.title}
-                    </span>
-                    <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
-                      {t.estimated_minutes}m
-                    </span>
-                    <FeedbackChips source="task" targetId={t.id} taskId={t.id} taskTitle={t.title} compact />
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+          {vm.tasks.map((t) => {
+            const done = t.status === "done";
+            return (
+              <li key={t.id} className="px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => onComplete(t.id)}
+                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+                      done ? "border-primary bg-primary text-primary-foreground" : "border-border"
+                    }`}
+                    aria-label={done ? "Mark incomplete" : "Mark complete"}
+                  >
+                    {done && <Check className="h-3 w-3" strokeWidth={3} />}
+                  </button>
+                  <span className={`flex-1 text-sm ${done ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                    {t.title}
+                  </span>
+                  <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
+                    {t.estimated_minutes}m
+                  </span>
+                  <FeedbackChips source="task" targetId={t.id} taskId={t.id} taskTitle={t.title} compact />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       </section>
     </div>
   );

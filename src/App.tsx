@@ -37,9 +37,13 @@ function OnboardingGuard() {
     const hasGoal = Boolean(state.active_goal?.statement?.trim());
 
     if (onboardingDone || hasGoal) {
-      // User is ready for the app — only redirect away from /onboarding
       if (isOnOnboarding) {
-        navigate("/app", { replace: true });
+        // If specialisation is pending, land on the specialisation chat
+        const specialisationRequired = state.chat_state?.post_onboarding_specialisation_required === true;
+        navigate(
+          specialisationRequired ? "/app/chat?mode=goal_specialisation" : "/app",
+          { replace: true },
+        );
       }
       return;
     }

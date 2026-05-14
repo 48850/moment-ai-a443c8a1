@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
@@ -298,7 +297,7 @@ export default function Onboarding() {
       },
     });
 
-    navigate("/app");
+    navigate("/app/chat?mode=goal_specialisation");
   };
 
   return (

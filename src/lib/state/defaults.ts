@@ -109,6 +109,10 @@ export function createEmptyUserState(userId: string, displayName: string, timezo
     pursuit_model: null,
     rescue_signals: [],
     chat_preferences: { tone: "default" },
+    chat_state: {
+      post_onboarding_specialisation_required: false,
+      specialisation_phase: "explain_goal" as const,
+    },
     onboarding: {
       completed: false,
       current_stage: "",
@@ -327,6 +331,10 @@ export function createDemoState(userId: string, displayName: string, timezone: s
       relationships: [],
     },
     tasks,
+    chat_state: {
+      post_onboarding_specialisation_required: false,
+      specialisation_phase: "complete" as const,
+    },
     onboarding: {
       completed: true,
       current_stage: "high school junior with strong math",

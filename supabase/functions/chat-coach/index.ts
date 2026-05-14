@@ -1,6 +1,7 @@
-// Coach-style chat that elicits Schedule Info constraints, sees the entire
-// Moment state (goal, plan, next move, recent feedback, rescue, forge), and
-// circulates updates back into state via structured tool calls.
+// Coach-style chat with two modes:
+// 1. Default — elicits Schedule Info constraints and operates on the live plan.
+// 2. goal_specialisation — post-onboarding calibration: maps the pathway, locates
+//    the user on it, and activates the first meaningful task.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -75,6 +76,73 @@ const TOOLS = [
   },
 ];
 
+const SPECIALISATION_TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "patch_goal_model",
+      description:
+        "Update the active_goal fields after learning something new about where the user currently stands or what the pathway requires. Call when you have enough signal to set current_stage, knowns, or unknowns.",
+      parameters: {
+        type: "object",
+        properties: {
+          current_stage: { type: "string", description: "Honest one-line description of where the user is RIGHT NOW on the pathway to this goal." },
+          target_stage: { type: "string", description: "The minimum-viable milestone that unlocks the next real stage." },
+          reality_gap: { type: "string", description: "What is the honest distance between current_stage and target_stage?" },
+          knowns: {
+            type: "array",
+            items: { type: "string" },
+            description: "Facts you now know about the user's situation. Short strings.",
+          },
+          unknowns: {
+            type: "array",
+            items: { type: "string" },
+            description: "Things that are still unclear and would change the plan if answered.",
+          },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_first_task",
+      description:
+        "Create exactly one first task for the user. Call only when you are confident about their current stage and the best next move. The task must be stagewise appropriate — no premature tasks.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Short, specific, actionable task title." },
+          description: { type: "string", description: "One sentence on why this specific task, why now." },
+          estimated_minutes: { type: "number", description: "Realistic time estimate in minutes." },
+          category: {
+            type: "string",
+            enum: ["goal_direct", "bottleneck_removal", "maintenance", "discovery"],
+          },
+          why_now: { type: "string", description: "Why is this the right first move given where the user is?" },
+          difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+        },
+        required: ["title", "category", "why_now"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "complete_specialisation",
+      description:
+        "Signal that the specialisation conversation is complete. Call when: you have called patch_goal_model at least once AND called create_first_task. Do not call prematurely.",
+      parameters: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
+    },
+  },
+];
+
 interface ChatSnapshot {
   display_name?: string;
   active_goal?: { statement?: string; why_it_matters?: string; status?: string };
@@ -90,6 +158,22 @@ interface ChatSnapshot {
   active_plan?: "plan_a" | "plan_b";
   forge_modules?: Array<{ name: string; type: string; runs: number }>;
   tone_preference?: string;
+  // Extended
+  user_age_bracket?: string;
+  user_school_year?: string;
+  user_academic_context?: string;
+  user_normal_weekday?: string;
+  onboarding_knowns?: string[];
+  onboarding_unknowns?: string[];
+  goal_current_stage?: string;
+  goal_target_stage?: string;
+  goal_reality_gap?: string;
+  goal_phase?: string;
+  goal_appropriate_focus?: string[];
+  goal_premature_tasks?: string[];
+  goal_risk?: string;
+  top_workstream?: { name: string; status: string; bottleneck: string } | null;
+  completed_tasks_count?: number;
 }
 
 function fmt(v: unknown): string {
@@ -116,11 +200,11 @@ function systemPrompt(snap: ChatSnapshot): string {
     ? `${snap.next_move.title} (~${snap.next_move.estimated_minutes}m)`
     : "(none queued)";
   const completed = snap.recent_completed?.length
-    ? snap.recent_completed.map((c) => `- ${c.title}`).join("\n")
+    ? snap.recent_completed.map((c) => `- ${c.title}${c.completed_at ? ` (done ${new Date(c.completed_at).toLocaleDateString()})` : ""}`).join("\n")
     : "- (none)";
   const fb = snap.recent_feedback?.length
     ? snap.recent_feedback.map((f) => `- ${f.feedback} on "${f.task_title}"`).join("\n")
-    : "- (no Tune signals yet)";
+    : "- (no feedback yet)";
   const rescue = snap.recent_rescue
     ? `${snap.recent_rescue.reason} at ${snap.recent_rescue.at}`
     : "(no recent rescue)";
@@ -131,6 +215,32 @@ function systemPrompt(snap: ChatSnapshot): string {
     ? snap.forge_modules.map((m) => `- ${m.name} (${m.type}, ${m.runs} runs)`).join("\n")
     : "- (no Forge modules active)";
 
+  // New context fields
+  const ageBracket = snap.user_age_bracket ?? "unknown";
+  const schoolYear = snap.user_school_year ?? "";
+  const academicCtx = snap.user_academic_context ?? "";
+  const currentStage = snap.goal_current_stage ?? "";
+  const targetStage = snap.goal_target_stage ?? "";
+  const realityGap = snap.goal_reality_gap ?? "";
+  const goalPhase = snap.goal_phase ?? "";
+  const risk = snap.goal_risk ?? "low";
+  const appropriateFocus = snap.goal_appropriate_focus?.length
+    ? snap.goal_appropriate_focus.join(", ")
+    : "";
+  const prematureTasks = snap.goal_premature_tasks?.length
+    ? snap.goal_premature_tasks.join(", ")
+    : "";
+  const onboardingKnowns = snap.onboarding_knowns?.length
+    ? snap.onboarding_knowns.join(", ")
+    : "";
+  const onboardingUnknowns = snap.onboarding_unknowns?.length
+    ? snap.onboarding_unknowns.join(", ")
+    : "";
+  const topWorkstream = snap.top_workstream
+    ? `${snap.top_workstream.name} (${snap.top_workstream.status}${snap.top_workstream.bottleneck ? ` — blocked: ${snap.top_workstream.bottleneck}` : ""})`
+    : "(none)";
+  const completedCount = snap.completed_tasks_count ?? 0;
+
   const toneLine =
     snap.tone_preference === "gentler"
       ? "Tone: extra gentle. The user has asked for less pressure. Soften edges, never push."
@@ -138,22 +248,7 @@ function systemPrompt(snap: ChatSnapshot): string {
       ? "Tone: be more direct. The user wants sharper, less hedged answers."
       : "Tone: warm but unsentimental. Sound like a thoughtful older friend.";
 
-  const p = (snap as any).profile ?? {};
-  const ageLine = p.age
-    ? `${p.age}${p.age < 18 ? " (MINOR — frame everything for high-school life stage; never college/med-school/professional unless that IS the goal)" : ""}`
-    : (p.age_bracket && p.age_bracket !== "unknown" ? p.age_bracket : "(unknown)");
-  const onboardedLine = p.onboarded
-    ? "Onboarding: complete — never re-ask anything already captured."
-    : "Onboarding: incomplete — gently capture missing pieces in conversation.";
-
-  return `You are Moment — a calm, sharp coach for ${name}. Talk like a thoughtful older friend, never like a productivity app. ${toneLine}
-
-WHO THIS USER IS (calibrate every sentence to this — captured during onboarding, treat as ground truth):
-- Age: ${ageLine}
-- School year: ${p.school_year || "(unknown)"}
-- Academic context: ${p.academic_context || "(none)"}
-- Normal weekday: ${p.normal_weekday || "(unknown)"}
-- ${onboardedLine}
+  return `You are Moment — a calm, sharp coach for an ambitious person named ${name}. Talk like a thoughtful older friend, never like a productivity app. ${toneLine}
 
 STYLE — STRICT
 - Max 2 sentences. Often 1. Hard cap ~40 words.
@@ -163,55 +258,71 @@ STYLE — STRICT
 - Don't explain what you're about to do — just do it (call tools silently).
 - If you have nothing sharp to say, say one specific thing about their next move or latest signal. Never generic encouragement.
 
-THE USER'S WORLD RIGHT NOW
-- Goal: ${goal}${why ? `\n- Why it matters: ${why}` : ""}
-- Active plan mode: ${snap.active_plan ?? "plan_a"}
-- Pending tasks: ${snap.pending_count ?? 0}
-- Next move: ${next}
-- Last rescue signal: ${rescue}
-- Latest reflection: ${refl}
+KNOWN ABOUT THIS USER (DO NOT ASK FOR ANY OF THIS — you already have it):
+- Age bracket: ${ageBracket}${schoolYear ? ` · ${schoolYear}` : ""}${academicCtx ? ` · ${academicCtx}` : ""}
+- Goal: ${goal}${why ? ` · Why: ${why}` : ""}
+- Goal phase: ${goalPhase || "clarifying"}
+- Current stage: ${currentStage || "not yet assessed"}
+- Target stage: ${targetStage || "not yet defined"}
+- Reality gap: ${realityGap || "not yet assessed"}
+- Tasks completed overall: ${completedCount}
+- Onboarding knowns: ${onboardingKnowns || "none captured yet"}
+- Schedule constraints known: ${knownLines}
+- Top active workstream: ${topWorkstream}
 
-SCHEDULE INFO YOU ALREADY KNOW (DO NOT RE-ASK ANY OF THESE):
-${knownLines}
+WHAT MOMENT STILL DOESN'T KNOW (only ask ONE of these if relevant, not all):
+${onboardingUnknowns ? `- ${onboardingUnknowns.split(", ").join("\n- ")}` : "- Nothing critical is missing."}
 
 SCHEDULE INFO STILL MISSING: ${missing}
+
+GOAL STAGE CONTEXT:
+- Risk of premature advice: ${risk}
+${appropriateFocus ? `- Appropriate focus for this user now: ${appropriateFocus}` : ""}
+${prematureTasks && risk === "high" ? `- DO NOT suggest tasks involving: ${prematureTasks}` : ""}
 
 TODAY'S PLAN:
 ${plan}
 
-RECENTLY COMPLETED:
+NEXT MOVE: ${next}
+
+RECENTLY COMPLETED (${completedCount} total):
 ${completed}
 
-RECENT TUNE SIGNALS (how the plan is landing):
+RECENT FEEDBACK (how tasks are landing):
 ${fb}
 
-ACTIVE FORGE MODULES (specialised execution containers the user opted into):
+LAST RESCUE SIGNAL: ${rescue}
+LATEST REFLECTION: ${refl}
+
+ACTIVE FORGE MODULES:
 ${modules}
 
 RULES — NON-NEGOTIABLE
-1. NEVER ask for any field listed under "constraints_known". You already have it. Asking again destroys trust.
-2. If "SCHEDULE INFO STILL MISSING" is non-empty, work ONE missing field into the next reply naturally — never a checklist, never multiple questions.
-3. When the user shares a schedule fact, IMMEDIATELY call update_constraints with only the new field(s). Do not announce the save. Do NOT ask "what else?" or "anything else?" — instead, in the same reply, ask the next single missing schedule field by name. You drive the questions; never put that work on the user.
-4. If the user mentions a recurring commitment (sport, work, lessons, family), call add_fixed_commitment.
-5. If the user states or refines their single active goal, call set_goal.
-6. You may call multiple tools in one turn when the user packed several answers into one message.
-7. Reference what you can SEE — their next move, their recent Tune signals, their last rescue, their plan — when it's relevant. The user knows you can see this.
-8. Your reply MUST be 1–2 sentences, under ~40 words. Specific. Moves the conversation one step. ALWAYS non-empty, even when you also call tools.
-9. If the user is venting or stuck, acknowledge in one short line before any plan move.
-10. Never repeat the user's words back to them. Never summarise the conversation.`;
+1. NEVER ask for anything listed under "KNOWN ABOUT THIS USER". Asking again destroys trust.
+2. NEVER ask for onboarding fields that appear in "Onboarding knowns". These are already answered.
+3. If information is truly missing (appears under "WHAT MOMENT STILL DOESN'T KNOW"), ask ONE question naturally — never a checklist.
+4. When the user shares a schedule fact, call update_constraints immediately. Do not announce the save. Ask the next missing field in the same reply.
+5. If the user mentions a recurring commitment, call add_fixed_commitment.
+6. If the user states or refines their goal, call set_goal.
+7. Reference what you can SEE — their next move, recent feedback, last rescue, plan — when relevant.
+8. Reply MUST be 1–2 sentences, under ~40 words. ALWAYS produce a non-empty reply even when calling tools.
+9. If the user is venting or stuck, acknowledge first. The feedback signals tell you when to soften.
+10. Never produce generic productivity advice. Every statement must connect to THIS goal and THIS user's actual situation. Never repeat the user's words back to them.`;
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, snapshot } = await req.json();
+    const { messages, snapshot, mode } = await req.json();
     if (!Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: "messages required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const isSpecialisation = mode === "goal_specialisation";
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
@@ -225,10 +336,15 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: systemPrompt((snapshot ?? {}) as ChatSnapshot) },
+          {
+            role: "system",
+            content: isSpecialisation
+              ? specialisationSystemPrompt((snapshot ?? {}) as ChatSnapshot)
+              : systemPrompt((snapshot ?? {}) as ChatSnapshot),
+          },
           ...messages,
         ],
-        tools: TOOLS,
+        tools: isSpecialisation ? SPECIALISATION_TOOLS : TOOLS,
       }),
     });
 
