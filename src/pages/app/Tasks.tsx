@@ -125,6 +125,8 @@ const Tasks = () => {
         )}
       </div>
 
+      <GitHubBranchStatus />
+
       {/* Manual composer */}
       <div className="rounded-xl border border-border bg-card p-3">
         <div className="flex items-center gap-2">
