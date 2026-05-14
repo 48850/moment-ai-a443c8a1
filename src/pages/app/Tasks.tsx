@@ -5,6 +5,7 @@ import { FeedbackChips } from "@/components/app/FeedbackChips";
 import { AIInsight } from "@/components/app/AIInsight";
 import { useAI } from "@/lib/ai/useAI";
 import { DoneCheckIn } from "@/components/app/DoneCheckIn";
+import { GitHubBranchStatus } from "@/components/app/GitHubBranchStatus";
 import type { Task } from "@/lib/types";
 
 type Filter = "all" | "pending" | "completed" | "missed";
