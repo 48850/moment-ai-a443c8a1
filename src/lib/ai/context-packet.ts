@@ -171,11 +171,11 @@ export function buildContextPacket(s: MomentState | null): MomentContextPacket |
     },
     onboarding: {
       completed: s.onboarding?.completed ?? false,
-      understanding: s.onboarding?.understanding ?? {
-        knowns: [],
-        unknowns: [],
-        assumptions: [],
-        confidence: "low",
+      understanding: {
+        knowns: s.onboarding?.understanding?.knowns ?? [],
+        unknowns: s.onboarding?.understanding?.unknowns ?? [],
+        assumptions: s.onboarding?.understanding?.assumptions ?? [],
+        confidence: s.onboarding?.understanding?.confidence ?? "low",
       },
     },
     forge: {
