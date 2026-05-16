@@ -108,7 +108,7 @@ const Dashboard = () => {
       <div>
         <div className="text-xs text-muted-foreground">{vm.greeting}</div>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-          Hey {state.profile.display_name} 👋
+          {state.profile.display_name ? `Hey ${state.profile.display_name}` : "Hey"}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">Here's the one move that matters most right now.</p>
       </div>

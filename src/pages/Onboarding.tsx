@@ -10,6 +10,8 @@ import type { MomentState } from "@/lib/types";
 // ─── Stage types ──────────────────────────────────────────────────────────────
 
 interface OnboardingData {
+  // Name (step 0)
+  preferred_name: string;
   // Stage 1
   goal_statement: string;
   horizon: string;
@@ -162,7 +164,7 @@ export default function Onboarding() {
   const dispatch = useStateStore((s) => s.dispatch);
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
-  const TOTAL_STEPS = 8;
+  const TOTAL_STEPS = 9;
 
   // Heuristic: pre-fill country from browser timezone.
   const guessedCountry = (() => {
@@ -180,6 +182,7 @@ export default function Onboarding() {
   })();
 
   const [data, setData] = useState<OnboardingData>({
+    preferred_name: "",
     goal_statement: "",
     horizon: "years",
     why_it_matters: "",
@@ -260,14 +263,15 @@ export default function Onboarding() {
 
   const canProceed = (): boolean => {
     switch (step) {
-      case 0: return data.goal_statement.trim().length >= 5;
-      case 1: return data.why_it_matters.trim().length >= 5;
-      case 2: return true; // user reality is optional
-      case 3: return true; // country/education optional
-      case 4: return Boolean(data.current_level);
-      case 5: return true; // preview, no input
-      case 6: return true; // preferences optional
-      case 7: return true; // understanding review
+      case 0: return true; // name is skippable
+      case 1: return data.goal_statement.trim().length >= 5;
+      case 2: return data.why_it_matters.trim().length >= 5;
+      case 3: return true; // user reality is optional
+      case 4: return true; // country/education optional
+      case 5: return Boolean(data.current_level);
+      case 6: return true; // preview, no input
+      case 7: return true; // preferences optional
+      case 8: return true; // understanding review
       default: return true;
     }
   };
@@ -285,6 +289,7 @@ export default function Onboarding() {
       type: "onboarding/complete",
       payload: {
         profile_patch: {
+          display_name: data.preferred_name.trim() || "",
           age_bracket,
           age: isNaN(age) ? undefined : age,
           school_year: data.school_year || undefined,
@@ -342,11 +347,34 @@ export default function Onboarding() {
             transition={{ duration: 0.22 }}
             className="space-y-6"
           >
-            {/* Stage 1 — Goal Capture */}
+            {/* Step 0 — Name */}
             {step === 0 && (
               <div className="space-y-5">
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 1 of 7</p>
+                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 1 of 9</p>
+                  <h2 className="text-2xl font-semibold text-white leading-snug">
+                    What should Moment call you?
+                  </h2>
+                  <p className="text-white/50 text-sm mt-1">
+                    First name, nickname, whatever you prefer. You can skip this.
+                  </p>
+                </div>
+                <input
+                  autoFocus
+                  className="w-full bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white placeholder-white/30 text-base focus:outline-none focus:border-amber-400/50"
+                  placeholder="e.g. Elliot"
+                  value={data.preferred_name}
+                  onChange={(e) => set({ preferred_name: e.target.value })}
+                  onKeyDown={(e) => e.key === "Enter" && setStep((s) => s + 1)}
+                />
+              </div>
+            )}
+
+            {/* Stage 1 — Goal Capture */}
+            {step === 1 && (
+              <div className="space-y-5">
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 2 of 9</p>
                   <h2 className="text-2xl font-semibold text-white leading-snug">
                     What's the goal?
                   </h2>
@@ -378,10 +406,10 @@ export default function Onboarding() {
             )}
 
             {/* Stage 2 — Why It Matters */}
-            {step === 1 && (
+            {step === 2 && (
               <div className="space-y-5">
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 2 of 7</p>
+                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 3 of 9</p>
                   <h2 className="text-2xl font-semibold text-white leading-snug">
                     Why does it matter to you?
                   </h2>
@@ -419,10 +447,10 @@ export default function Onboarding() {
             )}
 
             {/* Stage 3 — User Reality */}
-            {step === 2 && (
+            {step === 3 && (
               <div className="space-y-5">
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 3 of 7</p>
+                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 4 of 9</p>
                   <h2 className="text-2xl font-semibold text-white leading-snug">
                     Where are you right now?
                   </h2>
@@ -480,10 +508,10 @@ export default function Onboarding() {
             )}
 
             {/* Stage 4 — Country / Education system */}
-            {step === 3 && (
+            {step === 4 && (
               <div className="space-y-5">
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 4 of 8</p>
+                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 5 of 9</p>
                   <h2 className="text-2xl font-semibold text-white leading-snug">
                     Where are you studying?
                   </h2>
@@ -559,10 +587,10 @@ export default function Onboarding() {
             )}
 
             {/* Stage 5 — Current Level */}
-            {step === 4 && (
+            {step === 5 && (
               <div className="space-y-5">
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 5 of 8</p>
+                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 6 of 9</p>
                   <h2 className="text-2xl font-semibold text-white leading-snug">
                     Where are you with the skills?
                   </h2>
@@ -590,10 +618,10 @@ export default function Onboarding() {
             )}
 
             {/* Stage 6 — Reality Gap Preview */}
-            {step === 5 && feasibility && (
+            {step === 6 && feasibility && (
               <div className="space-y-5">
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 6 of 8</p>
+                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 7 of 9</p>
                   <h2 className="text-2xl font-semibold text-white leading-snug">
                     Here's how Moment sees your pathway
                   </h2>
@@ -639,7 +667,7 @@ export default function Onboarding() {
 
                 <button
                   type="button"
-                  onClick={() => setStep(4)}
+                  onClick={() => setStep(5)}
                   className="text-xs text-white/30 hover:text-white/50 transition-colors"
                 >
                   ← Adjust my current level
@@ -648,10 +676,10 @@ export default function Onboarding() {
             )}
 
             {/* Stage 7 — How Moment Should Help */}
-            {step === 6 && (
+            {step === 7 && (
               <div className="space-y-5">
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 7 of 8</p>
+                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 8 of 9</p>
                   <h2 className="text-2xl font-semibold text-white leading-snug">
                     How do you want Moment to help?
                   </h2>
@@ -690,10 +718,10 @@ export default function Onboarding() {
             )}
 
             {/* Stage 8 — What Moment Still Needs to Learn */}
-            {step === 7 && (
+            {step === 8 && (
               <div className="space-y-5">
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 8 of 8</p>
+                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 9 of 9</p>
                   <h2 className="text-2xl font-semibold text-white leading-snug">
                     Here's what Moment knows about you so far
                   </h2>
