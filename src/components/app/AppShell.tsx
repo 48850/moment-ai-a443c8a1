@@ -46,6 +46,7 @@ export const AppShell = () => {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const reset = useStateStore((s) => s.reset);
+  const { theme, toggle: toggleTheme } = useTheme();
   // forge/:featureId routes should keep the Plan group (Forge sub-tab) active
   const normalizedPath = pathname.startsWith("/app/forge/") ? "/app/forge" : pathname;
   const activeGroup =
