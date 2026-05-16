@@ -575,6 +575,48 @@ export function parseAIGuidebookResponse(
   );
 }
 
+// ─── Validation ──────────────────────────────────────────────────────────────
+
+export function validateGuidebook(g: ForgeGuidebook): { ok: boolean; reasons: string[] } {
+  const reasons: string[] = [];
+  if (!g.title?.trim()) reasons.push("missing title");
+  if ((g.required_inputs?.length ?? 0) < 2) reasons.push("needs ≥2 inputs");
+  if ((g.ai_functions?.length ?? 0) < 1) reasons.push("needs ≥1 AI function");
+  if ((g.sections?.length ?? 0) < 3) reasons.push("needs ≥3 sections");
+  for (const fn of g.ai_functions ?? []) {
+    if (!fn.prompt_contract || fn.prompt_contract.length < 40) {
+      reasons.push(`fn ${fn.id}: prompt_contract too short (<40 chars)`);
+    }
+  }
+  return { ok: reasons.length === 0, reasons };
+}
+
+// ─── AI-powered custom guidebook generation ────────────────────────────────────
+
+export async function generateCustomGuidebookViaAI(
+  state: MomentState,
+  userDescription: string,
+): Promise<{ guidebook: ForgeGuidebook; validation: ReturnType<typeof validateGuidebook> }> {
+  const { supabase } = await import("@/integrations/supabase/client");
+  const { buildContextPacket } = await import("@/lib/ai/context-packet");
+  const { data } = await supabase.functions.invoke("app-intelligence", {
+    body: {
+      intent: "forge_guidebook",
+      snapshot: buildContextPacket(state),
+      payload: {
+        description: userDescription,
+        feature_type: "custom",
+        goal: state.active_goal?.statement ?? "",
+        bottleneck: "user-defined",
+      },
+    },
+  });
+  const raw = (data?.result ?? {}) as Partial<ForgeGuidebook>;
+  const guidebook = buildGuidebookFromAIResponse(raw, state);
+  const validation = validateGuidebook(guidebook);
+  return { guidebook, validation };
+}
+
 // ─── Feature type labels ──────────────────────────────────────────────────────
 
 export const FEATURE_TYPE_LABELS: Record<ForgeFeatureType, string> = {

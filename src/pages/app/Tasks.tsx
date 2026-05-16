@@ -114,7 +114,7 @@ const Tasks = () => {
           : sections.missed;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
+    <div className="mx-auto max-w-3xl space-y-5">
       <div>
         <div className="text-xs text-muted-foreground">/ tasks</div>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">Everything on your list</h1>
@@ -161,7 +161,7 @@ const Tasks = () => {
       </div>
 
       {/* Section counts / filter */}
-      <div className="flex items-center gap-3 text-[11px]">
+      <div className="sticky top-0 z-10 -mx-1 flex items-center gap-3 bg-background/95 px-1 py-2 text-[11px] backdrop-blur">
         {(["all", "pending", "completed", "missed"] as Filter[]).map((f) => {
           const count =
             f === "all"

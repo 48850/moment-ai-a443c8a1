@@ -8,6 +8,7 @@ export interface FeasibilityInput {
   pursuit_family: string;     // e.g. "future_doctor_neurology"
   current_level?: string;     // raw chip answer from Stage 4: "a little", "some foundation", etc.
   current_stage: string;      // synthesised capability stage (NOT school_year)
+  education_system?: string;  // e.g. "au_atar", "uk_a_levels", "ib"
 }
 
 function isTeen(age_bracket: string): boolean {
@@ -129,7 +130,23 @@ export function evaluateGoalFeasibility(input: FeasibilityInput): GoalFeasibilit
           ],
       next_clarifying_question: isYoungerTeen
         ? "Which science subjects are you studying at school right now?"
-        : "Have you started biology or chemistry A-levels / IB / AP yet?",
+        : (() => {
+            const examLabel = (() => {
+              switch (input.education_system) {
+                case "uk_a_levels": return "A-levels";
+                case "uk_gcse": return "GCSEs";
+                case "ib": return "IB";
+                case "us_ap": case "us_highschool": return "AP / honours";
+                case "au_atar": case "au_hsc": return "ATAR / HSC";
+                case "ca_ontario": return "Grade 12 sciences";
+                case "ca_ib": return "IB";
+                case "sg_a_levels": return "Singapore A-levels";
+                case "in_cbse": case "in_isc": return "Class 12 sciences";
+                default: return "your senior school exams";
+              }
+            })();
+            return `Have you started biology or chemistry for ${examLabel} yet?`;
+          })(),
     };
   }
 

@@ -255,6 +255,8 @@ function buildContextHeader(snapshot: any): string {
   const normal_weekday = u.normal_weekday ?? "";
   const commitments = (u.commitments ?? []).join(", ");
   const tz = u.timezone ?? "";
+  const country = u.country ?? "";
+  const education_system = u.education_system ?? "unknown";
   const prefs = u.preferences ?? {};
   const prefLine = `tone=${prefs.tone ?? "?"} · strictness=${prefs.strictness ?? "?"} · schedule_style=${prefs.schedule_style ?? "?"} · support_style=${prefs.support_style ?? "?"}`;
 
@@ -290,6 +292,8 @@ function buildContextHeader(snapshot: any): string {
   return `USER (captured during onboarding — treat as ground truth, never re-ask):
 - Name: ${display_name}
 - Age: ${age ?? "?"} (${age_bracket})${school_year ? ` · ${school_year}` : ""}
+- Country: ${country || "(unknown)"}
+- Education system: ${education_system}
 - Academic context: ${academic_context || "(none)"}
 - Normal weekday: ${normal_weekday || "(unknown)"}
 - Fixed commitments: ${commitments || "(none)"}

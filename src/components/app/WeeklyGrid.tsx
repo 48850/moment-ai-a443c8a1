@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Plus, Trash2, Lock, RefreshCw, Sparkles, X, GraduationCap, Target, CalendarClock, Music, Moon } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
@@ -7,7 +7,19 @@ import type { WeekBlock, WeekCategory } from "@/lib/types";
 
 const HOUR_START = 7;
 const HOUR_END = 22;
-const HOUR_PX = 56; // taller for breathing room
+const HOUR_PX_DEFAULT = 56;
+
+function useHourPx() {
+  const [px, setPx] = useState(HOUR_PX_DEFAULT);
+  useEffect(() => {
+    const update = () =>
+      setPx(window.innerWidth < 640 ? 36 : window.innerWidth < 1024 ? 48 : 56);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+  return px;
+}
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
@@ -33,12 +45,12 @@ const todayIdx = (() => {
   return DAY_OF_WEEK_NUMS.indexOf(js);
 })();
 
-function timeToY(hhmm: string): number {
+function timeToY(hhmm: string, hourPx = HOUR_PX_DEFAULT): number {
   const [h, m] = hhmm.split(":").map(Number);
-  return ((h - HOUR_START) * 60 + m) * (HOUR_PX / 60);
+  return ((h - HOUR_START) * 60 + m) * (hourPx / 60);
 }
-function durationPx(start: string, end: string): number {
-  return Math.max(28, timeToY(end) - timeToY(start));
+function durationPx(start: string, end: string, hourPx = HOUR_PX_DEFAULT): number {
+  return Math.max(28, timeToY(end, hourPx) - timeToY(start, hourPx));
 }
 function snapTime(minutes: number): string {
   const clamped = Math.max(HOUR_START * 60, Math.min(HOUR_END * 60, minutes));
@@ -57,6 +69,8 @@ export function WeeklyGrid() {
   const blocks = ((state?.schedule_state.week_plan ?? []) as WeekBlock[]).slice().sort(sortBlocks);
   const [editing, setEditing] = useState<WeekBlock | null>(null);
   const [hoverDay, setHoverDay] = useState<number | null>(null);
+  const [selectedDay, setSelectedDay] = useState<number>(todayIdx);
+  const hourPx = useHourPx();
 
   const blocksByDay = useMemo(() => {
     const out: WeekBlock[][] = [[], [], [], [], [], [], []];
@@ -83,6 +97,7 @@ export function WeeklyGrid() {
   }
 
   const hours = Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, i) => HOUR_START + i);
+  const totalHeight = hours.length * hourPx;
 
   const addBlock = (dayIdx: number, startMin: number) => {
     const startTotal = Math.max(HOUR_START * 60, Math.min(HOUR_END * 60 - 60, startMin));
@@ -139,22 +154,42 @@ export function WeeklyGrid() {
         })}
       </div>
 
+      {/* Mobile day-picker: pills visible only below md */}
+      <div className="flex gap-1.5 md:hidden">
+        {DAY_LABELS.map((d, i) => (
+          <button
+            key={d}
+            onClick={() => setSelectedDay(i)}
+            className={`flex-1 rounded-md py-1.5 text-[11px] font-medium transition-colors ${
+              selectedDay === i
+                ? "bg-primary text-primary-foreground"
+                : i === todayIdx
+                ? "border border-primary/40 text-primary"
+                : "border border-border text-muted-foreground"
+            }`}
+          >
+            {d}
+          </button>
+        ))}
+      </div>
+
       {/* Grid */}
       <div className="overflow-x-auto rounded-2xl border border-border bg-card/40">
         <div
-          className="grid min-w-[860px]"
-          style={{ gridTemplateColumns: `64px repeat(7, minmax(0, 1fr))` }}
+          className="grid w-full md:min-w-[860px]"
+          style={{ gridTemplateColumns: `48px repeat(7, minmax(0, 1fr))` }}
         >
           {/* Day header row */}
           <div className="border-b border-border bg-card/60" />
           {DAY_LABELS.map((d, i) => {
             const isToday = i === todayIdx;
+            const isHiddenOnMobile = i !== selectedDay;
             return (
               <div
                 key={d}
                 className={`border-b border-l border-border px-3 py-2.5 text-left ${
                   isToday ? "bg-primary/5" : "bg-card/60"
-                }`}
+                } ${isHiddenOnMobile ? "hidden md:block" : ""}`}
               >
                 <div className="flex items-center gap-2">
                   <span className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${isToday ? "text-primary" : "text-foreground/80"}`}>
@@ -172,13 +207,13 @@ export function WeeklyGrid() {
           {/* Time gutter */}
           <div
             className="relative border-r border-border bg-card/30"
-            style={{ height: hours.length * HOUR_PX }}
+            style={{ height: totalHeight }}
           >
             {hours.map((h, i) => (
               <div
                 key={h}
                 className="absolute right-2 -translate-y-1/2 font-mono text-[10px] tabular-nums text-muted-foreground/80"
-                style={{ top: i * HOUR_PX }}
+                style={{ top: i * hourPx }}
               >
                 {String(h).padStart(2, "0")}:00
               </div>
@@ -188,17 +223,18 @@ export function WeeklyGrid() {
           {/* Day columns */}
           {DAY_LABELS.map((_, dayIdx) => {
             const isToday = dayIdx === todayIdx;
+            const isHiddenOnMobile = dayIdx !== selectedDay;
             return (
               <div
                 key={dayIdx}
-                className={`group relative border-l border-border ${isToday ? "bg-primary/[0.03]" : ""}`}
-                style={{ height: hours.length * HOUR_PX }}
+                className={`group relative border-l border-border ${isToday ? "bg-primary/[0.03]" : ""} ${isHiddenOnMobile ? "hidden md:block" : ""}`}
+                style={{ height: totalHeight }}
                 onMouseEnter={() => setHoverDay(dayIdx)}
                 onMouseLeave={() => setHoverDay(null)}
                 onDoubleClick={(e) => {
                   const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
                   const y = e.clientY - rect.top;
-                  const minutes = HOUR_START * 60 + Math.round(y / (HOUR_PX / 60));
+                  const minutes = HOUR_START * 60 + Math.round(y / (hourPx / 60));
                   addBlock(dayIdx, minutes);
                 }}
               >
@@ -207,14 +243,14 @@ export function WeeklyGrid() {
                   <div
                     key={i}
                     className="absolute left-0 right-0 border-t border-border/40"
-                    style={{ top: i * HOUR_PX }}
+                    style={{ top: i * hourPx }}
                   />
                 ))}
                 {hours.slice(0, -1).map((_, i) => (
                   <div
                     key={`half-${i}`}
                     className="absolute left-0 right-0 border-t border-dashed border-border/15"
-                    style={{ top: i * HOUR_PX + HOUR_PX / 2 }}
+                    style={{ top: i * hourPx + hourPx / 2 }}
                   />
                 ))}
 
@@ -223,8 +259,8 @@ export function WeeklyGrid() {
                   {blocksByDay[dayIdx].map((b) => {
                     const meta = CATEGORY_META[b.category];
                     const Icon = meta.Icon;
-                    const h = durationPx(b.start_time, b.end_time);
-                    const compact = h < 56;
+                    const h = durationPx(b.start_time, b.end_time, hourPx);
+                    const compact = h < 44;
                     return (
                       <motion.button
                         key={b.id}
@@ -233,16 +269,17 @@ export function WeeklyGrid() {
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.97 }}
                         onClick={() => setEditing(b)}
+                        title={`${b.title} · ${b.start_time}–${b.end_time}`}
                         className={`absolute left-1 right-1 overflow-hidden rounded-md border-l-2 ${meta.border} ${meta.bg} px-2 py-1.5 text-left shadow-sm backdrop-blur-[2px] transition-all hover:z-20 hover:shadow-lg hover:ring-1 hover:ring-foreground/20`}
                         style={{
-                          top: timeToY(b.start_time) + 1,
+                          top: timeToY(b.start_time, hourPx) + 1,
                           height: h - 2,
                         }}
                       >
                         <div className={`flex items-center gap-1 ${meta.text}`}>
                           <Icon className="h-3 w-3 shrink-0 opacity-80" />
                           {b.is_locked && <Lock className="h-2.5 w-2.5 shrink-0 opacity-70" />}
-                          <span className={`truncate text-[11px] font-medium leading-tight`}>{b.title}</span>
+                          <span className="line-clamp-2 text-[11px] font-medium leading-tight">{b.title}</span>
                         </div>
                         {!compact && (
                           <div className={`mt-1 font-mono text-[9px] tabular-nums ${meta.text} opacity-80`}>

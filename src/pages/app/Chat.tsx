@@ -370,6 +370,17 @@ const Chat = () => {
             </>
           )}
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            const greeting = isSpecialisation ? specialisationGreeting : defaultGreeting;
+            setMessages([greeting]);
+            dispatch({ type: "chat/clear_messages" });
+          }}
+          className="shrink-0 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+        >
+          Clear
+        </button>
       </div>
 
       {/* Specialisation status banner */}

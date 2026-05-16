@@ -74,6 +74,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
         age_bracket: "unknown" as const,
         commitments: [] as string[],
         preferences: { tone: "calm" as const, strictness: "soft" as const, schedule_style: "flexible" as const, support_style: "coach" as const },
+        education_system: "unknown" as const,
         ...((saved.profile as any) ?? {}),
       };
 
@@ -129,6 +130,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
         },
         chat_messages: (saved as any).chat_messages ?? [],
         onboarding: onboardingBackfill,
+        chat_messages: (saved as any).chat_messages ?? [],
       };
       // In demo mode, use demo state instead of saved (only for fresh demo sessions)
       if (isDemo && !saved.active_goal?.statement?.trim()) {
@@ -348,7 +350,39 @@ export const useStateStore = create<StateStore>((set, get) => ({
 
       case "reflection/add": {
         const filtered = s.reflections.filter((r) => r.date !== action.payload.date);
-        next = { ...s, reflections: [...filtered, action.payload] };
+        const r = action.payload;
+        const newFeedback: ExecutionFeedbackItem[] = [];
+        if (r.energy_rating <= 2) {
+          newFeedback.push({
+            id: crypto.randomUUID(),
+            task_id: "",
+            task_title: `Reflection ${r.date}`,
+            completed_at: r.created_at,
+            feedback: "hard",
+            note: r.struggle || "low energy reported in reflection",
+            created_at: r.created_at,
+            source: "reflection",
+            target_id: r.id,
+          });
+        }
+        if (r.struggle && r.struggle.length > 5) {
+          newFeedback.push({
+            id: crypto.randomUUID(),
+            task_id: "",
+            task_title: `Reflection ${r.date}`,
+            completed_at: r.created_at,
+            feedback: "too_big",
+            note: r.struggle,
+            created_at: r.created_at,
+            source: "reflection",
+            target_id: r.id,
+          });
+        }
+        next = {
+          ...s,
+          reflections: [...filtered, r],
+          execution_feedback: [...s.execution_feedback, ...newFeedback],
+        };
         break;
       }
       case "alignment/set":
@@ -909,6 +943,30 @@ export const useStateStore = create<StateStore>((set, get) => ({
         };
         break;
       }
+
+      case "chat/append":
+        next = {
+          ...s,
+          chat_messages: [...((s as any).chat_messages ?? []), action.payload].slice(-200),
+        };
+        break;
+      case "chat/clear_messages":
+        next = { ...s, chat_messages: [] };
+        break;
+      case "chat/replace_messages":
+        next = { ...s, chat_messages: action.payload.slice(-200) };
+        break;
+
+      case "schedule/set_day_plan":
+        next = {
+          ...s,
+          schedule_state: {
+            ...s.schedule_state,
+            day_plan: action.payload,
+            last_plan_generated_at: now(),
+          },
+        };
+        break;
 
       case "chat/begin_specialisation": {
         next = {

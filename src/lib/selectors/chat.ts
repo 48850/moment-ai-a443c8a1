@@ -46,6 +46,8 @@ export interface ChatSnapshot {
   top_workstream: { name: string; status: string; bottleneck: string } | null;
   completed_tasks_count: number;
   recent_chat: Array<{ role: "user" | "assistant"; content: string }>;
+  country: string;
+  education_system: string;
 }
 
 const SCHEDULE_FIELD_MAP: Array<[keyof MomentState["constraints"], string]> = [
@@ -184,5 +186,7 @@ export function selectChatSnapshot(state: MomentState): ChatSnapshot {
       .slice(-10)
       .filter((m): m is ChatMessage & { role: "user" | "assistant" } => m.role === "user" || m.role === "assistant")
       .map((m) => ({ role: m.role, content: m.content })),
+    country: state.profile.country ?? "",
+    education_system: state.profile.education_system ?? "unknown",
   };
 }
