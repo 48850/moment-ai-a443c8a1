@@ -1,6 +1,7 @@
 import { NavLink, Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { Home, Calendar, Target, ArrowLeft, MessageSquare, Heart, LifeBuoy, ListChecks, Hammer, BarChart3 } from "lucide-react";
+import { Home, Calendar, Target, ArrowLeft, MessageSquare, Heart, LifeBuoy, ListChecks, Hammer, BarChart3, Sun, Moon } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
+import { useTheme } from "@/hooks/use-theme";
 
 type SubTab = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; end?: boolean };
 
@@ -45,6 +46,7 @@ export const AppShell = () => {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const reset = useStateStore((s) => s.reset);
+  const { theme, toggle: toggleTheme } = useTheme();
   // forge/:featureId routes should keep the Plan group (Forge sub-tab) active
   const normalizedPath = pathname.startsWith("/app/forge/") ? "/app/forge" : pathname;
   const activeGroup =
@@ -67,6 +69,14 @@ export const AppShell = () => {
           </span>
         </Link>
         <div className="flex items-center gap-3">
+          <button
+            onClick={toggleTheme}
+            aria-label="Toggle theme"
+            title={theme === "dark" ? "Switch to light" : "Switch to dark"}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+          </button>
           <button
             onClick={() => {
               if (!confirm("Reset onboarding? This wipes local state.")) return;
