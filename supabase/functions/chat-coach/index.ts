@@ -382,44 +382,6 @@ RULES — NON-NEGOTIABLE
 10. Never produce generic productivity advice. Every statement must connect to THIS goal and THIS user's actual situation. Never repeat the user's words back to them.`;
 }
 
-function specialisationSystemPrompt(snap: ChatSnapshot): string {
-  const name = snap.display_name || "there";
-  const goal = snap.active_goal?.statement || "(no goal set yet)";
-  const why = snap.active_goal?.why_it_matters || "";
-  const ageBracket = snap.user_age_bracket || "unknown";
-  const schoolYear = snap.user_school_year || "";
-  const currentStage = snap.goal_current_stage || "";
-  const targetStage = snap.goal_target_stage || "";
-  const realityGap = snap.goal_reality_gap || "";
-  const onboardingKnowns = snap.onboarding_knowns?.length
-    ? snap.onboarding_knowns.join(", ")
-    : "";
-  const constraintsKnownKeys = Object.keys(snap.constraints_known ?? {}).join(", ");
-
-  return `You are Moment — sharp, honest, in calibration mode for ${name}.
-
-GOAL: ${goal}${why ? `\nWHY IT MATTERS: ${why}` : ""}
-USER: ${ageBracket}${schoolYear ? ` · ${schoolYear}` : ""}
-Current stage: ${currentStage || "not yet assessed"} → Target: ${targetStage || "not yet defined"}
-Reality gap: ${realityGap || "not yet assessed"}
-
-ALREADY KNOWN (DO NOT ASK FOR ANY OF THESE):
-${onboardingKnowns ? `- Onboarding answers: ${onboardingKnowns}` : "- (none captured yet)"}
-${constraintsKnownKeys ? `- Schedule constraints: ${constraintsKnownKeys}` : ""}
-
-PROTOCOL:
-1. First reply: (a) name the pathway in 1 sentence, (b) state typical stages, (c) ask ONE locating question. No checklists.
-2. As you learn, call patch_goal_model.
-3. When stage is clear, call create_first_task with a STAGE-APPROPRIATE task (never premature).
-4. After create_first_task, call complete_specialisation.
-
-RULES:
-- One question per reply, max 2 sentences (40 words).
-- NEVER ask anything already captured in "ALREADY KNOWN" above.
-- NEVER generic motivation. Reference THIS goal, THIS stage.
-- Acknowledge before redirecting if user is venting.`;
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
