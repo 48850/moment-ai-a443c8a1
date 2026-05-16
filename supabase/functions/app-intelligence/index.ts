@@ -136,11 +136,11 @@ function tools(intent: string) {
                 estimated_minutes: { type: "number" },
                 category: { type: "string", enum: ["goal_direct", "bottleneck_removal", "discovery", "maintenance"] },
                 priority: { type: "string", enum: ["high", "medium", "low"] },
-                why: { type: "string" },
                 why_now: { type: "string", description: "Why this task fits the user's current stage — not generic motivation." },
+                proof_of_completion: { type: "string", description: "One concrete, observable thing the user produces or does that proves this task is done. Must be specific to this task." },
                 user_stage_fit: { type: "string", enum: ["strong", "okay", "weak", "premature"] },
               },
-              required: ["title", "estimated_minutes", "category", "priority"],
+              required: ["title", "estimated_minutes", "category", "priority", "why_now", "proof_of_completion"],
               additionalProperties: false,
             },
           },
@@ -353,18 +353,42 @@ Propose exactly 3 features that would feel indispensable to THIS user pursuing T
     case "rescue_protocol":
       return `${ctx}\n\nThe user feels: "${payload?.reason}". Give a gentle 3-4 step protocol. No motivation-speak.`;
 
-    case "suggest_tasks":
+    case "suggest_tasks": {
+      const payloadCountry = (payload?.country ?? snapshot?.user?.country ?? "unknown") as string;
+      const payloadEdSystem = (payload?.education_system ?? snapshot?.user?.education_system ?? "unknown") as string;
+      const payloadSchoolYear = (payload?.school_year ?? snapshot?.user?.school_year ?? "") as string;
+      const existingTasks = (payload?.existing_tasks ?? payload?.tasks ?? []) as Array<{ title: string; status: string }>;
+      const isAustralian = payloadCountry.toLowerCase().includes("austral");
+      const localeNote = isAustralian
+        ? `LOCALE: User is in Australia (${payloadEdSystem}). Use Australian curriculum terms: VCE/HSC/WACE/QCE/SACE, not A-levels or GCSEs. Reference ATAR where relevant.`
+        : payloadCountry !== "unknown"
+          ? `LOCALE: User is in ${payloadCountry} (${payloadEdSystem}). Use local curriculum terminology.`
+          : "";
       return `${ctx}
 
-Current tasks: ${JSON.stringify(payload?.tasks ?? [])}
+Goal: ${goal || "(no goal set)"}
+User's country: ${payloadCountry}
+Education system: ${payloadEdSystem}
+School year / level: ${payloadSchoolYear || current_stage}
+Current stage: ${current_stage}. Target stage: ${target_stage}.
+Existing tasks (do NOT duplicate these): ${JSON.stringify(existingTasks)}
+
+${localeNote}
 
 STAGE ENFORCEMENT:
-The user is at stage: ${current_stage}.
-Target stage: ${target_stage}.${risk === "high" ? `\n⚠️ This user is NOT at the professional/advanced stage yet. You MUST NOT generate tasks involving: ${premature}.` : ""}
-Generate only tasks appropriate for their current stage.
-For each task, include why_now (one sentence: why this fits their current stage specifically) and user_stage_fit.
-Mark any task that is borderline premature as user_stage_fit: "premature" — the app will handle it appropriately.
-Propose up to 5 tasks. Prefer foundational, exploratory, and pathway-clarity tasks for school-age users.`;
+${risk === "high" ? `⚠️ This user is NOT at the professional/advanced stage yet. You MUST NOT generate tasks involving: ${premature}.` : "Only generate tasks appropriate for their current stage."}
+
+RULES:
+1. Every task MUST have why_now: one sentence explaining why this fits their CURRENT stage specifically — not generic motivation.
+2. Every task MUST have proof_of_completion: one concrete, observable deliverable. Be specific, not vague.
+   GOOD: "A written list of 5 science prerequisite subjects with grade requirements"
+   BAD: "Complete the task", "Understanding improved", "Research done"
+3. Do NOT suggest tasks the user already has (check existing_tasks list).
+4. Prefer foundational, exploratory, and pathway-clarity tasks for school-age users.
+5. For students, tasks should produce something tangible: a note, a list, a draft, a score, a question set.
+
+Propose up to 5 tasks. Quality over quantity.`;
+    }
 
     case "reflect_summary":
       return `${ctx}\n\nReflections: ${JSON.stringify(payload?.reflections ?? [])}\nName one true pattern (energy, friction, timing). One line of honest encouragement.`;

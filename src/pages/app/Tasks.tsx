@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, Plus, Sparkles, User as UserIcon, AlertCircle } from "lucide-react";
+import { Check, Plus, Sparkles, User as UserIcon, AlertCircle, Zap } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { FeedbackChips } from "@/components/app/FeedbackChips";
 import { AIInsight } from "@/components/app/AIInsight";
@@ -10,6 +10,37 @@ import type { Task } from "@/lib/types";
 
 type Filter = "all" | "pending" | "completed" | "missed";
 
+type SuggestedTask = {
+  title: string;
+  estimated_minutes: number;
+  category: string;
+  priority: string;
+  why_now?: string;
+  proof_of_completion?: string;
+  user_stage_fit?: string;
+};
+
+function normaliseTaskTitle(title: unknown): string {
+  if (typeof title === "string" && title.trim()) return title.trim();
+  if (title && typeof title === "object") {
+    const r = title as Record<string, unknown>;
+    for (const key of ["title", "name", "label"]) {
+      const v = r[key];
+      if (typeof v === "string" && v.trim()) return v.trim();
+    }
+  }
+  return "Untitled task";
+}
+
+function inferCategory(title: string): Task["category"] {
+  const t = title.toLowerCase();
+  if (/study|revise|review|read|learn|memoris|recall|flash/.test(t)) return "discovery";
+  if (/practice|drill|quiz|exercise|test yourself/.test(t)) return "goal_direct";
+  if (/write|essay|draft|report|document/.test(t)) return "goal_direct";
+  if (/map|plan|prereq|pathway|subject|confirm/.test(t)) return "bottleneck_removal";
+  return "goal_direct";
+}
+
 const Tasks = () => {
   const state = useStateStore((s) => s.state);
   const dispatch = useStateStore((s) => s.dispatch);
@@ -17,10 +48,14 @@ const Tasks = () => {
   const [composer, setComposer] = useState("");
   const [composerMins, setComposerMins] = useState(30);
   const [checkInTask, setCheckInTask] = useState<Task | null>(null);
-  const suggest = useAI<{ tasks: Array<{ title: string; estimated_minutes: number; category: string; priority: string; why?: string }> }>("suggest_tasks");
+  const suggest = useAI<{ tasks: SuggestedTask[] }>("suggest_tasks");
 
   const tasks = state?.tasks ?? [];
   const goalText = state?.active_goal?.statement ?? "";
+  const currentStage = state?.active_goal?.current_stage ?? "";
+  const educationSystem = state?.profile?.education_system ?? "";
+  const country = state?.profile?.country ?? "";
+  const schoolYear = state?.profile?.school_year ?? "";
 
   // Pending = not done & not skipped & not past due
   // Missed = past due_date and still pending
@@ -67,10 +102,10 @@ const Tasks = () => {
         description: "",
         status: "pending",
         priority: "medium",
-        goal_id: "primary",
+        goal_id: state?.active_goal?.id ?? "",
         domain_id: "",
         estimated_minutes: composerMins,
-        category: "goal_direct",
+        category: inferCategory(title),
         created_at: new Date().toISOString(),
         completed_at: "",
         due_date: "",
@@ -82,24 +117,25 @@ const Tasks = () => {
     setComposerMins(30);
   };
 
-  const addSuggested = (t: { title: string; estimated_minutes: number; category: string; priority: string; why?: string }) => {
+  const addSuggested = (t: SuggestedTask) => {
     dispatch({
       type: "task/add",
       payload: {
         id: crypto.randomUUID(),
-        title: t.title,
+        title: normaliseTaskTitle(t.title),
         description: "",
         status: "pending",
         priority: (t.priority as "high" | "medium" | "low") ?? "medium",
-        goal_id: "primary",
+        goal_id: state?.active_goal?.id ?? "",
         domain_id: "",
         estimated_minutes: t.estimated_minutes ?? 30,
-        category: (t.category as any) ?? "goal_direct",
+        category: (t.category as Task["category"]) ?? "goal_direct",
         created_at: new Date().toISOString(),
         completed_at: "",
         due_date: "",
         created_by: "ai",
-        why_now: t.why ?? "",
+        why_now: t.why_now ?? "",
+        proof_of_completion: t.proof_of_completion ?? "",
       } as Task,
     });
   };
@@ -125,7 +161,7 @@ const Tasks = () => {
         )}
       </div>
 
-      <GitHubBranchStatus />
+      {import.meta.env.DEV && <GitHubBranchStatus />}
 
       {/* Manual composer */}
       <div className="rounded-xl border border-border bg-card p-3">
@@ -191,7 +227,16 @@ const Tasks = () => {
         label="ai task suggestions"
         loading={suggest.loading}
         error={suggest.error}
-        onRun={() => suggest.run({ tasks: tasks.map((t) => ({ title: t.title, status: t.status })) })}
+        onRun={() =>
+          suggest.run({
+            goal: goalText,
+            current_stage: currentStage,
+            education_system: educationSystem,
+            country,
+            school_year: schoolYear,
+            existing_tasks: tasks.map((t) => ({ title: t.title, status: t.status })),
+          })
+        }
         cta={suggest.result ? "Refresh" : "Suggest"}
       >
         {suggest.result?.tasks?.length ? (
@@ -199,8 +244,14 @@ const Tasks = () => {
             {suggest.result.tasks.map((t, i) => (
               <li key={i} className="flex items-start gap-2 rounded-lg border border-border bg-card p-2.5">
                 <div className="flex-1">
-                  <div className="text-sm font-medium">{t.title}</div>
-                  {t.why && <div className="text-xs text-muted-foreground">{t.why}</div>}
+                  <div className="text-sm font-medium">{normaliseTaskTitle(t.title)}</div>
+                  {t.why_now && <div className="mt-0.5 text-xs text-muted-foreground">{t.why_now}</div>}
+                  {t.proof_of_completion && (
+                    <div className="mt-1 flex items-center gap-1 text-[10px] text-emerald-500/80">
+                      <Zap className="h-2.5 w-2.5" />
+                      {t.proof_of_completion}
+                    </div>
+                  )}
                   <div className="mt-1 flex gap-1.5 text-[10px] text-muted-foreground">
                     <span>{t.estimated_minutes}m</span>·<span>{t.priority}</span>·<span>{t.category}</span>
                   </div>
@@ -223,6 +274,7 @@ const Tasks = () => {
           const done = t.status === "done";
           const isMissed = !done && t.due_date && t.due_date < today;
           const byUser = (t.created_by ?? "user") === "user";
+          const byForge = !!(t as Task & { forge_feature_id?: string }).forge_feature_id;
           return (
             <li key={t.id} className="px-4 py-3">
               <div className="flex items-center gap-3">
@@ -248,10 +300,10 @@ const Tasks = () => {
                 </div>
                 <span
                   className="inline-flex items-center gap-1 rounded-full border border-border bg-background/40 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-muted-foreground"
-                  title={byUser ? "Added by you" : "Added by AI"}
+                  title={byUser ? "Added by you" : byForge ? "Generated by Forge" : "Added by AI"}
                 >
-                  {byUser ? <UserIcon className="h-2.5 w-2.5" /> : <Sparkles className="h-2.5 w-2.5" />}
-                  {byUser ? "you" : "ai"}
+                  {byUser ? <UserIcon className="h-2.5 w-2.5" /> : byForge ? <Zap className="h-2.5 w-2.5" /> : <Sparkles className="h-2.5 w-2.5" />}
+                  {byUser ? "you" : byForge ? "forge" : "ai"}
                 </span>
                 <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
                   {t.estimated_minutes}m
@@ -261,11 +313,43 @@ const Tasks = () => {
               {t.why_now && !done && (
                 <p className="mt-1 pl-8 text-[11px] text-muted-foreground">{t.why_now}</p>
               )}
+              {t.proof_of_completion && !done && (
+                <p className="mt-0.5 pl-8 flex items-center gap-1 text-[10px] text-emerald-500/70">
+                  <Zap className="h-2.5 w-2.5 shrink-0" />
+                  {t.proof_of_completion}
+                </p>
+              )}
             </li>
           );
         })}
         {visible.length === 0 && (
-          <li className="px-4 py-8 text-center text-sm text-muted-foreground">All clear here.</li>
+          <li className="px-4 py-8 text-center">
+            {goalText ? (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">No next proof queued.</p>
+                <button
+                  onClick={() =>
+                    suggest.run({
+                      goal: goalText,
+                      current_stage: currentStage,
+                      education_system: educationSystem,
+                      country,
+                      school_year: schoolYear,
+                      existing_tasks: tasks.map((t) => ({ title: t.title, status: t.status })),
+                    })
+                  }
+                  className="rounded-md border border-primary/40 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10"
+                >
+                  Generate next proof
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">No goal set yet.</p>
+                <p className="text-xs text-muted-foreground">Set your goal in Chat to start generating tasks.</p>
+              </div>
+            )}
+          </li>
         )}
       </ul>
 
