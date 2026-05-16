@@ -1,6 +1,7 @@
 import { NavLink, Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { Home, Calendar, Target, ArrowLeft, MessageSquare, Heart, LifeBuoy, ListChecks, Hammer, BarChart3 } from "lucide-react";
+import { Home, Calendar, Target, ArrowLeft, MessageSquare, Heart, LifeBuoy, ListChecks, Hammer, BarChart3, Sun, Moon } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
+import { useTheme } from "@/hooks/use-theme";
 
 type SubTab = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; end?: boolean };
 
