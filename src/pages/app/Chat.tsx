@@ -243,11 +243,16 @@ const Chat = () => {
           : {}),
         fixed_commitments_checked:
           state.constraints.fixed_commitments_checked ||
-          newCommitments.length > 0,
+          newCommitments.length > 0 ||
+          constraintsUpdate.fixed_commitments_checked === true,
         missing_fields: SCHEDULE_FIELDS.filter((f) => {
           const next: any = { ...state.constraints, ...constraintsUpdate };
           if (f.key === "fixed_commitments") {
-            return (next.fixed_commitments?.length ?? 0) === 0 && newCommitments.length === 0;
+            const checked =
+              state.constraints.fixed_commitments_checked ||
+              newCommitments.length > 0 ||
+              constraintsUpdate.fixed_commitments_checked === true;
+            return !checked && (next.fixed_commitments?.length ?? 0) === 0;
           }
           return !next[f.key];
         }).map((f) => f.key),
@@ -319,7 +324,12 @@ const Chat = () => {
       // doesn't repeat the field the user just answered (snapshot is stale at this point).
       const justPatched = new Set<string>(
         patches.flatMap((p) => {
-          if (p.tool === "update_constraints") return Object.keys(p.args);
+          if (p.tool === "update_constraints") {
+            const keys = Object.keys(p.args);
+            // If fixed_commitments_checked was patched, treat fixed_commitments as answered too
+            if (p.args.fixed_commitments_checked === true) keys.push("fixed_commitments");
+            return keys;
+          }
           if (p.tool === "add_fixed_commitment") return ["fixed_commitments"];
           return [];
         }),

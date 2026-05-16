@@ -15,7 +15,7 @@ const TOOLS = [
     function: {
       name: "update_constraints",
       description:
-        "Save schedule info the user has just shared. ONLY include fields they explicitly answered in this message. Never include a field that is already in constraints_known.",
+        "Save schedule info the user has just shared. ONLY include fields they explicitly answered in this message. Never include a field that is already in constraints_known. IMPORTANT: if the user says they have NO fixed commitments (none, no, nothing, not really), set fixed_commitments_checked: true so the app never asks again.",
       parameters: {
         type: "object",
         properties: {
@@ -29,6 +29,10 @@ const TOOLS = [
           energy_pattern: {
             type: "string",
             enum: ["morning", "afternoon", "night", "variable", "unknown"],
+          },
+          fixed_commitments_checked: {
+            type: "boolean",
+            description: "Set to true when the user confirms they have NO fixed commitments (none, no, nothing, etc.). This marks fixed_commitments as answered so it is never asked again.",
           },
         },
         additionalProperties: false,
@@ -411,14 +415,17 @@ ${modules}
 RULES — NON-NEGOTIABLE
 1. NEVER ask for anything listed under "KNOWN ABOUT THIS USER". Asking again destroys trust.
 2. NEVER ask for onboarding fields that appear in "Onboarding knowns". These are already answered.
-3. If information is truly missing (appears under "WHAT MOMENT STILL DOESN'T KNOW"), ask ONE question naturally — never a checklist.
-4. When the user shares a schedule fact, call update_constraints immediately. Do not announce the save. Ask the next missing field in the same reply.
-5. If the user mentions a recurring commitment, call add_fixed_commitment.
-6. If the user states or refines their goal, call set_goal.
-7. Reference what you can SEE — their next move, recent feedback, last rescue, plan — when relevant.
-8. Reply MUST be 1–2 sentences, under ~40 words. ALWAYS produce a non-empty reply even when calling tools.
-9. If the user is venting or stuck, acknowledge first. The feedback signals tell you when to soften.
-10. Never produce generic productivity advice. Every statement must connect to THIS goal and THIS user's actual situation. Never repeat the user's words back to them.`;
+3. If information is truly missing, ask ONE question per reply — not two, not three. Pick the HIGHEST priority missing field and ask only that.
+4. Priority order for missing schedule fields: school_end_time → commute_minutes → study_minutes_daily → exercise_minutes_daily → fixed_commitments → energy_pattern. Skip any that are already in constraints_known.
+5. When the user shares a schedule fact, call update_constraints immediately. Do not announce the save. Ask the next missing field in the same reply.
+6. FIXED COMMITMENTS RULE: If the user says "none", "no", "nothing", "not really", "I don't have any", "no fixed commitments" — call update_constraints with {fixed_commitments_checked: true} and move on. NEVER ask for fixed_commitments again after this.
+7. If the user mentions a recurring commitment (sport, tutoring, music, job, club), call add_fixed_commitment.
+8. If the user states or refines their goal, call set_goal.
+9. Reference what you can SEE — their next move, recent feedback, last rescue, plan — when relevant.
+10. Reply MUST be 1–2 sentences, under ~40 words. ALWAYS produce a non-empty reply even when calling tools.
+11. If the user is venting or stuck, acknowledge first. The feedback signals tell you when to soften.
+12. Never produce generic productivity advice. Every statement must connect to THIS goal and THIS user's actual situation. Never repeat the user's words back to them.
+13. If the user says "I already told you", "I already said that", "you already asked", or similar — apologise briefly, infer the answer from recent_chat if possible, save it, and move to the next field. Never defend yourself or ask the same question again.`;
 }
 
 Deno.serve(async (req) => {
@@ -509,17 +516,23 @@ Deno.serve(async (req) => {
           ? (snap.constraints_known as Record<string, unknown>).fixed_commitments
           : 0
       ) as number;
+      let patchedCommitmentsChecked = !!(snap.constraints_known as Record<string, unknown>)?.fixed_commitments_checked;
       for (const p of patches) {
         if (p.tool === "update_constraints") {
           for (const [k, v] of Object.entries(p.args)) patchedKnown[k] = v;
+          if (p.args.fixed_commitments_checked === true) patchedCommitmentsChecked = true;
         } else if (p.tool === "add_fixed_commitment") {
           patchedCommitmentCount += 1;
           patchedKnown.fixed_commitments = patchedCommitmentCount;
+          patchedCommitmentsChecked = true; // at least one commitment was recorded
         }
       }
       const stillMissing = (snap.missing_schedule_info ?? []).filter((f) => {
         const v = patchedKnown[f];
-        if (f === "fixed_commitments") return patchedCommitmentCount === 0;
+        if (f === "fixed_commitments") {
+          // answered if user confirmed "none" OR recorded at least one commitment
+          return !patchedCommitmentsChecked && patchedCommitmentCount === 0;
+        }
         return v === undefined || v === null || v === "" || v === 0;
       });
       if (stillMissing.length) {

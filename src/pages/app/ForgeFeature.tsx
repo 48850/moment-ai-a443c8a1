@@ -713,26 +713,57 @@ function FeatureSection({
 
 // ─── Generic feature guard ────────────────────────────────────────────────────
 
-function GenericGuardBanner({ onUseAnyway }: { onUseAnyway: () => void }) {
+function GenericGuardBanner({
+  onUseAnyway,
+  guidebookTitle,
+  guidebookDescription,
+}: {
+  onUseAnyway: () => void;
+  guidebookTitle: string;
+  guidebookDescription?: string;
+}) {
   return (
-    <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-5 space-y-3">
-      <div className="flex items-center gap-2 text-sm font-medium text-amber-600">
-        <AlertTriangle className="h-4 w-4" />
-        This tool is too generic to be useful
+    <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-6 space-y-4">
+      <div className="flex items-start gap-3">
+        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
+        <div className="space-y-1">
+          <div className="text-sm font-semibold text-amber-300">This Forge tool is too generic.</div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Moment tried to build <strong>"{guidebookTitle}"</strong> but the result did not contain enough
+            goal-specific structure. It has no distinct modes, no goal-linked inputs, and no real state
+            connections — so it cannot do anything a generic AI chat can't already do.
+          </p>
+        </div>
       </div>
-      <p className="text-xs text-muted-foreground">
-        This feature was generated without enough goal context. Regenerate it with a more specific description to get a real mini-app built around your actual pathway.
-      </p>
+
+      <div className="rounded-xl border border-border bg-background/50 p-3 space-y-1">
+        <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono">
+          what a real Forge tool needs
+        </div>
+        <ul className="space-y-0.5 text-[11px] text-muted-foreground">
+          <li>• A specific title (not "Custom Feature" or "Analyser")</li>
+          <li>• At least 2 goal-specific inputs</li>
+          <li>• At least 2 distinct AI modes (e.g. "Quiz me", "Find gaps", "Create next task")</li>
+          <li>• At least 1 state write (save signal or create task)</li>
+        </ul>
+      </div>
+
       <div className="flex flex-wrap gap-2">
         <Link
-          to="/app/forge"
-          className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-600 hover:bg-amber-500/20"
+          to={`/app/forge?rebuild=${encodeURIComponent(guidebookDescription || guidebookTitle)}`}
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
         >
-          <RefreshCw className="h-3 w-3" /> Regenerate with better prompt
+          <RefreshCw className="h-3 w-3" /> Regenerate from goal context
+        </Link>
+        <Link
+          to="/app/forge"
+          className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+        >
+          Edit tool request
         </Link>
         <button
           onClick={onUseAnyway}
-          className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+          className="rounded-md border border-border px-3 py-1.5 text-[11px] text-muted-foreground/60 hover:text-muted-foreground"
         >
           Use generic analyser anyway
         </button>
@@ -1235,13 +1266,17 @@ export default function ForgeFeature() {
           {/* Current target */}
           {state && <CurrentTargetCard state={state} guidebook={guidebook} />}
 
-          {/* Generic guard */}
+          {/* Generic guard — replaces all run content when generic */}
           {isGeneric && !useGenericAnyway && (
-            <GenericGuardBanner onUseAnyway={() => setUseGenericAnyway(true)} />
+            <GenericGuardBanner
+              onUseAnyway={() => setUseGenericAnyway(true)}
+              guidebookTitle={guidebook.title}
+              guidebookDescription={guidebook.purpose || guidebook.subtitle || undefined}
+            />
           )}
 
-          {/* Inputs — flat, always visible */}
-          {guidebook.required_inputs.length > 0 && (
+          {/* Inputs — only shown for real (non-generic) tools */}
+          {(!isGeneric || useGenericAnyway) && guidebook.required_inputs.length > 0 && (
             <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
               <h3 className="text-sm font-medium text-foreground">Inputs</h3>
               {guidebook.required_inputs.map((inp) => (
