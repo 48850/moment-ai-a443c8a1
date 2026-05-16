@@ -70,6 +70,13 @@ export const AppShell = () => {
         </Link>
         <div className="flex items-center gap-3">
           <button
+            onClick={toggleTheme}
+            aria-label="Toggle theme"
+            title={theme === "dark" ? "Switch to light" : "Switch to dark"}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+          </button>
             onClick={() => {
               if (!confirm("Reset onboarding? This wipes local state.")) return;
               reset();
