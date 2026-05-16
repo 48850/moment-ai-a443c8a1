@@ -293,13 +293,6 @@ export const chatPreferencesSchema = z.object({
   tone: z.enum(["default", "gentler", "more_direct"]).default("default"),
 });
 
-export const chatMessageSchema = z.object({
-  id: z.string(),
-  role: z.enum(["user", "assistant", "system"]),
-  content: z.string(),
-  created_at: z.string(),
-});
-
 export const chatStateSchema = z.object({
   post_onboarding_specialisation_required: z.boolean().default(false),
   specialisation_phase: z.enum([
@@ -482,5 +475,4 @@ export const momentStateSchema = z.object({
     last_updated: "",
     understanding: { knowns: [], unknowns: [], assumptions: [], confidence: "low" },
   }),
-  chat_messages: z.array(chatMessageSchema).default([]),
 });
