@@ -222,7 +222,6 @@ export default function Onboarding() {
       assumptions.push("User is in secondary/high school");
     }
     if (feasibility) {
-      assumptions.push(...(feasibility.assumptions ?? []));
       if (feasibility.target_stage) {
         assumptions.push(`Target stage: ${feasibility.target_stage}`);
       }
