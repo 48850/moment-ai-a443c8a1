@@ -104,11 +104,11 @@ export function buildContextPacket(s: MomentState | null): MomentContextPacket |
       timezone: s.profile.timezone,
       commitments: s.profile.commitments ?? [],
       normal_weekday: s.profile.normal_weekday,
-      preferences: s.profile.preferences ?? {
-        tone: "calm",
-        strictness: "soft",
-        schedule_style: "flexible",
-        support_style: "coach",
+      preferences: {
+        tone: s.profile.preferences?.tone ?? "calm",
+        strictness: s.profile.preferences?.strictness ?? "soft",
+        schedule_style: s.profile.preferences?.schedule_style ?? "flexible",
+        support_style: s.profile.preferences?.support_style ?? "coach",
       },
     },
     active_goal: {
