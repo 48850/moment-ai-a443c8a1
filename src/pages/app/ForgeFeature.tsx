@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import {
   ArrowLeft, Zap, CheckCircle2, Clock, Target, Loader2, ChevronDown, ChevronRight,
   Plus, RotateCcw, BookOpen, AlertTriangle, Sparkles, Send, BarChart2,
-  ClipboardList, ListChecks, Activity, Brain,
+  ClipboardList, ListChecks, Activity, Brain, RefreshCw,
 } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { getGuidebookById, getFeatureRunsForGuidebook, getSignalsForGuidebook } from "@/lib/selectors/forge";
@@ -711,6 +711,255 @@ function FeatureSection({
   );
 }
 
+// ─── Generic feature guard ────────────────────────────────────────────────────
+
+function GenericGuardBanner({ onUseAnyway }: { onUseAnyway: () => void }) {
+  return (
+    <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-5 space-y-3">
+      <div className="flex items-center gap-2 text-sm font-medium text-amber-600">
+        <AlertTriangle className="h-4 w-4" />
+        This tool is too generic to be useful
+      </div>
+      <p className="text-xs text-muted-foreground">
+        This feature was generated without enough goal context. Regenerate it with a more specific description to get a real mini-app built around your actual pathway.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Link
+          to="/app/forge"
+          className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-600 hover:bg-amber-500/20"
+        >
+          <RefreshCw className="h-3 w-3" /> Regenerate with better prompt
+        </Link>
+        <button
+          onClick={onUseAnyway}
+          className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+        >
+          Use generic analyser anyway
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Build pending state writes from AI output ────────────────────────────────
+
+function buildPendingWrites(
+  fn: GuidebookAIFunction,
+  result: Record<string, unknown>,
+  featureId: string,
+): PendingStateWrite[] {
+  if (!fn.writes_to_state) return [];
+  const writes: PendingStateWrite[] = [];
+  const actions = fn.allowed_state_actions ?? [];
+  if (actions.includes("task/create") && result.next_action) {
+    writes.push({
+      action: "Add to Today",
+      label: String(result.next_action),
+      data: {
+        type: "task",
+        title: String(result.next_action),
+        why_now: result.why_now,
+        proof_of_completion: result.proof_of_completion,
+        estimated_minutes: result.estimated_minutes,
+        feature_id: featureId,
+      },
+    });
+  }
+  if (actions.includes("task/create") && Array.isArray(result.today_tasks)) {
+    for (const t of result.today_tasks) {
+      writes.push({
+        action: "Add to Today",
+        label: String(t),
+        data: { type: "task", title: String(t), feature_id: featureId },
+      });
+    }
+  }
+  if (actions.includes("forge/log_signal") && result.proof_score != null) {
+    writes.push({
+      action: "Log signal",
+      label: `Proof score: ${result.proof_score}`,
+      data: { type: "signal", key: "proof_score", value: String(result.proof_score), feature_id: featureId },
+    });
+  }
+  if (actions.includes("forge/log_signal") && result.total_score != null) {
+    writes.push({
+      action: "Log signal",
+      label: `Score: ${result.total_score}/10`,
+      data: { type: "signal", key: "total_score", value: String(result.total_score), feature_id: featureId },
+    });
+  }
+  return writes;
+}
+
+// ─── Mode card ────────────────────────────────────────────────────────────────
+
+function ModeCard({
+  fn,
+  inputs,
+  featureId,
+  featureTitle,
+  guidebook,
+  onRunComplete,
+  isLastRun,
+}: {
+  fn: GuidebookAIFunction;
+  inputs: Record<string, string>;
+  featureId: string;
+  featureTitle: string;
+  guidebook: ForgeGuidebook;
+  onRunComplete: (result: Record<string, unknown>, fnId: string, fnType: string, writes: PendingStateWrite[]) => void;
+  isLastRun: boolean;
+}) {
+  const ai = useAI<Record<string, unknown>>("forge_feature_ai");
+
+  const missingRequired = guidebook.required_inputs
+    .filter((i) => i.required)
+    .some((i) => !inputs[i.id]?.trim());
+
+  const run = async () => {
+    const result = await ai.run({
+      function_type: fn.function_type,
+      prompt_contract: fn.prompt_contract,
+      input_sources: fn.input_sources,
+      inputs,
+      output_schema: (fn as any).output_schema,
+      feature_title: featureTitle,
+    });
+    if (result) {
+      onRunComplete(result, fn.id, fn.function_type, buildPendingWrites(fn, result, featureId));
+    }
+  };
+
+  return (
+    <div className={`flex flex-col rounded-xl border p-4 gap-2 transition-colors ${
+      isLastRun ? "border-primary/40 bg-primary/5" : "border-border bg-card hover:border-primary/30"
+    }`}>
+      <div className="flex items-center gap-2">
+        <Zap className="h-3.5 w-3.5 text-primary shrink-0" />
+        <span className="text-sm font-medium">{fn.name}</span>
+        {isLastRun && (
+          <span className="ml-auto rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
+            last run
+          </span>
+        )}
+      </div>
+      {fn.description && (
+        <p className="text-xs text-muted-foreground line-clamp-2">{fn.description}</p>
+      )}
+      {ai.error && <p className="text-xs text-destructive">{ai.error}</p>}
+      {missingRequired && !ai.loading && (
+        <p className="text-[11px] text-amber-600">Fill in required inputs first.</p>
+      )}
+      <button
+        onClick={run}
+        disabled={ai.loading || missingRequired}
+        className={`mt-auto inline-flex items-center justify-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 ${
+          missingRequired
+            ? "border-border text-muted-foreground"
+            : "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
+        }`}
+      >
+        {ai.loading ? (
+          <><Loader2 className="h-3 w-3 animate-spin" /> Running…</>
+        ) : (
+          <><Send className="h-3 w-3" /> {fn.name}</>
+        )}
+      </button>
+    </div>
+  );
+}
+
+// ─── Output workspace ─────────────────────────────────────────────────────────
+
+function OutputWorkspace({
+  fn,
+  output,
+  featureId,
+  guidebook,
+}: {
+  fn: GuidebookAIFunction;
+  output: Record<string, unknown>;
+  featureId: string;
+  guidebook: ForgeGuidebook;
+}) {
+  const state = useStateStore((s) => s.state);
+  const dispatch = useStateStore((s) => s.dispatch);
+  const [taskCreated, setTaskCreated] = useState(false);
+  const [signalSaved, setSignalSaved] = useState(false);
+
+  const createTask = () => {
+    const rawTitle = output.next_action ?? output.task_title ?? output.first_move ?? output.next_step;
+    const title = rawTitle ? String(rawTitle).trim() : `${fn.name} — next step`;
+    const task: Task = {
+      id: crypto.randomUUID(),
+      title: title || "Forge task",
+      description: `From ${guidebook.title} — ${fn.name}`,
+      status: "pending",
+      priority: "medium",
+      goal_id: state?.active_goal?.id ?? "",
+      domain_id: "",
+      estimated_minutes: (output.estimated_minutes as number) ?? 20,
+      category: "goal_direct" as const,
+      created_at: new Date().toISOString(),
+      completed_at: "",
+      due_date: "",
+      created_by: "ai",
+      why_now: String(output.why_now ?? `Generated from ${guidebook.title} — ${fn.name}`),
+      proof_of_completion: String(output.proof_of_completion ?? output.proof ?? ""),
+      forge_feature_id: guidebook.id,
+      workstream_id: state?.pursuit_model?.workstreams?.[0]?.id,
+    };
+    dispatch({ type: "task/add", payload: task });
+    setTaskCreated(true);
+    setTimeout(() => setTaskCreated(false), 3000);
+  };
+
+  const saveSignal = () => {
+    const value = String(
+      output.summary ?? output.pathway ?? output.gaps ?? output.analysis ??
+      output.result ?? JSON.stringify(output).slice(0, 300)
+    );
+    dispatch({
+      type: "forge/log_signal",
+      payload: {
+        id: crypto.randomUUID(),
+        feature_id: featureId,
+        feature_title: guidebook.title,
+        signal_key: fn.function_type,
+        value,
+        created_at: new Date().toISOString(),
+      },
+    });
+    setSignalSaved(true);
+    setTimeout(() => setSignalSaved(false), 3000);
+  };
+
+  return (
+    <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 space-y-4">
+      <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.15em] text-primary">
+        <Sparkles className="h-3.5 w-3.5" /> Result · {fn.name}
+      </div>
+      <AIOutputDisplay output={output} />
+      <div className="flex flex-wrap gap-2 border-t border-primary/15 pt-3">
+        <button
+          onClick={saveSignal}
+          disabled={signalSaved}
+          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-60"
+        >
+          {signalSaved ? "Signal saved ✓" : "Save as Forge signal"}
+        </button>
+        <button
+          onClick={createTask}
+          disabled={taskCreated}
+          className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 disabled:opacity-60"
+        >
+          {taskCreated ? "Task created ✓" : "Create task from this"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Feature Page ────────────────────────────────────────────────────────
 
 export default function ForgeFeature() {
@@ -726,6 +975,8 @@ export default function ForgeFeature() {
   const [latestOutputs, setLatestOutputs] = useState<Record<string, Record<string, unknown>>>({});
   const [pendingWrites, setPendingWrites] = useState<PendingStateWrite[]>([]);
   const [activeTab, setActiveTab] = useState<"run" | "history">("run");
+  const [lastRunFnId, setLastRunFnId] = useState<string | null>(null);
+  const [useGenericAnyway, setUseGenericAnyway] = useState(false);
 
   const handleInputChange = useCallback((id: string, val: string) => {
     setInputs((prev) => ({ ...prev, [id]: val }));
@@ -735,6 +986,7 @@ export default function ForgeFeature() {
     (result: Record<string, unknown>, fnId: string, fnType: string, writes: PendingStateWrite[]) => {
       setLatestOutputs((prev) => ({ ...prev, [fnId]: result }));
       setPendingWrites((prev) => [...prev, ...writes]);
+      setLastRunFnId(fnId);
 
       const run: FeatureRunResult = {
         id: crypto.randomUUID(),
@@ -869,6 +1121,15 @@ export default function ForgeFeature() {
     return latestOutputs[sectionFnId] ?? null;
   };
 
+  const GENERIC_TITLES = ["custom feature", "analyser", "analyzer", "ai analysis", "this feature", "feature"];
+  const isGeneric =
+    GENERIC_TITLES.includes(guidebook.title.toLowerCase().trim()) ||
+    (guidebook.ai_functions.length === 1 &&
+      guidebook.ai_functions[0].name.toLowerCase().includes("analys"));
+
+  const lastRunFn = guidebook.ai_functions.find((f) => f.id === lastRunFnId) ?? null;
+  const lastRunOutput = lastRunFnId ? (latestOutputs[lastRunFnId] ?? null) : null;
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       {/* Back nav */}
@@ -974,50 +1235,89 @@ export default function ForgeFeature() {
           {/* Current target */}
           {state && <CurrentTargetCard state={state} guidebook={guidebook} />}
 
-          {/* Pending state write approvals */}
+          {/* Generic guard */}
+          {isGeneric && !useGenericAnyway && (
+            <GenericGuardBanner onUseAnyway={() => setUseGenericAnyway(true)} />
+          )}
+
+          {/* Inputs — flat, always visible */}
+          {guidebook.required_inputs.length > 0 && (
+            <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
+              <h3 className="text-sm font-medium text-foreground">Inputs</h3>
+              {guidebook.required_inputs.map((inp) => (
+                <div key={inp.id}>
+                  <div className="mb-1.5 flex items-center gap-1 text-xs font-medium text-foreground">
+                    {inp.label}
+                    {inp.required && <span className="text-destructive">*</span>}
+                  </div>
+                  <InputField
+                    input={inp}
+                    value={inputs[inp.id] ?? ""}
+                    onChange={(v) => handleInputChange(inp.id, v)}
+                  />
+                </div>
+              ))}
+            </section>
+          )}
+
+          {/* Mode picker — shown when not generic (or user chose to proceed anyway) */}
+          {(!isGeneric || useGenericAnyway) && guidebook.ai_functions.length > 0 && (
+            <section>
+              <div className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground">
+                {guidebook.ai_functions.length > 1 ? "Choose a mode" : "Run"}
+              </div>
+              <div className={`grid gap-3 ${guidebook.ai_functions.length > 1 ? "sm:grid-cols-2" : ""}`}>
+                {guidebook.ai_functions.map((fn) => (
+                  <ModeCard
+                    key={fn.id}
+                    fn={fn}
+                    inputs={inputs}
+                    featureId={guidebook.id}
+                    featureTitle={guidebook.title}
+                    guidebook={guidebook}
+                    onRunComplete={handleRunComplete}
+                    isLastRun={fn.id === lastRunFnId}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Output workspace — appears after first run */}
+          {lastRunFn && lastRunOutput && (
+            <OutputWorkspace
+              key={lastRunFnId}
+              fn={lastRunFn}
+              output={lastRunOutput}
+              featureId={guidebook.id}
+              guidebook={guidebook}
+            />
+          )}
+
+          {/* Pending state write approvals (auto-detected writes from AI functions) */}
           <StateWritePanel
             pending={pendingWrites}
             onApprove={handleApproveWrite}
             onDismiss={handleDismissWrite}
           />
 
-          {/* Sections */}
-          {guidebook.sections.map((section) => (
-            <FeatureSection
-              key={section.id}
-              section={section}
-              guidebook={guidebook}
-              inputs={inputs}
-              onInputChange={handleInputChange}
-              latestOutput={latestOutputForSection(section.linked_ai_function_id)}
-              runs={runs}
-              featureId={guidebook.id}
-              featureTitle={guidebook.title}
-              onRunComplete={handleRunComplete}
-            />
-          ))}
-
-          {/* Standalone AI functions not linked to sections */}
-          {guidebook.ai_functions.filter(
-            (fn) => !guidebook.sections.some((s) => s.linked_ai_function_id === fn.id)
-          ).map((fn) => (
-            <div key={fn.id}>
-              <AIFunctionPanel
-                fn={fn}
+          {/* Non-AI sections: reflection boxes, protocol steps, saved entries */}
+          {guidebook.sections
+            .filter((s) => !["input_panel", "ai_output"].includes(s.section_type))
+            .map((section) => (
+              <FeatureSection
+                key={section.id}
+                section={section}
+                guidebook={guidebook}
                 inputs={inputs}
+                onInputChange={handleInputChange}
+                latestOutput={latestOutputForSection(section.linked_ai_function_id)}
+                runs={runs}
                 featureId={guidebook.id}
                 featureTitle={guidebook.title}
-                guidebook={guidebook}
                 onRunComplete={handleRunComplete}
               />
-              {latestOutputs[fn.id] && (
-                <div className="mt-2 rounded-xl border border-border bg-card p-4">
-                  <div className="mb-2 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Result</div>
-                  <AIOutputDisplay output={latestOutputs[fn.id]} />
-                </div>
-              )}
-            </div>
-          ))}
+            ))}
 
           {/* Safety rules */}
           {guidebook.safety_rules.length > 0 && (
