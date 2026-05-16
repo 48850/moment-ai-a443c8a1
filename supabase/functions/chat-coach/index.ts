@@ -316,12 +316,31 @@ function systemPrompt(snap: ChatSnapshot): string {
     : "(none)";
   const completedCount = snap.completed_tasks_count ?? 0;
 
+  // Tone: explicit preference wins; learned chat_style is the fallback signal
+  const learnedChatStyle = snap.learning_profile?.chat_style;
   const toneLine =
-    snap.tone_preference === "gentler"
-      ? "Tone: extra gentle. The user has asked for less pressure. Soften edges, never push."
-      : snap.tone_preference === "more_direct"
-      ? "Tone: be more direct. The user wants sharper, less hedged answers."
+    snap.tone_preference === "gentler" || learnedChatStyle === "gentle"
+      ? "Tone: extra gentle. Soften edges, never push, no time pressure."
+      : snap.tone_preference === "more_direct" || learnedChatStyle === "direct"
+      ? "Tone: be direct. Concrete suggestions, fewer questions, no hedging."
       : "Tone: warm but unsentimental. Sound like a thoughtful older friend.";
+
+  // Per-friction behavioral instructions derived from the learned profile
+  const frictionTags = new Set((snap.learning_profile?.friction_tags ?? []).map((f) => f.tag));
+  const frictionInstructions: string[] = [];
+  if (frictionTags.has("too_big"))
+    frictionInstructions.push("- Tasks often feel too big: always suggest the smallest possible first move, never a long block upfront.");
+  if (frictionTags.has("too_vague"))
+    frictionInstructions.push("- Tasks often feel vague: ask for or propose ONE concrete first action, never leave the next step open.");
+  if (frictionTags.has("tired") || frictionTags.has("overwhelmed"))
+    frictionInstructions.push("- User often feels tired or overwhelmed: open with a 5-min warm-up suggestion before anything demanding.");
+  if (frictionTags.has("not_relevant"))
+    frictionInstructions.push("- Some tasks feel irrelevant: always connect tasks to their specific goal and current stage.");
+  if (frictionTags.has("dont_understand"))
+    frictionInstructions.push("- Complexity causes friction: break any explanation into the smallest possible step.");
+  const frictionBlock = frictionInstructions.length
+    ? `\nLEARNED FRICTION PATTERNS — apply these in every reply:\n${frictionInstructions.join("\n")}`
+    : "";
 
   return `You are Moment — a calm, sharp coach for an ambitious person named ${name}. Talk like a thoughtful older friend, never like a productivity app. ${toneLine}
 
@@ -372,12 +391,11 @@ LATEST REFLECTION: ${refl}
 ACTIVE FORGE MODULES:
 ${modules}
 
-${snap.learning_profile && (snap.learning_profile.signal_count ?? 0) > 0 ? `WHAT MOMENT HAS LEARNED ABOUT THIS USER (${snap.learning_profile.signal_count} behavioural signals — use this to personalise every response):
+${snap.learning_profile && (snap.learning_profile.signal_count ?? 0) > 0 ? `WHAT MOMENT HAS LEARNED ABOUT THIS USER (${snap.learning_profile.signal_count} behavioural signals):
 - Preferred task size: ${snap.learning_profile.preferred_task_size ?? "unknown"}
 - Plan style: ${snap.learning_profile.plan_style ?? "unknown"} · Chat style: ${snap.learning_profile.chat_style ?? "unknown"}
-- Friction patterns: ${snap.learning_profile.friction_tags?.slice(0, 3).map((f) => f.tag).join(", ") || "none yet"}
-- Active adaptation rules: ${snap.learning_profile.adaptation_rules?.slice(0, 3).map((r) => r.rule).join(" | ") || "none yet"}${snap.learning_profile.current_bottleneck ? `\n- Current bottleneck: ${snap.learning_profile.current_bottleneck.claim}` : ""}
-` : ""}
+- Adaptation rules (apply these): ${snap.learning_profile.adaptation_rules?.slice(0, 3).map((r) => r.rule).join(" | ") || "none yet"}${snap.learning_profile.current_bottleneck ? `\n- Current bottleneck: ${snap.learning_profile.current_bottleneck.claim}` : ""}
+` : ""}${frictionBlock}
 RULES — NON-NEGOTIABLE
 1. NEVER ask for anything listed under "KNOWN ABOUT THIS USER". Asking again destroys trust.
 2. NEVER ask for onboarding fields that appear in "Onboarding knowns". These are already answered.

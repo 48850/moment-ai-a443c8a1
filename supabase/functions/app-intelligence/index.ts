@@ -384,21 +384,37 @@ Propose up to 5 tasks. Prefer foundational, exploratory, and pathway-clarity tas
       const completedTasks = (payload?.completed_tasks ?? []) as Array<{ title: string; feedback?: string }>;
       const feedbackBreakdown = payload?.feedback_breakdown ?? {};
       const reformNote = payload?.reform_note ?? "";
-      return `${ctx}
+      const lp = payload?.learning_profile as { preferred_task_size?: string; plan_style?: string; friction_tags?: string[]; adaptation_rules?: string[] } | null ?? null;
+      const profileBlock = lp
+        ? `\nLearned user profile (derived from past behaviour):
+- Preferred task size: ${lp.preferred_task_size ?? "unknown"}
+- Plan style: ${lp.plan_style ?? "unknown"}
+- Friction patterns: ${(lp.friction_tags ?? []).join(", ") || "none"}
+- Active adaptation rules: ${(lp.adaptation_rules ?? []).join(" | ") || "none"}
+Use this to personalise the reform — e.g. if preferred_task_size is "micro" or "short", suggest blocks ≤25 min; if plan_style is "starter_first", open with a 5-min warm-up.`
+        : "";
+      return `${ctx}${profileBlock}
 
 The user wants to adjust their day plan. Their note: "${reformNote}"
 
 Recent completed tasks: ${completedTasks.length ? completedTasks.map((t) => `"${t.title}"${t.feedback ? ` (feedback: ${t.feedback})` : ""}`).join(", ") : "none"}
 Feedback breakdown: ${Object.keys(feedbackBreakdown).length ? JSON.stringify(feedbackBreakdown) : "none yet"}
 
-Explain in 1–2 sentences exactly WHY the plan is changing (based on their feedback and task signals, not generically). Then list 2–3 specific adjustments being made. Then name the single most important focus for the adjusted plan.`;
+Explain in 1–2 sentences exactly WHY the plan is changing (based on their feedback, learned patterns, and task signals — be specific, not generic). Then name the single most important focus task for the adjusted plan.`;
     }
 
     case "forge_guidebook": {
       const featureName = payload?.feature_name ?? payload?.description ?? "this feature";
       const featureDesc = payload?.feature_description ?? payload?.description ?? "";
       const moduleType = payload?.module_type ?? payload?.feature_type ?? "tracker";
-      return `${ctx}
+      const lrn = snapshot?.learning;
+      const forgeBias = lrn && lrn.signal_count > 0
+        ? `\nUser learning context for this Forge feature:
+- Preferred task size: ${lrn.preferred_task_size} → keep any tasks or drills this size or smaller
+- Friction patterns: ${(lrn.friction_tags ?? []).join(", ") || "none"} → design to avoid these
+- Adaptation rules: ${(lrn.adaptation_rules ?? []).join(" | ") || "none"} → honour these in the feature design`
+        : "";
+      return `${ctx}${forgeBias}
 
 Generate a complete, build-ready guidebook spec for the Forge feature: "${featureName}".
 Feature description: ${featureDesc}

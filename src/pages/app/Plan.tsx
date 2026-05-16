@@ -129,6 +129,22 @@ const Plan = () => {
         .slice(-5)
         .map((t) => ({ title: t.title }));
 
+      // Snapshot learning profile for local heuristics
+      const profile = state.learning_profile;
+      const frictionTags = new Set((profile?.friction_tags ?? []).map((f) => f.tag));
+      const preferredSize = profile?.preferred_task_size ?? "unknown";
+      const planStyle = profile?.plan_style ?? "unknown";
+
+      // Preferred max duration for focus/goal blocks based on learned profile
+      const preferredMaxMins =
+        preferredSize === "micro" ? 20 :
+        preferredSize === "short" ? 30 :
+        preferredSize === "medium" ? 45 : 60;
+
+      // Learning-profile-aware: if too_big friction is strong, also shrink unlinked blocks
+      const profileForceShrink = frictionTags.has("too_big") &&
+        (profile?.friction_tags.find((f) => f.tag === "too_big")?.confidence ?? 0) >= 0.5;
+
       // Ask AI for reform rationale and focus suggestion
       let reformExplanation = reformNote.trim();
       let focusSuggestion = "";
@@ -141,6 +157,13 @@ const Plan = () => {
               reform_note: reformNote.trim(),
               completed_tasks: completedTasks,
               feedback_breakdown: feedbackBreakdown,
+              // Learning profile passed explicitly so AI references it
+              learning_profile: profile ? {
+                preferred_task_size: preferredSize,
+                plan_style: planStyle,
+                friction_tags: (profile.friction_tags ?? []).slice(0, 3).map((f) => f.tag),
+                adaptation_rules: (profile.adaptation_rules ?? []).slice(0, 3).map((r) => r.rule),
+              } : null,
             },
           },
         });
@@ -169,39 +192,76 @@ const Plan = () => {
 
       const basePlan = state.schedule_state.day_plan;
 
-      // Rebuild: keep fixed blocks as-is; shrink blocks linked to bad tasks; keep the rest
+      // Helper: shrink a block to a new duration, clamped to preferredMaxMins
+      function shrinkBlock(b: ScheduleBlock, targetMins: number): ScheduleBlock {
+        const clamped = Math.min(targetMins, preferredMaxMins);
+        const [h, m] = b.start_time.split(":").map(Number);
+        const endTotal = h * 60 + m + clamped;
+        return {
+          ...b,
+          title: b.title.startsWith("↓ ") ? b.title : `↓ ${b.title}`,
+          duration_minutes: clamped,
+          end_time: `${String(Math.floor(endTotal / 60)).padStart(2, "0")}:${String(endTotal % 60).padStart(2, "0")}`,
+          status: "upcoming" as const,
+        };
+      }
+
+      // Rebuild: keep fixed blocks as-is; shrink/adjust flexible blocks
       const rebuilt: ScheduleBlock[] = basePlan.map((b) => {
         if (b.is_fixed) return b; // locked commitment — never change
+
         const linkedBad = (b.linked_task_ids ?? []).some((id) => badTaskIds.has(id));
+
         if (linkedBad) {
-          // Shrink by 50%, flag as adjusted
+          // Shrink by 50%, further clamped by preferredMaxMins
           const halved = Math.max(15, Math.round((b.duration_minutes ?? 30) / 2));
-          const [h, m] = b.start_time.split(":").map(Number);
-          const endTotal = h * 60 + m + halved;
-          const newEnd = `${String(Math.floor(endTotal / 60)).padStart(2, "0")}:${String(endTotal % 60).padStart(2, "0")}`;
-          return {
-            ...b,
-            title: b.title.startsWith("↓ ") ? b.title : `↓ ${b.title}`,
-            duration_minutes: halved,
-            end_time: newEnd,
-            status: "upcoming" as const,
-          };
+          return shrinkBlock(b, halved);
         }
+
+        // Profile-driven: if too_big pattern is strong, shrink ALL non-fixed blocks too
+        if (profileForceShrink && (b.duration_minutes ?? 0) > preferredMaxMins) {
+          return shrinkBlock(b, preferredMaxMins);
+        }
+
         return b;
       });
 
+      // If tired/overwhelmed or starter_first style, insert a quick starter block first
+      if (planStyle === "starter_first" || frictionTags.has("tired") || frictionTags.has("overwhelmed")) {
+        const pendingTask = (state.tasks ?? []).find((t) => t.status === "pending" && !badTaskIds.has(t.id));
+        rebuilt.unshift({
+          id: `starter-${Date.now()}`,
+          title: pendingTask ? `Start: ${pendingTask.title.slice(0, 40)}` : "5-min starter",
+          type: "goal_work",
+          start_time: "16:00",
+          end_time: "16:05",
+          duration_minutes: 5,
+          priority: 1,
+          is_fixed: false,
+          source: "reform",
+          goal_link: state.active_goal?.statement ?? "",
+          fallback_version: "",
+          status: "upcoming",
+          linked_task_ids: pendingTask ? [pendingTask.id] : [],
+        });
+      }
+
       // Insert a focus block for the AI-suggested priority (only if there's a pending task to fill it)
       if (focusSuggestion || pendingTaskIds.length > 0) {
+        const focusDuration = Math.min(preferredMaxMins, 45);
+        const focusStart = planStyle === "starter_first" || frictionTags.has("tired") ? "16:06" : "16:00";
+        const [fh, fm] = focusStart.split(":").map(Number);
+        const focusEnd = `${String(Math.floor((fh * 60 + fm + focusDuration) / 60)).padStart(2, "0")}:${String((fh * 60 + fm + focusDuration) % 60).padStart(2, "0")}`;
         const focusTitle = focusSuggestion
           ? `Focus: ${focusSuggestion.slice(0, 50)}`
           : `Priority block`;
-        rebuilt.unshift({
+        rebuilt.push({
           id: `reform-${Date.now()}`,
           title: focusTitle,
           type: "goal_work",
-          start_time: "16:00",
-          end_time: "16:45",
-          duration_minutes: 45,
+          start_time: focusStart,
+          end_time: focusEnd,
+          duration_minutes: focusDuration,
           priority: 1,
           is_fixed: false,
           source: "reform",

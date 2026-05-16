@@ -7,6 +7,7 @@ import {
   CheckCircle2, ArrowRight,
 } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
+import { logLearningSignal } from "@/lib/learning/log-signal";
 import { getForgeViewModel } from "@/lib/selectors/forge";
 import { useAI } from "@/lib/ai/useAI";
 import { ModuleEngine } from "@/components/app/forge/engines";
@@ -328,11 +329,18 @@ function ForgeBuilderFlow({
     if (!description.trim() || !state) return;
     setStep("ai_generating");
 
+    const lp = state.learning_profile;
     const result = await ai.run({
       feature_type: selectedType,
       description,
       goal: state.active_goal?.statement,
       bottleneck: state.pursuit_model?.workstreams?.find((w) => w.bottleneck)?.bottleneck,
+      // Learning profile biases the generated guidebook complexity and task sizes
+      ...(lp ? {
+        preferred_task_size: lp.preferred_task_size,
+        friction_tags: lp.friction_tags.slice(0, 3).map((f) => f.tag),
+        adaptation_rules: lp.adaptation_rules.slice(0, 3).map((r) => r.rule),
+      } : {}),
     });
 
     if (result && Object.keys(result).length > 0) {
@@ -355,6 +363,16 @@ function ForgeBuilderFlow({
       updated_at: new Date().toISOString(),
     };
     dispatch({ type: "forge/create_guidebook", payload: guidebook });
+    logLearningSignal(dispatch, {
+      signal_type: "forge_feature_created",
+      source_surface: "forge",
+      forge_feature_id: guidebook.id,
+      metadata: {
+        feature_type: guidebook.feature_type,
+        hour_of_day: new Date().getHours(),
+      },
+      privacy_level: "private",
+    });
     setActivating(false);
     onCancel(); // Return to main forge view
   };
