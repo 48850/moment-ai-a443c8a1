@@ -77,6 +77,7 @@ export const AppShell = () => {
           >
             {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
           </button>
+          <button
             onClick={() => {
               if (!confirm("Reset onboarding? This wipes local state.")) return;
               reset();
