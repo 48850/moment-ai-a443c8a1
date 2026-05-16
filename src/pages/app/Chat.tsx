@@ -76,10 +76,16 @@ const Chat = () => {
   const endRef = useRef<HTMLDivElement>(null);
 
   // When mode switches or user changes, rehydrate or reset to correct greeting.
+  // If there's no stored history, persist the greeting so the AI context is never empty.
   useEffect(() => {
     const stored = state?.chat_messages;
     const greeting = isSpecialisation ? specialisationGreeting : defaultGreeting;
-    setMessages(stored && stored.length ? stored : [greeting]);
+    if (stored && stored.length) {
+      setMessages(stored);
+    } else {
+      setMessages([greeting]);
+      dispatch({ type: "chat/append", payload: greeting });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state?.user_id, isSpecialisation]);
 

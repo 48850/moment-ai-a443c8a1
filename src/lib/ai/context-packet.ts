@@ -69,6 +69,7 @@ export interface MomentContextPacket {
     active_guidebooks: Array<{ id: string; title: string; feature_type: string }>;
     recent_signals: Array<{ feature: string; key: string; value: string }>;
   };
+  recent_chat: Array<{ role: "user" | "assistant"; content: string }>;
 }
 
 export function buildContextPacket(s: MomentState | null): MomentContextPacket | Record<string, never> {
@@ -182,5 +183,9 @@ export function buildContextPacket(s: MomentState | null): MomentContextPacket |
       active_guidebooks: activeGuidebooks,
       recent_signals: recentSignals,
     },
+    recent_chat: (s.chat_messages ?? [])
+      .slice(-10)
+      .filter((m) => m.role === "user" || m.role === "assistant")
+      .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
   };
 }
