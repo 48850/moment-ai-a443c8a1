@@ -190,6 +190,7 @@ export const taskSchema = z.object({
   required_resources: z.array(z.string()).default([]).optional(),
   blocked_reason: z.string().default("").optional(),
   created_by: z.enum(["user", "ai"]).default("user").optional(),
+  forge_feature_id: z.string().optional(),
 });
 
 export const frictionTagSchema = z.enum([

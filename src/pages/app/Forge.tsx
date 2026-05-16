@@ -300,10 +300,12 @@ function ForgeBuilderFlow({
   onCancel,
   preselectedType,
   systemQuestion,
+  prefilledDescription,
 }: {
   onCancel: () => void;
   preselectedType?: ForgeFeatureType;
   systemQuestion?: string;
+  prefilledDescription?: string;
 }) {
   const state = useStateStore((s) => s.state);
   const dispatch = useStateStore((s) => s.dispatch);
@@ -311,7 +313,7 @@ function ForgeBuilderFlow({
 
   const [step, setStep] = useState<BuildStep>(preselectedType ? "question" : "type_select");
   const [selectedType, setSelectedType] = useState<ForgeFeatureType | null>(preselectedType ?? null);
-  const [description, setDescription] = useState("");
+  const [description, setDescription] = useState(prefilledDescription ?? "");
   const [draft, setDraft] = useState<Partial<ForgeGuidebook> | null>(null);
   const [activating, setActivating] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
@@ -586,6 +588,7 @@ const Forge = () => {
   const [building, setBuilding] = useState(false);
   const [preselectedType, setPreselectedType] = useState<ForgeFeatureType | undefined>(undefined);
   const [systemQuestion, setSystemQuestion] = useState<string | undefined>(undefined);
+  const [prefilledDescription, setPrefilledDescription] = useState<string | undefined>(undefined);
   const [showArchived, setShowArchived] = useState(false);
 
   if (!state) return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
@@ -602,6 +605,14 @@ const Forge = () => {
   const handleBuildAroundGap = (type: ForgeFeatureType) => {
     setPreselectedType(type);
     setSystemQuestion(gap.suggested_question);
+    setPrefilledDescription(undefined);
+    setBuilding(true);
+  };
+
+  const handleBuildRecommendation = (type: ForgeFeatureType, descriptionHint: string) => {
+    setPreselectedType(type);
+    setSystemQuestion(undefined);
+    setPrefilledDescription(descriptionHint);
     setBuilding(true);
   };
 
@@ -626,12 +637,37 @@ const Forge = () => {
         <SystemGapCard gap={gap} onBuild={handleBuildAroundGap} />
       )}
 
+      {/* Recommended tools for goal */}
+      {!building && gap.recommendations.length > 0 && (
+        <section>
+          <div className="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+            Recommended for your path right now
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {gap.recommendations.map((rec) => (
+              <div key={rec.title} className="rounded-xl border border-border bg-card p-4 flex flex-col gap-2">
+                <div className="text-sm font-medium text-foreground">{rec.title}</div>
+                <div className="text-xs text-muted-foreground flex-1">{rec.why}</div>
+                <div className="text-[10px] text-muted-foreground/60 italic">{rec.triggered_by}</div>
+                <button
+                  onClick={() => handleBuildRecommendation(rec.feature_type, rec.description_hint)}
+                  className="mt-1 rounded-lg border border-primary/40 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10"
+                >
+                  Build this
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Forge builder flow */}
       {building && (
         <ForgeBuilderFlow
-          onCancel={() => { setBuilding(false); setPreselectedType(undefined); setSystemQuestion(undefined); }}
+          onCancel={() => { setBuilding(false); setPreselectedType(undefined); setSystemQuestion(undefined); setPrefilledDescription(undefined); }}
           preselectedType={preselectedType}
           systemQuestion={systemQuestion}
+          prefilledDescription={prefilledDescription}
         />
       )}
 

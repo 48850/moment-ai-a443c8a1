@@ -390,22 +390,75 @@ Explain in 1–2 sentences exactly WHY the plan is changing (based on their feed
     }
 
     case "forge_guidebook": {
-      const featureName = payload?.feature_name ?? payload?.description ?? "this feature";
-      const featureDesc = payload?.feature_description ?? payload?.description ?? "";
-      const moduleType = payload?.module_type ?? payload?.feature_type ?? "tracker";
+      const userDescription = (payload?.description ?? "").trim() || "a custom tool for my goal";
+      const moduleType = payload?.module_type ?? payload?.feature_type ?? "custom";
+      const education_system = snapshot?.user?.education_system ?? "unknown";
+      const country = snapshot?.user?.country ?? "unknown";
       return `${ctx}
 
-Generate a complete, build-ready guidebook spec for the Forge feature: "${featureName}".
-Feature description: ${featureDesc}
-Module type: ${moduleType}
+The user wants to build a custom Forge tool. Their description: "${userDescription}"
+Module type hint: ${moduleType}
+User's goal: ${goal}
+Current stage: ${current_stage || "foundation"}
+Education system: ${education_system}
+Country: ${country}
 
-The guidebook must:
-- Be directly tied to THIS user's goal: ${goal}
-- Reference their current stage: ${current_stage || "not assessed"}
-- Avoid overpromising. Only include sections that a teen could meaningfully complete.
-- Each section must have a clear content_type and a short prompt_hint.
-- state_writes must name what actually gets saved (e.g. "score logged to progress tracker", "session added to evidence log").
-- safety_rules must list what the feature must never assume or do.`;
+CRITICAL RULES — VIOLATIONS WILL BE REJECTED:
+1. title must NOT be "Custom Feature", "Analyser", "AI Analysis", or any generic placeholder.
+   Give it a SHORT SPECIFIC name reflecting the user's goal domain.
+   Examples: "Brain Concept Lab", "Science Prerequisite Mapper", "Essay Draft Coach".
+2. purpose must name the user's goal domain explicitly.
+3. required_inputs must be SPECIFIC to this goal — not generic "describe your situation" fields.
+   Minimum 2 inputs. Each must relate to what the AI needs to produce useful output.
+4. ai_functions must have MINIMUM 2 distinct modes, each with a different function_type.
+   Each ai_function must have prompt_contract of ≥60 characters describing the output format.
+5. sections must have MINIMUM 3 sections: at least one input_panel, one ai_output, one saved_entries.
+6. state_writes must exist: at minimum one entry for signal logging or task creation.
+7. The whole feature must be immediately usable by someone working on "${goal || "their goal"}".
+   Not aspirational. Not diagnostic. Actually useful from first run.
+
+RESPONSE FORMAT — return a JSON object with ALL these fields:
+{
+  "title": "Short specific name (NOT 'Custom Feature' or 'Analyser')",
+  "subtitle": "Optional subtitle",
+  "purpose": "One sentence naming the goal domain and what this tool helps the user do",
+  "feature_type": "One of: tracker, protocol, control_room, drill_lab, proof_builder, decision_engine, planner, simulator, coach_lens, research_helper, custom",
+  "bottleneck_addressed": "What specific bottleneck this solves",
+  "required_inputs": [
+    { "id": "unique_id", "label": "Human label", "type": "text|textarea|number|select|scale", "placeholder": "Hint text", "required": true }
+  ],
+  "ai_functions": [
+    {
+      "id": "unique_id",
+      "name": "Mode name (e.g. 'Explain simply', 'Quiz me', 'Find misconception')",
+      "function_type": "analyze|generate_plan|split_tasks|score_quality|rank_options|simulate|challenge|summarize|extract_signals|create_next_move",
+      "prompt_contract": "Detailed description of what the AI must return (at least 60 characters), specific to the goal domain",
+      "input_sources": ["field_ids"],
+      "writes_to_state": true,
+      "allowed_state_actions": ["task/create", "forge/log_signal"]
+    }
+  ],
+  "sections": [
+    { "id": "unique_id", "heading": "Section heading", "section_type": "input_panel|ai_output|saved_entries|task_list|scorecard|protocol_steps|reflection_box", "linked_ai_function_id": "fn_id" }
+  ],
+  "state_writes": [
+    { "trigger": "After AI run", "action_type": "forge/log_signal", "description": "What gets saved to Moment state" }
+  ],
+  "safety_rules": ["Rule 1", "Rule 2"],
+  "suggested_next_task": {
+    "title": "First concrete task to do with this feature",
+    "why_now": "Why this is the right first use given current stage",
+    "proof_of_completion": "How the user knows they completed it",
+    "estimated_minutes": 20
+  }
+}
+
+Think: what small, specific tool would a great tutor or coach build for this exact pursuit at this exact stage?
+For a student wanting to ${goal || "achieve their goal"} at the ${current_stage || "foundation"} stage:
+- What do they actually need to DO more effectively?
+- What information do they need to PROCESS repeatedly?
+- What proof do they need to CREATE or CHECK?
+Generate a tool that serves one of those three purposes — not a generic analyser.`;
     }
 
     case "forge_feature_ai":

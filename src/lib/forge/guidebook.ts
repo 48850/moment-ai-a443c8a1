@@ -29,6 +29,13 @@ export interface ForgeSystemGap {
   reason: string;
   suggested_feature_type: ForgeFeatureType;
   suggested_question: string;
+  recommendations: Array<{
+    title: string;
+    feature_type: ForgeFeatureType;
+    why: string;
+    triggered_by: string;
+    description_hint: string;
+  }>;
 }
 
 export function detectSystemGap(state: MomentState): ForgeSystemGap {
@@ -38,11 +45,9 @@ export function detectSystemGap(state: MomentState): ForgeSystemGap {
   const guidebooks = state.forge_state?.guidebooks ?? [];
   const activeGuideBooks = guidebooks.filter((g) => g.status === "active");
 
-  // Look for bottleneck in pursuit model
   const bottleneckWorkstream = model?.workstreams?.find((w) => w.bottleneck);
   const bottleneck = bottleneckWorkstream?.bottleneck ?? model?.workstreams?.[0]?.name ?? null;
 
-  // Look at recent reflections for struggle patterns
   const recentStruggles = reflections
     .slice(-5)
     .map((r) => r.struggle)
@@ -50,24 +55,58 @@ export function detectSystemGap(state: MomentState): ForgeSystemGap {
     .join(" ")
     .toLowerCase();
 
-  // Count negative feedback
   const negativeFeedback = feedback.slice(-20).filter((f) =>
     ["stuck", "hard", "confused", "overwhelmed", "behind", "missed"].some((kw) =>
       f.feedback.toLowerCase().includes(kw)
     )
   ).length;
 
-  // Look at what features already exist to avoid suggesting duplicates
   const existingTypes = new Set(activeGuideBooks.map((g) => g.feature_type));
 
-  // Simple heuristic gap detection
+  // ── Build goal-aware recommendations ────────────────────────────────────────
+  type Rec = ForgeSystemGap["recommendations"][0];
+  const goal = state.active_goal?.statement?.toLowerCase() ?? "";
+  const stage = (state.active_goal?.current_stage ?? "").toLowerCase();
+  const isFoundation = !stage || stage.includes("found") || stage.includes("basic") || stage.includes("beginn");
+  const allRecs: Rec[] = [];
+
+  if (goal.includes("neurol") || goal.includes("medicine") || goal.includes("doctor") || goal.includes("medical")) {
+    if (!existingTypes.has("drill_lab"))
+      allRecs.push({ title: "Brain Concept Lab", feature_type: "drill_lab", why: "Turn passive neuroscience reading into active recall", triggered_by: "goal domain: medicine/neurology", description_hint: "Help me practice neuroscience concepts with active recall and quizzing" });
+    if (!existingTypes.has("research_helper"))
+      allRecs.push({ title: "Science Prerequisite Mapper", feature_type: "research_helper", why: "Map the exact science subjects needed for your pathway", triggered_by: "goal domain: medicine — pathway requires prerequisites", description_hint: "Map the science and math subjects I need for medicine/neurology in my education system" });
+    if (!existingTypes.has("proof_builder") && !isFoundation)
+      allRecs.push({ title: "Career Reality Tracker", feature_type: "proof_builder", why: "Build evidence of what neurology work actually involves", triggered_by: "early career exploration stage", description_hint: "Track what I learn about what neurologists actually do day to day" });
+  } else if (goal.includes("essay") || goal.includes("writ") || goal.includes("english")) {
+    if (!existingTypes.has("coach_lens"))
+      allRecs.push({ title: "Essay Draft Coach", feature_type: "coach_lens", why: "Get specific feedback on argument, evidence, and structure", triggered_by: "goal domain: writing", description_hint: "Critique my essay draft and suggest improvements to argument and structure" });
+    if (!existingTypes.has("drill_lab"))
+      allRecs.push({ title: "Argument Builder", feature_type: "drill_lab", why: "Practice constructing and defending a thesis quickly", triggered_by: "goal domain: writing — argument is the core skill", description_hint: "Practice building strong thesis statements and supporting arguments" });
+  } else if (goal.includes("code") || goal.includes("program") || goal.includes("software") || goal.includes("app") || goal.includes("develop")) {
+    if (!existingTypes.has("drill_lab"))
+      allRecs.push({ title: "Code Concept Drill", feature_type: "drill_lab", why: "Practice specific programming concepts until they stick", triggered_by: "goal domain: software development", description_hint: "Drill me on programming concepts relevant to my current learning stage" });
+    if (!existingTypes.has("proof_builder"))
+      allRecs.push({ title: "Project Evidence Builder", feature_type: "proof_builder", why: "Turn side projects into proof for applications or portfolios", triggered_by: "goal domain: software — portfolio is critical", description_hint: "Help me document what I built and why it matters for my goal" });
+  }
+
+  // Universal fallbacks
+  if (!existingTypes.has("drill_lab") && allRecs.length < 3)
+    allRecs.push({ title: "Active Recall Drill", feature_type: "drill_lab", why: "Turn any topic into a quiz-yourself practice session", triggered_by: "active recall improves retention for any goal", description_hint: "Create a drill that quizzes me on the core concepts for my goal" });
+  if (!existingTypes.has("tracker") && allRecs.length < 3)
+    allRecs.push({ title: "Weekly Proof Review", feature_type: "tracker", why: "Turn completed tasks into evidence of progress", triggered_by: "converting activity into proof is the foundation stage gap", description_hint: "Review what I completed this week and identify the strongest proof" });
+  if (!existingTypes.has("proof_builder") && allRecs.length < 3)
+    allRecs.push({ title: "Stage Progress Mapper", feature_type: "proof_builder", why: "Track which pathway milestones you've passed and which are next", triggered_by: "goal has multiple stages — visibility prevents wasted effort", description_hint: "Map where I am on my pathway and what the next milestone requires" });
+
+  const recommendations = allRecs.slice(0, 3);
+
+  // ── Gap detection ────────────────────────────────────────────────────────────
   if (bottleneck && !existingTypes.has("control_room")) {
     return {
-      bottleneck: bottleneck,
+      bottleneck,
       reason: `Your pursuit model identifies "${bottleneck}" as a current bottleneck with no execution feature covering it.`,
       suggested_feature_type: "control_room",
-      suggested_question:
-        "Should this feature mostly help you execute on that bottleneck, track your progress through it, or practice the skill involved?",
+      suggested_question: "Should this feature mostly help you execute on that bottleneck, track your progress through it, or practice the skill involved?",
+      recommendations,
     };
   }
 
@@ -76,8 +115,8 @@ export function detectSystemGap(state: MomentState): ForgeSystemGap {
       bottleneck: "Assignment or task overload",
       reason: "Your recent reflections show recurring struggle with falling behind or feeling overwhelmed.",
       suggested_feature_type: "control_room",
-      suggested_question:
-        "What kind of system would help most: a triage tool for catching up, a drill for building the skill faster, or a tracker for staying ahead?",
+      suggested_question: "What kind of system would help most: a triage tool for catching up, a drill for building the skill faster, or a tracker for staying ahead?",
+      recommendations,
     };
   }
 
@@ -86,8 +125,8 @@ export function detectSystemGap(state: MomentState): ForgeSystemGap {
       bottleneck: "Proof and evidence quality",
       reason: "Your reflections suggest weak or unorganised application evidence.",
       suggested_feature_type: "proof_builder",
-      suggested_question:
-        "Should this feature help you collect and score existing proof, generate new proof tasks, or do both?",
+      suggested_question: "Should this feature help you collect and score existing proof, generate new proof tasks, or do both?",
+      recommendations,
     };
   }
 
@@ -96,19 +135,18 @@ export function detectSystemGap(state: MomentState): ForgeSystemGap {
       bottleneck: "Execution quality on high-leverage tasks",
       reason: "Multiple recent sessions show friction. A targeted drill lab could turn weak reps into strong ones.",
       suggested_feature_type: "drill_lab",
-      suggested_question:
-        "Which domain needs the most practice right now: writing, maths, speaking, or a specific skill from your goal?",
+      suggested_question: "Which domain needs the most practice right now: writing, maths, speaking, or a specific skill from your goal?",
+      recommendations,
     };
   }
 
-  // Default
   const goalStatement = state.active_goal?.statement ?? "";
   return {
     bottleneck: goalStatement ? `Execution momentum toward: ${goalStatement.slice(0, 60)}` : "No bottleneck detected yet",
     reason: "No specific gap detected — you can forge a feature around any recurring need.",
     suggested_feature_type: "tracker",
-    suggested_question:
-      "What recurring problem should this feature solve: unclear tasks, weak proof, missed deadlines, practice quality, or decision-making?",
+    suggested_question: "What recurring problem should this feature solve: unclear tasks, weak proof, missed deadlines, practice quality, or decision-making?",
+    recommendations,
   };
 }
 
@@ -579,15 +617,26 @@ export function parseAIGuidebookResponse(
 
 export function validateGuidebook(g: ForgeGuidebook): { ok: boolean; reasons: string[] } {
   const reasons: string[] = [];
+
   if (!g.title?.trim()) reasons.push("missing title");
-  if ((g.required_inputs?.length ?? 0) < 2) reasons.push("needs ≥2 inputs");
-  if ((g.ai_functions?.length ?? 0) < 1) reasons.push("needs ≥1 AI function");
-  if ((g.sections?.length ?? 0) < 3) reasons.push("needs ≥3 sections");
+  const genericTitles = ["custom feature", "analyser", "analyzer", "ai analysis", "this feature", "feature"];
+  if (genericTitles.includes((g.title ?? "").toLowerCase().trim())) {
+    reasons.push(`title "${g.title}" is too generic — must be goal-specific`);
+  }
+
+  if ((g.required_inputs?.length ?? 0) < 2) reasons.push("needs ≥2 specific inputs");
+
+  if ((g.ai_functions?.length ?? 0) < 2) reasons.push("needs ≥2 AI modes (e.g. 'Explain simply', 'Quiz me')");
   for (const fn of g.ai_functions ?? []) {
     if (!fn.prompt_contract || fn.prompt_contract.length < 40) {
-      reasons.push(`fn ${fn.id}: prompt_contract too short (<40 chars)`);
+      reasons.push(`mode "${fn.name ?? fn.id}": prompt_contract too short (<40 chars)`);
     }
   }
+
+  if ((g.sections?.length ?? 0) < 3) reasons.push("needs ≥3 sections");
+
+  if ((g.state_writes?.length ?? 0) < 1) reasons.push("needs ≥1 state write (signal or task)");
+
   return { ok: reasons.length === 0, reasons };
 }
 
