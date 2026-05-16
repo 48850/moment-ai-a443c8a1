@@ -165,6 +165,7 @@ interface ChatSnapshot {
   user_normal_weekday?: string;
   onboarding_knowns?: string[];
   onboarding_unknowns?: string[];
+  onboarding_answers?: Record<string, string>;
   goal_current_stage?: string;
   goal_target_stage?: string;
   goal_reality_gap?: string;
@@ -176,6 +177,7 @@ interface ChatSnapshot {
   completed_tasks_count?: number;
   country?: string;
   education_system?: string;
+  recent_chat?: Array<{ role: string; content: string }>;
 }
 
 function fmt(v: unknown): string {
@@ -216,38 +218,63 @@ function specialisationSystemPrompt(snap: ChatSnapshot): string {
     ? snap.recent_completed.map((c) => `- ${c.title}`).join("\n")
     : "- (none yet)";
 
+  const rawAnswers = snap.onboarding_answers && Object.keys(snap.onboarding_answers).length
+    ? Object.entries(snap.onboarding_answers).map(([k, v]) => `- ${k}: ${v}`).join("\n")
+    : "- (none captured)";
+
+  const recentUserMessages = (snap.recent_chat ?? [])
+    .filter((m) => m.role === "user")
+    .slice(-8)
+    .map((m) => `- "${m.content}"`)
+    .join("\n");
+
+  const country = snap.country || "unknown";
+  const educationSystem = snap.education_system || "unknown";
+  const schoolYear = snap.user_school_year || "";
+
   return `You are Moment in goal-specialisation mode — a ruthlessly focused post-onboarding calibration. Your job is to map exactly where ${name} currently stands on the path to their goal, then create the one most-stagewise-appropriate first task.
 
-GOAL: ${goal}${why ? ` · Why: ${why}` : ""}
-CURRENT STAGE: ${currentStage || "not yet assessed — this is what you must find out"}
-TARGET STAGE: ${targetStage || "not yet defined"}
-REALITY GAP: ${realityGap || "not yet assessed"}
-RISK OF PREMATURE ADVICE: ${risk}
-${appropriate ? `APPROPRIATE FOCUS NOW: ${appropriate}` : ""}
-${premature && risk === "high" ? `DO NOT SUGGEST TASKS INVOLVING: ${premature}` : ""}
+USER CONTEXT:
+- Name: ${name}
+- Country: ${country}
+- Education system: ${educationSystem}${schoolYear ? ` · ${schoolYear}` : ""}
+- Goal: ${goal}${why ? ` · Why: ${why}` : ""}
+- Current stage: ${currentStage || "not yet assessed — this is what you must find out"}
+- Target stage: ${targetStage || "not yet defined"}
+- Reality gap: ${realityGap || "not yet assessed"}
+- Risk of premature advice: ${risk}
+${appropriate ? `- Appropriate focus now: ${appropriate}` : ""}
+${premature && risk === "high" ? `- DO NOT SUGGEST TASKS INVOLVING: ${premature}` : ""}
 
-ALREADY KNOWN — DO NOT ASK FOR ANY OF THESE:
+ONBOARDING ANSWERS — these were provided during setup, DO NOT re-ask:
+${rawAnswers}
+
+ALREADY KNOWN FROM ONBOARDING — DO NOT ASK FOR ANY OF THESE:
 ${knowns}
+
+WHAT THE USER SHARED IN THIS CONVERSATION — TREAT AS ANSWERED, DO NOT RE-ASK:
+${recentUserMessages || "- (nothing yet this session)"}
 
 COMPLETED TASKS (${completedCount} total):
 ${completed}
 
-STILL UNKNOWN (work through these ONE AT A TIME, in order of importance):
+STILL UNKNOWN (work through these ONE AT A TIME, most important first):
 ${unknownsBlock}
 
-YOUR PROCESS — follow this in order:
-1. Call patch_goal_model as soon as you can honestly assess current_stage, target_stage, reality_gap, or any knowns/unknowns. Call it multiple times as you learn more.
+YOUR PROCESS — follow this strictly:
+1. Call patch_goal_model as soon as you can honestly assess current_stage, target_stage, reality_gap, or knowns/unknowns. Call it multiple times as you learn more.
 2. Once you have a clear picture of where ${name} actually is right now, call create_first_task with the single most stagewise-appropriate first move.
 3. Once you have called both patch_goal_model at least once AND create_first_task, call complete_specialisation.
 
 STYLE — STRICT:
 - Max 2 sentences. Often 1. Hard cap ~40 words.
 - No preamble, no recap, no filler, no emojis.
-- One question per reply, maximum. Make it specific to THIS goal and THIS user's stage.
-- Never ask for anything already listed under "ALREADY KNOWN". Asking again destroys trust.
-- Call tools silently — do not announce what you are about to call.
+- ONE question per reply, maximum. Make it specific to THIS goal and THIS user's stage.
+- NEVER ask for anything listed under "ONBOARDING ANSWERS", "ALREADY KNOWN", or "WHAT THE USER SHARED". Asking again destroys trust.
+- Call tools silently — do not announce what you are about to call or what you just saved.
 - The task you create must be honest about where ${name} is right now. Not aspirational. Not premature.
-- If ${name} is clearly early-stage, the first task should build knowledge or proof, not jump to execution.`;
+- If ${name} is early-stage, the first task should build knowledge or proof, not jump to execution.
+- After saving an answer, move to the NEXT unknown — never ask the same field twice.`;
 }
 
 function systemPrompt(snap: ChatSnapshot): string {
@@ -306,6 +333,14 @@ function systemPrompt(snap: ChatSnapshot): string {
   const onboardingUnknowns = snap.onboarding_unknowns?.length
     ? snap.onboarding_unknowns.join(", ")
     : "";
+  const rawAnswers = snap.onboarding_answers && Object.keys(snap.onboarding_answers).length
+    ? Object.entries(snap.onboarding_answers).map(([k, v]) => `- ${k}: ${v}`).join("\n")
+    : "none";
+  const recentUserMessages = (snap.recent_chat ?? [])
+    .filter((m) => m.role === "user")
+    .slice(-8)
+    .map((m) => `- "${m.content}"`)
+    .join("\n");
   const topWorkstream = snap.top_workstream
     ? `${snap.top_workstream.name} (${snap.top_workstream.status}${snap.top_workstream.bottleneck ? ` — blocked: ${snap.top_workstream.bottleneck}` : ""})`
     : "(none)";
@@ -339,8 +374,12 @@ KNOWN ABOUT THIS USER (DO NOT ASK FOR ANY OF THIS — you already have it):
 - Reality gap: ${realityGap || "not yet assessed"}
 - Tasks completed overall: ${completedCount}
 - Onboarding knowns: ${onboardingKnowns || "none captured yet"}
+- Onboarding raw answers: ${rawAnswers}
 - Schedule constraints known: ${knownLines}
 - Top active workstream: ${topWorkstream}
+
+WHAT THE USER SHARED THIS SESSION — DO NOT RE-ASK:
+${recentUserMessages || "- (nothing yet)"}
 
 WHAT MOMENT STILL DOESN'T KNOW (only ask ONE of these if relevant, not all):
 ${onboardingUnknowns ? `- ${onboardingUnknowns.split(", ").join("\n- ")}` : "- Nothing critical is missing."}
@@ -458,15 +497,18 @@ Deno.serve(async (req) => {
       return { tool: c.function.name, args };
     });
 
-    // Server-side fallback so the client never has to render "(no reply)".
+    // Server-side fallback so the client never has to render an empty reply.
     const snap = (snapshot ?? {}) as ChatSnapshot;
-    // After a save, drive forward with the next missing field — never "what else?"
-    if (patches.length) {
-      // Build a patched copy of known constraints to correctly determine what is still missing.
+
+    if (!isSpecialisation && patches.length) {
+      // Default mode only: drive forward through missing schedule fields using patchedKnown
+      // so we never ask for a field the user just answered in this same turn.
       const patchedKnown: Record<string, unknown> = { ...(snap.constraints_known ?? {}) };
-      let patchedCommitmentCount = (typeof (snap.constraints_known as any)?.fixed_commitments === "number"
-        ? (snap.constraints_known as any).fixed_commitments
-        : 0) as number;
+      let patchedCommitmentCount = (
+        typeof (snap.constraints_known as Record<string, unknown>)?.fixed_commitments === "number"
+          ? (snap.constraints_known as Record<string, unknown>).fixed_commitments
+          : 0
+      ) as number;
       for (const p of patches) {
         if (p.tool === "update_constraints") {
           for (const [k, v] of Object.entries(p.args)) patchedKnown[k] = v;
@@ -481,16 +523,30 @@ Deno.serve(async (req) => {
         return v === undefined || v === null || v === "" || v === 0;
       });
       if (stillMissing.length) {
-        const field = stillMissing[0].replace(/_/g, " ");
-        reply = reply || `Saved. What's your ${field}?`;
+        reply = reply || `Got it — what's your ${stillMissing[0].replace(/_/g, " ")}?`;
       } else if (!reply) {
         reply = snap.next_move
           ? `Saved. Your next move is "${snap.next_move.title}" (~${snap.next_move.estimated_minutes}m) — ready?`
-          : "Saved. What's the one goal this app should be pointed at?";
+          : "Got it. What's the one goal this app should be pointed at?";
+      }
+    } else if (isSpecialisation && patches.length && !reply) {
+      // Specialisation mode: when tool was called but LLM generated no text, produce a
+      // context-appropriate continuation — NEVER ask about schedule fields here.
+      const hasFirstTask = patches.some((p) => p.tool === "create_first_task");
+      const hasGoalPatch = patches.some((p) => p.tool === "patch_goal_model");
+      if (hasFirstTask) {
+        reply = "Your first move is ready — head to your task list to start.";
+      } else if (hasGoalPatch) {
+        reply = "What's your current level in the area your goal requires?";
+      } else {
+        reply = "Tell me a bit more about where you're starting from.";
       }
     }
+
     if (!reply) {
-      if (snap.next_move) {
+      if (isSpecialisation) {
+        reply = "What's your current situation in the area your goal requires?";
+      } else if (snap.next_move) {
         reply = `Your next move is "${snap.next_move.title}" (~${snap.next_move.estimated_minutes}m). Want me to shrink it?`;
       } else if (snap.missing_schedule_info?.length) {
         reply = `Quick one — what's your ${snap.missing_schedule_info[0].replace(/_/g, " ")}?`;

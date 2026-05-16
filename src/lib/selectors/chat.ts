@@ -36,6 +36,7 @@ export interface ChatSnapshot {
   user_normal_weekday: string;
   onboarding_knowns: string[];
   onboarding_unknowns: string[];
+  onboarding_answers: Record<string, string>;
   goal_current_stage: string;
   goal_target_stage: string;
   goal_reality_gap: string;
@@ -171,6 +172,7 @@ export function selectChatSnapshot(state: MomentState): ChatSnapshot {
     user_normal_weekday: state.profile.normal_weekday ?? "",
     onboarding_knowns: state.onboarding?.understanding?.knowns ?? [],
     onboarding_unknowns: state.onboarding?.understanding?.unknowns ?? [],
+    onboarding_answers: (state.onboarding?.answers ?? {}) as Record<string, string>,
     goal_current_stage: state.active_goal.current_stage ?? "",
     goal_target_stage: state.active_goal.target_stage ?? "",
     goal_reality_gap: state.active_goal.reality_gap ?? "",

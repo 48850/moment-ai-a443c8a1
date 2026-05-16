@@ -932,7 +932,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
       }
 
       case "chat/append": {
-        const msgs = [...(s.chat_messages ?? []), action.payload].slice(-50);
+        const msgs = [...(s.chat_messages ?? []), action.payload].slice(-100);
         next = { ...s, chat_messages: msgs };
         break;
       }
@@ -945,17 +945,11 @@ export const useStateStore = create<StateStore>((set, get) => ({
         break;
       }
 
-      case "chat/append":
-        next = {
-          ...s,
-          chat_messages: [...((s as any).chat_messages ?? []), action.payload].slice(-200),
-        };
-        break;
       case "chat/clear_messages":
         next = { ...s, chat_messages: [] };
         break;
       case "chat/replace_messages":
-        next = { ...s, chat_messages: action.payload.slice(-200) };
+        next = { ...s, chat_messages: action.payload.slice(-100) };
         break;
 
       case "schedule/set_day_plan":
