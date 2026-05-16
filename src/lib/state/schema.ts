@@ -397,6 +397,59 @@ export const compiledPursuitModelSchema = z.object({
   compiled_from_goal_hash: z.string(),
 });
 
+// ─── Learning engine schemas ──────────────────────────────────────────────────
+
+export const learningSignalSchema = z.object({
+  id: z.string(),
+  created_at: z.string(),
+  signal_type: z.enum([
+    "task_completed", "task_missed", "task_rescheduled",
+    "task_feedback_submitted", "task_tuned",
+    "plan_generated", "plan_reformed", "plan_block_completed", "plan_block_failed",
+    "forge_feature_created", "forge_feature_used", "forge_feature_reused", "forge_feature_abandoned",
+    "rescue_triggered", "rescue_resolved",
+    "chat_question_answered", "onboarding_completed",
+  ]),
+  source_surface: z.enum(["chat", "plan", "tasks", "dashboard", "forge", "mission", "rescue", "audit", "onboarding"]),
+  task_id: z.string().optional(),
+  forge_feature_id: z.string().optional(),
+  metadata: z.record(z.union([z.string(), z.number(), z.boolean()])),
+  privacy_level: z.enum(["private", "aggregate_ok"]),
+  confidence: z.number().min(0).max(1),
+  outcome_value: z.number().optional(),
+});
+
+export const userLearningProfileSchema = z.object({
+  derived_at: z.string(),
+  signal_count: z.number(),
+  preferred_task_size: z.enum(["micro", "short", "medium", "deep", "unknown"]),
+  best_work_windows: z.array(z.object({
+    window: z.string(),
+    confidence: z.number(),
+    evidence_count: z.number(),
+  })),
+  friction_tags: z.array(z.object({
+    tag: z.string(),
+    confidence: z.number(),
+    evidence_count: z.number(),
+  })),
+  plan_style: z.enum(["strict", "flexible", "starter_first", "deep_work", "unknown"]),
+  chat_style: z.enum(["direct", "gentle", "challenge", "minimal", "unknown"]),
+  current_bottleneck: z.object({
+    claim: z.string(),
+    confidence: z.number(),
+    evidence: z.array(z.string()),
+  }).nullable(),
+  adaptation_rules: z.array(z.object({
+    id: z.string(),
+    rule: z.string(),
+    reason: z.string(),
+    confidence: z.number(),
+    evidence_count: z.number(),
+  })),
+  dismissed_insights: z.array(z.string()),
+});
+
 // --- Onboarding schema ---
 export const onboardingSchema = z.object({
   completed: z.boolean().default(false),
@@ -454,6 +507,8 @@ export const momentStateSchema = z.object({
   rescue_signals: z.array(rescueSignalSchema).default([]),
   chat_messages: z.array(chatMessageSchema).default([]),
   chat_preferences: chatPreferencesSchema.default({ tone: "default" }),
+  learning_signals: z.array(learningSignalSchema).default([]),
+  learning_profile: userLearningProfileSchema.nullable().default(null),
   chat_state: chatStateSchema.default({
     post_onboarding_specialisation_required: false,
     specialisation_phase: "explain_goal",

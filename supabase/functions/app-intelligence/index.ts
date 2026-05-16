@@ -287,6 +287,15 @@ function buildContextHeader(snapshot: any): string {
       recentChat.map((m) => `${m.role === "user" ? "User" : "Moment"}: ${m.content}`).join("\n")
     : "";
 
+  const lrn = snapshot?.learning;
+  const learningBlock = lrn && lrn.signal_count > 0
+    ? `\nWHAT MOMENT HAS LEARNED (${lrn.signal_count} behavioural signals):
+- Preferred task size: ${lrn.preferred_task_size}
+- Plan style: ${lrn.plan_style} · Chat style: ${lrn.chat_style}
+- Friction patterns: ${lrn.friction_tags?.join(", ") || "none yet"}
+- Adaptation rules: ${lrn.adaptation_rules?.join(" | ") || "none yet"}${lrn.current_bottleneck ? `\n- Current bottleneck: ${lrn.current_bottleneck}` : ""}`
+    : "";
+
   return `USER (captured during onboarding — treat as ground truth, never re-ask):
 - Name: ${display_name}
 - Age: ${age ?? "?"} (${age_bracket})${school_year ? ` · ${school_year}` : ""}
@@ -311,7 +320,7 @@ Risk of bad advice: ${risk}${risk === "high" ? `\n⚠️ HIGH RISK: Do NOT gener
 Pursuit assumptions: ${assumptions || "none"}
 Capabilities: ${capabilities || "not assessed"}
 
-Signals — Feedback: ${fb} | Reflections: ${JSON.stringify(reflections)}${chatBlock}`.trim();
+Signals — Feedback: ${fb} | Reflections: ${JSON.stringify(reflections)}${chatBlock}${learningBlock}`.trim();
 }
 
 function userPrompt(intent: string, snapshot: any, payload: any): string {

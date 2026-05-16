@@ -4,7 +4,9 @@
  * for things it already knows or losing the thread of execution.
  */
 import type { MomentState, ChatMessage } from "@/lib/types";
+import type { UserLearningProfile } from "@/lib/learning/types";
 import { selectNextBestTask } from "@/lib/engine/next-best-task";
+import { deriveUserLearningProfile } from "@/lib/learning/derive-profile";
 
 export interface ChatSnapshot {
   display_name: string;
@@ -46,6 +48,7 @@ export interface ChatSnapshot {
   top_workstream: { name: string; status: string; bottleneck: string } | null;
   completed_tasks_count: number;
   recent_chat: Array<{ role: "user" | "assistant"; content: string }>;
+  learning_profile: UserLearningProfile | null;
 }
 
 const SCHEDULE_FIELD_MAP: Array<[keyof MomentState["constraints"], string]> = [
@@ -184,5 +187,8 @@ export function selectChatSnapshot(state: MomentState): ChatSnapshot {
       .slice(-10)
       .filter((m): m is ChatMessage & { role: "user" | "assistant" } => m.role === "user" || m.role === "assistant")
       .map((m) => ({ role: m.role, content: m.content })),
+    learning_profile: (state.learning_signals ?? []).length > 0 || state.learning_profile
+      ? (state.learning_profile ?? deriveUserLearningProfile(state, []))
+      : null,
   };
 }

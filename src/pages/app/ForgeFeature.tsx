@@ -6,6 +6,7 @@ import {
   ClipboardList, ListChecks, Activity, Brain,
 } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
+import { logLearningSignal } from "@/lib/learning/log-signal";
 import { getGuidebookById, getFeatureRunsForGuidebook, getSignalsForGuidebook } from "@/lib/selectors/forge";
 import { useAI } from "@/lib/ai/useAI";
 import { FEATURE_TYPE_LABELS, FUNCTION_TYPE_LABELS } from "@/lib/forge/guidebook";
@@ -750,6 +751,17 @@ export default function ForgeFeature() {
 
       dispatch({ type: "forge/log_feature_run", payload: run });
       dispatch({ type: "forge/touch_guidebook", payload: { id: featureId ?? "" } });
+      // runs.length is the count BEFORE this new run is persisted (state hasn't updated yet)
+      logLearningSignal(dispatch, {
+        signal_type: runs.length > 0 ? "forge_feature_reused" : "forge_feature_used",
+        source_surface: "forge",
+        forge_feature_id: featureId ?? undefined,
+        metadata: {
+          feature_type: fnType,
+          hour_of_day: new Date().getHours(),
+        },
+        privacy_level: "private",
+      });
     },
     [dispatch, featureId, inputs],
   );

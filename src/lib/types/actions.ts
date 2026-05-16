@@ -19,6 +19,8 @@ import type {
   FeatureRunResult,
   ForgeSignal,
   GoalFeasibilityReport,
+  LearningSignal,
+  UserLearningProfile,
 } from "@/lib/types";
 
 /**
@@ -107,4 +109,8 @@ export type MomentAction =
   | { type: "chat/complete_specialisation"; payload: {
       goal_patch: Partial<MomentState["active_goal"]>;
       first_task: Task;
-    } };
+    } }
+  // ─── Learning engine ───────────────────────────────────────────────────────
+  | { type: "learning/log_signal"; payload: LearningSignal }
+  | { type: "learning/update_profile"; payload: UserLearningProfile }
+  | { type: "learning/dismiss_insight"; payload: { rule_id: string } };

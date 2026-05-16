@@ -7,6 +7,7 @@ import { useAI } from "@/lib/ai/useAI";
 import { DoneCheckIn } from "@/components/app/DoneCheckIn";
 import { GitHubBranchStatus } from "@/components/app/GitHubBranchStatus";
 import type { Task } from "@/lib/types";
+import { logLearningSignal } from "@/lib/learning/log-signal";
 
 type Filter = "all" | "pending" | "completed" | "missed";
 
@@ -51,6 +52,19 @@ const Tasks = () => {
     } else {
       const completedAt = new Date().toISOString();
       dispatch({ type: "task/complete", payload: { id, completed_at: completedAt } });
+      logLearningSignal(dispatch, {
+        signal_type: "task_completed",
+        source_surface: "tasks",
+        task_id: id,
+        metadata: {
+          estimated_minutes: t.estimated_minutes,
+          hour_of_day: new Date().getHours(),
+          day_of_week: (new Date().getDay() + 6) % 7,
+          task_category: t.category,
+          task_priority: t.priority,
+        },
+        privacy_level: "private",
+      });
       // Open the check-in immediately with the freshly completed task.
       setCheckInTask({ ...t, status: "done", completed_at: completedAt });
     }

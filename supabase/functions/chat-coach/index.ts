@@ -174,6 +174,15 @@ interface ChatSnapshot {
   goal_risk?: string;
   top_workstream?: { name: string; status: string; bottleneck: string } | null;
   completed_tasks_count?: number;
+  learning_profile?: {
+    preferred_task_size?: string;
+    plan_style?: string;
+    chat_style?: string;
+    friction_tags?: Array<{ tag: string; confidence: number; evidence_count: number }>;
+    adaptation_rules?: Array<{ id: string; rule: string; reason: string; confidence: number; evidence_count: number }>;
+    current_bottleneck?: { claim: string; confidence: number; evidence: string[] } | null;
+    signal_count?: number;
+  } | null;
 }
 
 function fmt(v: unknown): string {
@@ -363,6 +372,12 @@ LATEST REFLECTION: ${refl}
 ACTIVE FORGE MODULES:
 ${modules}
 
+${snap.learning_profile && (snap.learning_profile.signal_count ?? 0) > 0 ? `WHAT MOMENT HAS LEARNED ABOUT THIS USER (${snap.learning_profile.signal_count} behavioural signals — use this to personalise every response):
+- Preferred task size: ${snap.learning_profile.preferred_task_size ?? "unknown"}
+- Plan style: ${snap.learning_profile.plan_style ?? "unknown"} · Chat style: ${snap.learning_profile.chat_style ?? "unknown"}
+- Friction patterns: ${snap.learning_profile.friction_tags?.slice(0, 3).map((f) => f.tag).join(", ") || "none yet"}
+- Active adaptation rules: ${snap.learning_profile.adaptation_rules?.slice(0, 3).map((r) => r.rule).join(" | ") || "none yet"}${snap.learning_profile.current_bottleneck ? `\n- Current bottleneck: ${snap.learning_profile.current_bottleneck.claim}` : ""}
+` : ""}
 RULES — NON-NEGOTIABLE
 1. NEVER ask for anything listed under "KNOWN ABOUT THIS USER". Asking again destroys trust.
 2. NEVER ask for onboarding fields that appear in "Onboarding knowns". These are already answered.

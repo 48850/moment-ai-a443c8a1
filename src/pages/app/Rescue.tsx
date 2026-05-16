@@ -5,6 +5,7 @@ import { selectNextBestTask } from "@/lib/engine/next-best-task";
 import { useAI } from "@/lib/ai/useAI";
 import { toast } from "sonner";
 import type { RescueSignal } from "@/lib/types";
+import { logLearningSignal } from "@/lib/learning/log-signal";
 
 const reasons = [
   { id: "overwhelmed", label: "I'm overwhelmed" },
@@ -105,6 +106,16 @@ const Rescue = () => {
       note: "",
     };
     dispatch({ type: "rescue/log", payload: signal });
+    logLearningSignal(dispatch, {
+      signal_type: "rescue_triggered",
+      source_surface: "rescue",
+      metadata: {
+        rescue_reason: id,
+        hour_of_day: new Date().getHours(),
+        day_of_week: (new Date().getDay() + 6) % 7,
+      },
+      privacy_level: "private",
+    });
   };
 
   useEffect(() => {

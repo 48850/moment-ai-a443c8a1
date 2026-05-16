@@ -12,6 +12,7 @@ import { FeedbackChips } from "@/components/app/FeedbackChips";
 import { PatternBanner } from "@/components/app/PatternBanner";
 import { WeeklyGrid } from "@/components/app/WeeklyGrid";
 import { buildContextPacket } from "@/lib/ai/context-packet";
+import { logLearningSignal } from "@/lib/learning/log-signal";
 
 /* ----- pursuit tiles (kept) ----- */
 interface PursuitTile {
@@ -215,6 +216,15 @@ const Plan = () => {
       rebuilt.sort((a, b) => a.start_time.localeCompare(b.start_time));
 
       dispatch({ type: "plan/reform", payload: { reformed_plan: rebuilt, reform_note: reformExplanation } });
+      logLearningSignal(dispatch, {
+        signal_type: "plan_reformed",
+        source_surface: "plan",
+        metadata: {
+          hour_of_day: new Date().getHours(),
+          plan_switched: true,
+        },
+        privacy_level: "private",
+      });
       toast.success("Plan B ready", { description: reformExplanation });
       setReformOpen(false);
       setReformNote("");

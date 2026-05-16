@@ -114,6 +114,8 @@ export function createEmptyUserState(userId: string, displayName: string, timezo
       post_onboarding_specialisation_required: false,
       specialisation_phase: "explain_goal" as const,
     },
+    learning_signals: [],
+    learning_profile: null,
     onboarding: {
       completed: false,
       current_stage: "",

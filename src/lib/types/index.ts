@@ -23,7 +23,19 @@ import {
   chatMessageSchema,
   goalFeasibilityReportSchema,
   onboardingSchema,
+  learningSignalSchema,
+  userLearningProfileSchema,
 } from "@/lib/state/schema";
+export type {
+  LearningSignal,
+  LearningSignalType,
+  LearningSurface,
+  LearningSignalMeta,
+  FrictionTag,
+  WorkWindow,
+  AdaptationRule,
+  UserLearningProfile,
+} from "@/lib/learning/types";
 
 export type MomentState = z.infer<typeof momentStateSchema>;
 export type GoalFeasibilityReport = z.infer<typeof goalFeasibilityReportSchema>;
@@ -49,6 +61,9 @@ export type CompiledPursuitModel = z.infer<typeof compiledPursuitModelSchema>;
 export type RescueSignal = z.infer<typeof rescueSignalSchema>;
 export type ChatPreferences = z.infer<typeof chatPreferencesSchema>;
 export type ChatMessage = z.infer<typeof chatMessageSchema>;
+// Re-export as Zod-inferred aliases for callers that prefer the schema side
+export type LearningSignalRecord = z.infer<typeof learningSignalSchema>;
+export type UserLearningProfileRecord = z.infer<typeof userLearningProfileSchema>;
 export type { PursuitFamily } from "@/lib/pursuit/families";
 
 // ─── Legacy module system (kept for backward compatibility) ───────────────────

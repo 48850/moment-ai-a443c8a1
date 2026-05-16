@@ -7,6 +7,7 @@ import { PatternBanner } from "@/components/app/PatternBanner";
 import { AIInsight } from "@/components/app/AIInsight";
 import { useAI } from "@/lib/ai/useAI";
 import { selectAuditMetrics } from "@/lib/selectors/audit";
+import { LearningInsights } from "@/components/app/LearningInsights";
 
 const Audit = () => {
   const state = useStateStore((s) => s.state);
@@ -176,6 +177,8 @@ const Audit = () => {
           )}
         </ul>
       </section>
+
+      <LearningInsights />
     </div>
   );
 };

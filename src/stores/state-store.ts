@@ -15,6 +15,10 @@ import {
 import { seedWeekPlan, reformWeekPlan, sortBlocks as weekSort } from "@/lib/engine/week-plan";
 import { evaluateGoalFeasibility } from "@/lib/engine/goal-feasibility";
 import { filterStageAppropriateTasks } from "@/lib/engine/task-stage-filter";
+import { deriveUserLearningProfile } from "@/lib/learning/derive-profile";
+
+const LEARNING_SIGNAL_CAP = 200;
+const LEARNING_RECOMPUTE_INTERVAL = 10;
 
 interface StateStore {
   state: MomentState | null;
@@ -128,6 +132,8 @@ export const useStateStore = create<StateStore>((set, get) => ({
           specialisation_phase: "explain_goal" as const,
         },
         chat_messages: (saved as any).chat_messages ?? [],
+        learning_signals: (saved as any).learning_signals ?? [],
+        learning_profile: (saved as any).learning_profile ?? null,
         onboarding: onboardingBackfill,
       };
       // In demo mode, use demo state instead of saved (only for fresh demo sessions)
@@ -948,6 +954,39 @@ export const useStateStore = create<StateStore>((set, get) => ({
           pursuit_model: merged.statement.trim()
             ? compilePursuitModel(merged, s.pursuit_model)
             : null,
+        };
+        break;
+      }
+
+      // ─── Learning engine ─────────────────────────────────────────────────────
+
+      case "learning/log_signal": {
+        const existing = s.learning_signals ?? [];
+        const capped = [...existing, action.payload].slice(-LEARNING_SIGNAL_CAP);
+        const shouldRecompute = capped.length % LEARNING_RECOMPUTE_INTERVAL === 0;
+        const profile = shouldRecompute
+          ? deriveUserLearningProfile(
+              { ...s, learning_signals: capped },
+              s.learning_profile?.dismissed_insights ?? [],
+            )
+          : (s.learning_profile ?? null);
+        next = { ...s, learning_signals: capped, learning_profile: profile };
+        break;
+      }
+
+      case "learning/update_profile": {
+        next = { ...s, learning_profile: action.payload };
+        break;
+      }
+
+      case "learning/dismiss_insight": {
+        const profile = s.learning_profile;
+        if (!profile) break;
+        const dismissed = [...(profile.dismissed_insights ?? []), action.payload.rule_id];
+        const updatedRules = profile.adaptation_rules.filter((r) => r.id !== action.payload.rule_id);
+        next = {
+          ...s,
+          learning_profile: { ...profile, adaptation_rules: updatedRules, dismissed_insights: dismissed },
         };
         break;
       }

@@ -1,5 +1,6 @@
 import type { MomentState, GoalFeasibilityReport } from "@/lib/types";
 import { computeStallPattern } from "@/lib/selectors/audit";
+import { deriveUserLearningProfile } from "@/lib/learning/derive-profile";
 
 export interface MomentContextPacket {
   user: {
@@ -70,6 +71,15 @@ export interface MomentContextPacket {
     recent_signals: Array<{ feature: string; key: string; value: string }>;
   };
   recent_chat: Array<{ role: "user" | "assistant"; content: string }>;
+  learning: {
+    preferred_task_size: string;
+    plan_style: string;
+    chat_style: string;
+    friction_tags: string[];
+    adaptation_rules: string[];
+    current_bottleneck: string | null;
+    signal_count: number;
+  } | null;
 }
 
 export function buildContextPacket(s: MomentState | null): MomentContextPacket | Record<string, never> {
@@ -187,5 +197,25 @@ export function buildContextPacket(s: MomentState | null): MomentContextPacket |
       .slice(-10)
       .filter((m) => m.role === "user" || m.role === "assistant")
       .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+    learning: buildLearningBlock(s),
+  };
+}
+
+function buildLearningBlock(s: MomentState): MomentContextPacket["learning"] {
+  const signals = s.learning_signals ?? [];
+  if (signals.length === 0 && !s.learning_profile) return null;
+
+  // Use stored profile if fresh enough; otherwise derive on the fly
+  const profile = s.learning_profile ?? deriveUserLearningProfile(s, []);
+  if (profile.signal_count === 0 && signals.length === 0) return null;
+
+  return {
+    preferred_task_size: profile.preferred_task_size,
+    plan_style: profile.plan_style,
+    chat_style: profile.chat_style,
+    friction_tags: profile.friction_tags.slice(0, 3).map((f) => f.tag),
+    adaptation_rules: profile.adaptation_rules.slice(0, 3).map((r) => r.rule),
+    current_bottleneck: profile.current_bottleneck?.claim ?? null,
+    signal_count: profile.signal_count,
   };
 }
