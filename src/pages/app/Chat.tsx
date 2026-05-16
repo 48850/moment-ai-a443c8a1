@@ -53,17 +53,22 @@ const Chat = () => {
     [state?.user_id],
   );
 
-  const defaultGreeting = useMemo<ChatMessage>(
-    () => ({
-      id: "greet",
-      role: "assistant" as const,
-      content: state?.active_goal?.statement
-        ? `Hey ${state?.profile.display_name ?? "there"} — let's clear the first three: what time does school end, how long is your commute home, and what's your target bedtime?`
-        : `Hey ${state?.profile.display_name ?? "there"} — what's the one goal you want this app pointed at right now?`,
-      created_at: new Date().toISOString(),
-    }),
-    [state?.profile.display_name, state?.active_goal?.statement],
-  );
+  const defaultGreeting = useMemo<ChatMessage>(() => {
+    const name = state?.profile.display_name ? `Hey ${state.profile.display_name}` : "Hey";
+    const hasGoal = Boolean(state?.active_goal?.statement?.trim());
+    const missingCount = Object.values(state?.constraints ?? {}).filter(
+      (v) => v === null || v === undefined || v === "" || v === 0,
+    ).length;
+    let content: string;
+    if (!hasGoal) {
+      content = `${name} — what's the one goal you want this app pointed at right now?`;
+    } else if (missingCount > 4) {
+      content = `${name} — what time does school finish, and how long is your commute home?`;
+    } else {
+      content = `${name} — what's on your mind? I can help with your goal, plan, or schedule.`;
+    }
+    return { id: "greet", role: "assistant" as const, content, created_at: new Date().toISOString() };
+  }, [state?.profile.display_name, state?.active_goal?.statement, state?.constraints]);
 
   const initialGreeting = isSpecialisation ? specialisationGreeting : defaultGreeting;
   const persisted = state?.chat_messages;
@@ -310,14 +315,25 @@ const Chat = () => {
 
       applyToolPatches(patches);
 
+      // Compute which fields were patched in this turn so the client fallback
+      // doesn't repeat the field the user just answered (snapshot is stale at this point).
+      const justPatched = new Set<string>(
+        patches.flatMap((p) => {
+          if (p.tool === "update_constraints") return Object.keys(p.args);
+          if (p.tool === "add_fixed_commitment") return ["fixed_commitments"];
+          return [];
+        }),
+      );
+      const remainingMissing = snapshot.missing_schedule_info.filter(
+        (f) => !justPatched.has(f),
+      );
+
       let display = reply.trim();
       if (!display) {
         if (patches.some((p) => p.tool === "create_first_task")) {
           display = "Your first move is in your task list. Let's get started.";
-        } else if (patches.length) {
-          display = "Got it — pulled that into your plan. What else?";
-        } else if (snapshot.missing_schedule_info.length) {
-          display = `What's your ${snapshot.missing_schedule_info[0].replace(/_/g, " ")}?`;
+        } else if (!isSpecialisation && remainingMissing.length) {
+          display = `What's your ${remainingMissing[0].replace(/_/g, " ")}?`;
         } else if (snapshot.next_move) {
           display = `Your next move is "${snapshot.next_move.title}" (${snapshot.next_move.estimated_minutes}m). Want help shrinking it?`;
         } else {
