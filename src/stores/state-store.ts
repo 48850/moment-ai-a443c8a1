@@ -77,6 +77,8 @@ export const useStateStore = create<StateStore>((set, get) => ({
         education_system: "unknown" as const,
         ...((saved.profile as any) ?? {}),
       };
+      // Clear legacy hardcoded "Alex" default — no real user set this name intentionally
+      if (profileBackfill.display_name === "Alex") profileBackfill.display_name = "";
 
       // Backfill active_goal extended fields
       const goalBackfill = saved.active_goal
@@ -130,7 +132,6 @@ export const useStateStore = create<StateStore>((set, get) => ({
         },
         chat_messages: (saved as any).chat_messages ?? [],
         onboarding: onboardingBackfill,
-        chat_messages: (saved as any).chat_messages ?? [],
       };
       // In demo mode, use demo state instead of saved (only for fresh demo sessions)
       if (isDemo && !saved.active_goal?.statement?.trim()) {
