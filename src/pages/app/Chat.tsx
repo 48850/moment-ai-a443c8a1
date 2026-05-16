@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Send, Sparkles, CheckCircle2, Target } from "lucide-react";
@@ -7,12 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { FeedbackChips } from "@/components/app/FeedbackChips";
 import { selectChatSnapshot } from "@/lib/selectors/chat";
-
-type ChatMessage = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-};
+import type { ChatMessage } from "@/lib/types";
 
 const SCHEDULE_FIELDS: { key: string; label: string }[] = [
   { key: "school_end_time", label: "School end time" },
@@ -49,10 +43,11 @@ const Chat = () => {
   const specialisationGreeting = useMemo<ChatMessage>(
     () => ({
       id: "spec-greet",
-      role: "assistant",
+      role: "assistant" as const,
       content: state?.active_goal?.statement
         ? `Let's map out your path to "${state.active_goal.statement}". I'll ask you one question at a time to understand where you're starting from — that way I can give you the right first move, not a generic one. What's your current level in the area your goal requires?`
         : `You're all set. Let's figure out your first real move.`,
+      created_at: new Date().toISOString(),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state?.user_id],
@@ -61,16 +56,17 @@ const Chat = () => {
   const defaultGreeting = useMemo<ChatMessage>(
     () => ({
       id: "greet",
-      role: "assistant",
+      role: "assistant" as const,
       content: state?.active_goal?.statement
         ? `Hey ${state?.profile.display_name ?? "there"} — let's clear the first three: what time does school end, how long is your commute home, and what's your target bedtime?`
         : `Hey ${state?.profile.display_name ?? "there"} — what's the one goal you want this app pointed at right now?`,
+      created_at: new Date().toISOString(),
     }),
     [state?.profile.display_name, state?.active_goal?.statement],
   );
 
   const initialGreeting = isSpecialisation ? specialisationGreeting : defaultGreeting;
-  const persisted = (state as any)?.chat_messages as ChatMessage[] | undefined;
+  const persisted = state?.chat_messages;
   const [messages, setMessages] = useState<ChatMessage[]>(
     persisted && persisted.length ? persisted : [initialGreeting],
   );
@@ -81,7 +77,7 @@ const Chat = () => {
 
   // When mode switches or user changes, rehydrate or reset to correct greeting.
   useEffect(() => {
-    const stored = (state as any)?.chat_messages as ChatMessage[] | undefined;
+    const stored = state?.chat_messages;
     const greeting = isSpecialisation ? specialisationGreeting : defaultGreeting;
     setMessages(stored && stored.length ? stored : [greeting]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -276,7 +272,7 @@ const Chat = () => {
 
   const onSendMessage = async (text: string) => {
     if (!text.trim() || !state) return;
-    const userMsg: ChatMessage = { id: crypto.randomUUID(), role: "user", content: text };
+    const userMsg: ChatMessage = { id: crypto.randomUUID(), role: "user" as const, content: text, created_at: new Date().toISOString() };
     setMessages((m) => [...m, userMsg]);
     dispatch({ type: "chat/append", payload: userMsg });
     setInput("");
@@ -325,17 +321,20 @@ const Chat = () => {
 
       const assistantMsg: ChatMessage = {
         id: crypto.randomUUID(),
-        role: "assistant",
+        role: "assistant" as const,
         content: display,
+        created_at: new Date().toISOString(),
       };
       setMessages((m) => [...m, assistantMsg]);
       dispatch({ type: "chat/append", payload: assistantMsg });
-    } catch (e: any) {
-      toast.error(e?.message || "Chat failed");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Chat failed";
+      toast.error(msg);
       const errMsg: ChatMessage = {
         id: crypto.randomUUID(),
-        role: "assistant",
+        role: "assistant" as const,
         content: "Sorry — I couldn't reach the coach. Try again in a moment.",
+        created_at: new Date().toISOString(),
       };
       setMessages((m) => [...m, errMsg]);
       dispatch({ type: "chat/append", payload: errMsg });

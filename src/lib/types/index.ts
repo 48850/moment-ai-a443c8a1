@@ -20,6 +20,7 @@ import {
   compiledPursuitModelSchema,
   rescueSignalSchema,
   chatPreferencesSchema,
+  chatMessageSchema,
   goalFeasibilityReportSchema,
   onboardingSchema,
 } from "@/lib/state/schema";
@@ -47,6 +48,7 @@ export type OperatingMode = z.infer<typeof operatingModeSchema>;
 export type CompiledPursuitModel = z.infer<typeof compiledPursuitModelSchema>;
 export type RescueSignal = z.infer<typeof rescueSignalSchema>;
 export type ChatPreferences = z.infer<typeof chatPreferencesSchema>;
+export type ChatMessage = z.infer<typeof chatMessageSchema>;
 export type { PursuitFamily } from "@/lib/pursuit/families";
 
 // ─── Legacy module system (kept for backward compatibility) ───────────────────

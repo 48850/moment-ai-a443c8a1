@@ -895,6 +895,12 @@ export const useStateStore = create<StateStore>((set, get) => ({
         break;
       }
 
+      case "chat/append": {
+        const msgs = [...(s.chat_messages ?? []), action.payload].slice(-50);
+        next = { ...s, chat_messages: msgs };
+        break;
+      }
+
       case "chat/setPreferences": {
         next = {
           ...s,
