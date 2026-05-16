@@ -96,8 +96,10 @@ const Dashboard = () => {
     if (!t) return;
     if (t.status === "done") {
       dispatch({ type: "task/update", payload: { id, changes: { status: "pending", completed_at: "" } } });
+      setJustCompletedId(null);
     } else {
       dispatch({ type: "task/complete", payload: { id, completed_at: new Date().toISOString() } });
+      setJustCompletedId(id);
     }
   };
 
@@ -132,15 +134,23 @@ const Dashboard = () => {
             <Clock className="h-3 w-3" /> about {dm.estimatedMinutes} min
           </div>
 
-          <div className="mt-5 flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => onComplete(dm.id)}
-              className="flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              Done ✓
-            </button>
-            <FeedbackChips source="home" targetId={dm.id} taskId={dm.id} taskTitle={dm.title} />
-          </div>
+          {justCompletedId === dm.id ? (
+            <DmDoneFeedback
+              taskId={dm.id}
+              taskTitle={dm.title}
+              onDone={() => setJustCompletedId(null)}
+            />
+          ) : (
+            <div className="mt-5 flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => onComplete(dm.id)}
+                className="flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                Done ✓
+              </button>
+              <FeedbackChips source="home" targetId={dm.id} taskId={dm.id} taskTitle={dm.title} />
+            </div>
+          )}
         </section>
       )}
 

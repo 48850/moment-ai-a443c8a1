@@ -69,6 +69,7 @@ export interface MomentContextPacket {
     active_guidebooks: Array<{ id: string; title: string; feature_type: string }>;
     recent_signals: Array<{ feature: string; key: string; value: string }>;
   };
+  recent_chat: Array<{ role: "user" | "assistant"; content: string }>;
 }
 
 export function buildContextPacket(s: MomentState | null): MomentContextPacket | Record<string, never> {
@@ -104,11 +105,11 @@ export function buildContextPacket(s: MomentState | null): MomentContextPacket |
       timezone: s.profile.timezone,
       commitments: s.profile.commitments ?? [],
       normal_weekday: s.profile.normal_weekday,
-      preferences: s.profile.preferences ?? {
-        tone: "calm",
-        strictness: "soft",
-        schedule_style: "flexible",
-        support_style: "coach",
+      preferences: {
+        tone: s.profile.preferences?.tone ?? "calm",
+        strictness: s.profile.preferences?.strictness ?? "soft",
+        schedule_style: s.profile.preferences?.schedule_style ?? "flexible",
+        support_style: s.profile.preferences?.support_style ?? "coach",
       },
     },
     active_goal: {
@@ -171,16 +172,20 @@ export function buildContextPacket(s: MomentState | null): MomentContextPacket |
     },
     onboarding: {
       completed: s.onboarding?.completed ?? false,
-      understanding: s.onboarding?.understanding ?? {
-        knowns: [],
-        unknowns: [],
-        assumptions: [],
-        confidence: "low",
+      understanding: {
+        knowns: s.onboarding?.understanding?.knowns ?? [],
+        unknowns: s.onboarding?.understanding?.unknowns ?? [],
+        assumptions: s.onboarding?.understanding?.assumptions ?? [],
+        confidence: s.onboarding?.understanding?.confidence ?? "low",
       },
     },
     forge: {
       active_guidebooks: activeGuidebooks,
       recent_signals: recentSignals,
     },
+    recent_chat: (s.chat_messages ?? [])
+      .slice(-10)
+      .filter((m) => m.role === "user" || m.role === "assistant")
+      .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
   };
 }

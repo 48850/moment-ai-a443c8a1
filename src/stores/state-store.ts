@@ -128,6 +128,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
           post_onboarding_specialisation_required: false,
           specialisation_phase: "explain_goal" as const,
         },
+        chat_messages: (saved as any).chat_messages ?? [],
         onboarding: onboardingBackfill,
         chat_messages: (saved as any).chat_messages ?? [],
       };
@@ -926,6 +927,12 @@ export const useStateStore = create<StateStore>((set, get) => ({
 
       case "rescue/log": {
         next = { ...s, rescue_signals: [...(s.rescue_signals ?? []), action.payload] };
+        break;
+      }
+
+      case "chat/append": {
+        const msgs = [...(s.chat_messages ?? []), action.payload].slice(-50);
+        next = { ...s, chat_messages: msgs };
         break;
       }
 

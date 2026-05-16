@@ -1,4 +1,3 @@
-// @ts-nocheck
 import type {
   ForgeGuidebook,
   GuidebookInput,
@@ -41,7 +40,7 @@ export function detectSystemGap(state: MomentState): ForgeSystemGap {
 
   // Look for bottleneck in pursuit model
   const bottleneckWorkstream = model?.workstreams?.find((w) => w.bottleneck);
-  const bottleneck = bottleneckWorkstream?.bottleneck ?? model?.workstreams?.[0]?.title ?? null;
+  const bottleneck = bottleneckWorkstream?.bottleneck ?? model?.workstreams?.[0]?.name ?? null;
 
   // Look at recent reflections for struggle patterns
   const recentStruggles = reflections
@@ -467,13 +466,113 @@ export function buildTemplateGuidebook(
   };
 }
 
-// ─── AI response parser ───────────────────────────────────────────────────────
+// ─── AI response normaliser ───────────────────────────────────────────────────
+
+const VALID_SECTION_TYPES: GuidebookSection["section_type"][] = [
+  "input_panel", "ai_output", "saved_entries", "task_list", "scorecard",
+  "timeline", "protocol_steps", "decision_result", "reflection_box", "audit_summary",
+];
+
+const VALID_FUNCTION_TYPES: GuidebookAIFunction["function_type"][] = [
+  "analyze", "generate_plan", "split_tasks", "score_quality", "rank_options",
+  "simulate", "challenge", "summarize", "extract_signals", "create_next_move",
+];
+
+const VALID_INPUT_TYPES: GuidebookInput["type"][] = [
+  "text", "textarea", "number", "select", "date", "scale", "file_link",
+];
+
+const VALID_FEATURE_TYPES: ForgeFeatureType[] = [
+  "tracker", "protocol", "control_room", "drill_lab", "proof_builder",
+  "decision_engine", "planner", "simulator", "coach_lens", "research_helper", "custom",
+];
+
+function normaliseInput(raw: unknown, idx: number): GuidebookInput {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  return {
+    id: typeof r.id === "string" && r.id ? r.id : `inp_${idx}_${Math.random().toString(36).slice(2, 7)}`,
+    label: typeof r.label === "string" && r.label ? r.label : `Input ${idx + 1}`,
+    type: VALID_INPUT_TYPES.includes(r.type as GuidebookInput["type"])
+      ? (r.type as GuidebookInput["type"])
+      : "text",
+    required: typeof r.required === "boolean" ? r.required : true,
+    placeholder: typeof r.placeholder === "string" ? r.placeholder : undefined,
+    options: Array.isArray(r.options) ? r.options.map(String) : undefined,
+  };
+}
+
+function normaliseSection(raw: unknown, idx: number): GuidebookSection {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  return {
+    id: typeof r.id === "string" && r.id ? r.id : `sec_${idx}_${Math.random().toString(36).slice(2, 7)}`,
+    title: typeof r.title === "string" && r.title ? r.title : `Section ${idx + 1}`,
+    description: typeof r.description === "string" ? r.description : undefined,
+    section_type: VALID_SECTION_TYPES.includes(r.section_type as GuidebookSection["section_type"])
+      ? (r.section_type as GuidebookSection["section_type"])
+      : "ai_output",
+    linked_ai_function_id: typeof r.linked_ai_function_id === "string" ? r.linked_ai_function_id : undefined,
+    linked_state_key: typeof r.linked_state_key === "string" ? r.linked_state_key : undefined,
+  };
+}
+
+function normaliseAIFunction(raw: unknown, idx: number): GuidebookAIFunction {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  return {
+    id: typeof r.id === "string" && r.id ? r.id : `fn_${idx}_${Math.random().toString(36).slice(2, 7)}`,
+    name: typeof r.name === "string" && r.name ? r.name : `AI Function ${idx + 1}`,
+    description: typeof r.description === "string" ? r.description : "",
+    function_type: VALID_FUNCTION_TYPES.includes(r.function_type as GuidebookAIFunction["function_type"])
+      ? (r.function_type as GuidebookAIFunction["function_type"])
+      : "analyze",
+    input_sources: Array.isArray(r.input_sources) ? r.input_sources.map(String) : [],
+    output_schema: r.output_schema && typeof r.output_schema === "object" ? r.output_schema as Record<string, unknown> : { result: "string" },
+    prompt_contract: typeof r.prompt_contract === "string" && r.prompt_contract
+      ? r.prompt_contract
+      : "Analyse the provided inputs and return a structured result.",
+    writes_to_state: typeof r.writes_to_state === "boolean" ? r.writes_to_state : false,
+    allowed_state_actions: Array.isArray(r.allowed_state_actions) ? r.allowed_state_actions.map(String) : [],
+  };
+}
 
 export function parseAIGuidebookResponse(
   raw: Record<string, unknown>,
   state: MomentState,
 ): ForgeGuidebook {
-  return buildGuidebookFromAIResponse(raw as Partial<ForgeGuidebook>, state);
+  // Normalise every array field so no malformed AI output reaches the feature page
+  const sections = Array.isArray(raw.sections) && raw.sections.length > 0
+    ? raw.sections.map(normaliseSection)
+    : null;
+
+  const ai_functions = Array.isArray(raw.ai_functions) && raw.ai_functions.length > 0
+    ? raw.ai_functions.map(normaliseAIFunction)
+    : null;
+
+  // If AI gave us neither sections nor AI functions, fall back to a safe template
+  if (!sections && !ai_functions) {
+    const featureType = VALID_FEATURE_TYPES.includes(raw.feature_type as ForgeFeatureType)
+      ? (raw.feature_type as ForgeFeatureType)
+      : "custom";
+    return buildTemplateGuidebook(featureType, state.active_goal?.statement ?? "");
+  }
+
+  const required_inputs = Array.isArray(raw.required_inputs)
+    ? raw.required_inputs.map(normaliseInput)
+    : [];
+
+  const feature_type = VALID_FEATURE_TYPES.includes(raw.feature_type as ForgeFeatureType)
+    ? (raw.feature_type as ForgeFeatureType)
+    : "custom";
+
+  return buildGuidebookFromAIResponse(
+    {
+      ...raw,
+      feature_type,
+      required_inputs,
+      sections: sections ?? [],
+      ai_functions: ai_functions ?? [],
+    } as Partial<ForgeGuidebook>,
+    state,
+  );
 }
 
 // ─── Validation ──────────────────────────────────────────────────────────────

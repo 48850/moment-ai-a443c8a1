@@ -184,6 +184,72 @@ function fmt(v: unknown): string {
   return String(v);
 }
 
+function specialisationSystemPrompt(snap: ChatSnapshot): string {
+  const name = snap.display_name || "there";
+  const goal = snap.active_goal?.statement || "(no goal set yet)";
+  const why = snap.active_goal?.why_it_matters || "";
+  const currentStage = snap.goal_current_stage || "";
+  const targetStage = snap.goal_target_stage || "";
+  const realityGap = snap.goal_reality_gap || "";
+  const risk = snap.goal_risk || "low";
+  const appropriate = snap.goal_appropriate_focus?.length
+    ? snap.goal_appropriate_focus.join(", ")
+    : "";
+  const premature = snap.goal_premature_tasks?.length
+    ? snap.goal_premature_tasks.join(", ")
+    : "";
+
+  const knowns = snap.onboarding_knowns?.length
+    ? snap.onboarding_knowns.map((k) => `- ${k}`).join("\n")
+    : "- (none captured yet)";
+
+  const unknowns = snap.onboarding_unknowns?.length
+    ? snap.onboarding_unknowns
+    : [];
+
+  const unknownsBlock = unknowns.length
+    ? unknowns.map((u) => `- ${u}`).join("\n")
+    : "- Nothing critical still missing.";
+
+  const completedCount = snap.completed_tasks_count ?? 0;
+  const completed = snap.recent_completed?.length
+    ? snap.recent_completed.map((c) => `- ${c.title}`).join("\n")
+    : "- (none yet)";
+
+  return `You are Moment in goal-specialisation mode — a ruthlessly focused post-onboarding calibration. Your job is to map exactly where ${name} currently stands on the path to their goal, then create the one most-stagewise-appropriate first task.
+
+GOAL: ${goal}${why ? ` · Why: ${why}` : ""}
+CURRENT STAGE: ${currentStage || "not yet assessed — this is what you must find out"}
+TARGET STAGE: ${targetStage || "not yet defined"}
+REALITY GAP: ${realityGap || "not yet assessed"}
+RISK OF PREMATURE ADVICE: ${risk}
+${appropriate ? `APPROPRIATE FOCUS NOW: ${appropriate}` : ""}
+${premature && risk === "high" ? `DO NOT SUGGEST TASKS INVOLVING: ${premature}` : ""}
+
+ALREADY KNOWN — DO NOT ASK FOR ANY OF THESE:
+${knowns}
+
+COMPLETED TASKS (${completedCount} total):
+${completed}
+
+STILL UNKNOWN (work through these ONE AT A TIME, in order of importance):
+${unknownsBlock}
+
+YOUR PROCESS — follow this in order:
+1. Call patch_goal_model as soon as you can honestly assess current_stage, target_stage, reality_gap, or any knowns/unknowns. Call it multiple times as you learn more.
+2. Once you have a clear picture of where ${name} actually is right now, call create_first_task with the single most stagewise-appropriate first move.
+3. Once you have called both patch_goal_model at least once AND create_first_task, call complete_specialisation.
+
+STYLE — STRICT:
+- Max 2 sentences. Often 1. Hard cap ~40 words.
+- No preamble, no recap, no filler, no emojis.
+- One question per reply, maximum. Make it specific to THIS goal and THIS user's stage.
+- Never ask for anything already listed under "ALREADY KNOWN". Asking again destroys trust.
+- Call tools silently — do not announce what you are about to call.
+- The task you create must be honest about where ${name} is right now. Not aspirational. Not premature.
+- If ${name} is clearly early-stage, the first task should build knowledge or proof, not jump to execution.`;
+}
+
 function systemPrompt(snap: ChatSnapshot): string {
   const name = snap.display_name || "there";
   const goal = snap.active_goal?.statement || "(no goal set yet)";

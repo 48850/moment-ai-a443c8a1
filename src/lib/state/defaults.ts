@@ -108,6 +108,7 @@ export function createEmptyUserState(userId: string, displayName: string, timezo
     },
     pursuit_model: null,
     rescue_signals: [],
+    chat_messages: [],
     chat_preferences: { tone: "default" },
     chat_state: {
       post_onboarding_specialisation_required: false,

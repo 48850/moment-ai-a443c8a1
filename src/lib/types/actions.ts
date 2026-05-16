@@ -14,6 +14,7 @@ import type {
   AppMode,
   RescueSignal,
   ChatPreferences,
+  ChatMessage,
   ForgeGuidebook,
   FeatureRunResult,
   ForgeSignal,
@@ -44,6 +45,7 @@ export type MomentAction =
   | { type: "alignment/set"; payload: AlignmentState }
   | { type: "home/setPlan"; payload: "plan_a" | "plan_b" }
   | { type: "rescue/log"; payload: RescueSignal }
+  | { type: "chat/append"; payload: ChatMessage }
   | { type: "chat/setPreferences"; payload: Partial<ChatPreferences> }
   | { type: "goal/set"; payload: MomentState["active_goal"] }
   | { type: "goal/patch"; payload: Partial<MomentState["active_goal"]> }

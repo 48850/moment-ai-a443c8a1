@@ -283,6 +283,12 @@ function buildContextHeader(snapshot: any): string {
   const fb = (snapshot?.signals?.recent_feedback ?? []).slice(-10).join(", ") || "none";
   const reflections = (snapshot?.signals?.recent_reflections ?? []).slice(-3);
 
+  const recentChat = (snapshot?.recent_chat ?? []) as Array<{ role: string; content: string }>;
+  const chatBlock = recentChat.length
+    ? `\nRECENT CHAT (last ${recentChat.length} turns — use to avoid repeating yourself):\n` +
+      recentChat.map((m) => `${m.role === "user" ? "User" : "Moment"}: ${m.content}`).join("\n")
+    : "";
+
   return `USER (captured during onboarding — treat as ground truth, never re-ask):
 - Name: ${display_name}
 - Age: ${age ?? "?"} (${age_bracket})${school_year ? ` · ${school_year}` : ""}
@@ -309,7 +315,7 @@ Risk of bad advice: ${risk}${risk === "high" ? `\n⚠️ HIGH RISK: Do NOT gener
 Pursuit assumptions: ${assumptions || "none"}
 Capabilities: ${capabilities || "not assessed"}
 
-Signals — Feedback: ${fb} | Reflections: ${JSON.stringify(reflections)}`.trim();
+Signals — Feedback: ${fb} | Reflections: ${JSON.stringify(reflections)}${chatBlock}`.trim();
 }
 
 function userPrompt(intent: string, snapshot: any, payload: any): string {
