@@ -131,8 +131,14 @@ const Mission = () => {
             <Flag className="h-3 w-3" /> mission brief
           </div>
           <h1 className="mt-3 max-w-3xl font-display text-2xl font-semibold leading-tight md:text-3xl">
-            {m.goal.statement}
+            {state?.profile.display_name ? `${state.profile.display_name}'s path` : "Your path"}
           </h1>
+          <p className="mt-1 max-w-3xl text-base text-muted-foreground">{m.goal.statement}</p>
+          {state?.active_goal?.current_stage && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Stage: <span className="text-foreground">{state.active_goal.current_stage}</span>
+            </p>
+          )}
           {m.goal.whyItMatters && (
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{m.goal.whyItMatters}</p>
           )}

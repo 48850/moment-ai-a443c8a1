@@ -46,7 +46,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
     let session = storage.getSession();
     if (!session) {
       const userId = `guest_${Math.random().toString(36).slice(2, 10)}`;
-      session = { userId, displayName: "Alex" };
+      session = { userId, displayName: "" };
       storage.setSession(session.userId, session.displayName);
     }
     const saved = await storage.getState(session.userId);
