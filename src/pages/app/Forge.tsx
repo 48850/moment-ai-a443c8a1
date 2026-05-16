@@ -15,6 +15,8 @@ import {
   parseAIGuidebookResponse,
   FEATURE_TYPE_LABELS,
   detectSystemGap,
+  validateGuidebook,
+  generateCustomGuidebookViaAI,
 } from "@/lib/forge/guidebook";
 import type {
   FeatureCandidate,
@@ -312,6 +314,7 @@ function ForgeBuilderFlow({
   const [description, setDescription] = useState("");
   const [draft, setDraft] = useState<Partial<ForgeGuidebook> | null>(null);
   const [activating, setActivating] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   const question =
     systemQuestion ??
@@ -327,6 +330,30 @@ function ForgeBuilderFlow({
   const handleGenerate = async () => {
     if (!description.trim() || !state) return;
     setStep("ai_generating");
+    setValidationErrors([]);
+
+    // Custom features go through a dedicated AI generation + validation path.
+    if (selectedType === "custom" || !selectedType) {
+      try {
+        const { guidebook, validation } = await generateCustomGuidebookViaAI(state, description);
+        if (validation.ok) {
+          setDraft(guidebook);
+          setValidationErrors([]);
+        } else {
+          // Show errors and offer the template fallback
+          setValidationErrors(validation.reasons);
+          setDraft(guidebook); // show it anyway so user can see what was generated
+        }
+        setStep("preview");
+      } catch {
+        // Fall back to static template on network failure
+        const template = buildTemplateGuidebook("custom", state.active_goal?.statement ?? "");
+        setDraft(template);
+        setValidationErrors(["AI generation failed — using the generic template. It will be less specific to your goal."]);
+        setStep("preview");
+      }
+      return;
+    }
 
     const result = await ai.run({
       feature_type: selectedType,
@@ -337,10 +364,12 @@ function ForgeBuilderFlow({
 
     if (result && Object.keys(result).length > 0) {
       const parsed = parseAIGuidebookResponse(result as Record<string, unknown>, state!);
+      const validation = validateGuidebook(parsed);
       setDraft(parsed);
+      setValidationErrors(validation.ok ? [] : validation.reasons);
     } else {
       // Fallback to template
-      const template = buildTemplateGuidebook(selectedType ?? "custom", state.active_goal?.statement ?? "");
+      const template = buildTemplateGuidebook(selectedType, state.active_goal?.statement ?? "");
       setDraft(template);
     }
     setStep("preview");
@@ -449,12 +478,27 @@ function ForgeBuilderFlow({
 
         {/* Step 4: Preview */}
         {step === "preview" && draft && (
-          <GuidebookPreview
-            guidebook={draft}
-            onActivate={handleActivate}
-            onDiscard={handleDiscard}
-            loading={activating}
-          />
+          <div className="space-y-3">
+            {validationErrors.length > 0 && (
+              <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
+                <p className="mb-1 text-xs font-medium text-amber-400">AI generated a partial result:</p>
+                <ul className="space-y-0.5">
+                  {validationErrors.map((e, i) => (
+                    <li key={i} className="flex items-start gap-1.5 text-xs text-amber-300/80">
+                      <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
+                      {e}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <GuidebookPreview
+              guidebook={draft}
+              onActivate={handleActivate}
+              onDiscard={handleDiscard}
+              loading={activating}
+            />
+          </div>
         )}
       </div>
     </div>

@@ -165,12 +165,26 @@ export interface MissionAnalytics {
 export function analyzeMission(state: MomentState): MissionAnalytics {
   const wss = state.pursuit_model?.workstreams ?? [];
   const perWorkstream = wss.map((w) => analyzeWorkstream(state, w));
-  const totalTasks = perWorkstream.reduce((s, a) => s + a.tasks.total, 0);
-  const totalDone = perWorkstream.reduce((s, a) => s + a.tasks.done, 0);
+
+  const workstreamTotal = perWorkstream.reduce((s, a) => s + a.tasks.total, 0);
+  const workstreamDone = perWorkstream.reduce((s, a) => s + a.tasks.done, 0);
+
+  // Fall back to all non-skipped tasks in the last 60 days when workstream filter under-reports.
+  const cutoff = Date.now() - 60 * 24 * 60 * 60 * 1000;
+  const recentTasks = (state.tasks ?? []).filter((t) => {
+    const created = t.created_at ? new Date(t.created_at).getTime() : Date.now();
+    return created >= cutoff && t.status !== "skipped";
+  });
+  const recentDone = recentTasks.filter((t) => t.status === "done").length;
+
+  const totalTasks = Math.max(workstreamTotal, recentTasks.length);
+  const totalDone = Math.max(workstreamDone, recentDone);
+
   const velocity_7d = perWorkstream.reduce((s, a) => s + a.velocity_7d, 0);
   const overallHealth = perWorkstream.length === 0
-    ? 0
+    ? (totalTasks === 0 ? 0 : Math.round((totalDone / totalTasks) * 100))
     : Math.round(perWorkstream.reduce((s, a) => s + a.health, 0) / perWorkstream.length);
+
   const needsAttention = perWorkstream.filter((a) => a.health < 50).sort((a, b) => a.health - b.health);
   const rising = perWorkstream.filter((a) => a.trend === "rising");
   return { perWorkstream, overallHealth, totalTasks, totalDone, velocity_7d, needsAttention, rising };

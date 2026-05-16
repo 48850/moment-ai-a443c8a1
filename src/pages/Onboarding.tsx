@@ -21,9 +21,12 @@ interface OnboardingData {
   school_year: string;
   age_str: string;
   normal_weekday: string;
-  // Stage 4
+  // Stage 4 (country/education)
+  country: string;
+  education_system: string;
+  // Stage 5
   current_level: string;
-  // Stage 6
+  // Stage 7
   support_preferences: string[];
   tone: string;
 }
@@ -159,7 +162,22 @@ export default function Onboarding() {
   const dispatch = useStateStore((s) => s.dispatch);
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
-  const TOTAL_STEPS = 7;
+  const TOTAL_STEPS = 8;
+
+  // Heuristic: pre-fill country from browser timezone.
+  const guessedCountry = (() => {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (tz.startsWith("Australia/")) return "Australia";
+      if (tz.startsWith("America/")) return "United States";
+      if (tz.startsWith("Europe/London")) return "United Kingdom";
+      if (tz.startsWith("Europe/")) return "Other";
+      if (tz.startsWith("Asia/Kolkata") || tz.startsWith("Asia/Calcutta")) return "India";
+      if (tz.startsWith("Asia/Singapore")) return "Singapore";
+      if (tz.startsWith("America/Toronto") || tz.startsWith("America/Vancouver")) return "Canada";
+    } catch { /* ignore */ }
+    return "";
+  })();
 
   const [data, setData] = useState<OnboardingData>({
     goal_statement: "",
@@ -170,6 +188,8 @@ export default function Onboarding() {
     school_year: "",
     age_str: "",
     normal_weekday: "",
+    country: guessedCountry,
+    education_system: "unknown",
     current_level: "a little",
     support_preferences: [],
     tone: "calm",
@@ -243,10 +263,11 @@ export default function Onboarding() {
       case 0: return data.goal_statement.trim().length >= 5;
       case 1: return data.why_it_matters.trim().length >= 5;
       case 2: return true; // user reality is optional
-      case 3: return Boolean(data.current_level);
-      case 4: return true; // preview, no input
-      case 5: return true; // preferences optional
-      case 6: return true; // understanding review
+      case 3: return true; // country/education optional
+      case 4: return Boolean(data.current_level);
+      case 5: return true; // preview, no input
+      case 6: return true; // preferences optional
+      case 7: return true; // understanding review
       default: return true;
     }
   };
@@ -269,6 +290,8 @@ export default function Onboarding() {
           school_year: data.school_year || undefined,
           academic_context: data.stage_of_life || undefined,
           normal_weekday: data.normal_weekday || undefined,
+          country: data.country || undefined,
+          education_system: (data.education_system || "unknown") as MomentState["profile"]["education_system"],
           preferences: {
             tone: data.tone as MomentState["profile"]["preferences"]["tone"],
             strictness: "soft",
@@ -456,11 +479,90 @@ export default function Onboarding() {
               </div>
             )}
 
-            {/* Stage 4 — Current Level */}
+            {/* Stage 4 — Country / Education system */}
             {step === 3 && (
               <div className="space-y-5">
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 4 of 7</p>
+                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 4 of 8</p>
+                  <h2 className="text-2xl font-semibold text-white leading-snug">
+                    Where are you studying?
+                  </h2>
+                  <p className="text-white/50 text-sm mt-1">
+                    This helps Moment give advice that fits your actual system — not a generic one.
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-white/40 mb-2">Country</p>
+                  <div className="flex flex-col gap-2">
+                    {["Australia", "United Kingdom", "United States", "Canada", "New Zealand", "Singapore", "India", "Other"].map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => {
+                          const eduMap: Record<string, string> = {
+                            "Australia": "au_atar",
+                            "United Kingdom": "uk_a_levels",
+                            "United States": "us_highschool",
+                            "Canada": "ca_ontario",
+                            "Singapore": "sg_a_levels",
+                            "India": "in_cbse",
+                          };
+                          set({ country: c, education_system: eduMap[c] ?? "other" });
+                        }}
+                        className={`px-4 py-2.5 rounded-xl text-sm text-left border transition-all ${
+                          data.country === c
+                            ? "border-amber-400 bg-amber-400/10 text-amber-200"
+                            : "border-white/15 bg-white/5 text-white/60 hover:border-white/30"
+                        }`}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {data.country && (
+                  <div>
+                    <p className="text-xs text-white/40 mb-2">Education system <span className="text-white/25">(auto-filled — override if needed)</span></p>
+                    <div className="flex flex-col gap-2">
+                      {[
+                        { value: "au_atar", label: "ATAR / HSC (Australia)" },
+                        { value: "au_hsc", label: "HSC — NSW specific" },
+                        { value: "uk_a_levels", label: "A-levels (UK)" },
+                        { value: "uk_gcse", label: "GCSEs (UK)" },
+                        { value: "ib", label: "IB (International Baccalaureate)" },
+                        { value: "us_ap", label: "AP / Honours (US)" },
+                        { value: "us_highschool", label: "US High School" },
+                        { value: "ca_ontario", label: "Ontario Grade 12" },
+                        { value: "ca_ib", label: "IB Canada" },
+                        { value: "sg_a_levels", label: "Singapore A-levels" },
+                        { value: "in_cbse", label: "CBSE (India)" },
+                        { value: "in_isc", label: "ISC (India)" },
+                        { value: "other", label: "Other / Not applicable" },
+                      ].map((e) => (
+                        <button
+                          key={e.value}
+                          type="button"
+                          onClick={() => set({ education_system: e.value })}
+                          className={`px-4 py-2.5 rounded-xl text-sm text-left border transition-all ${
+                            data.education_system === e.value
+                              ? "border-amber-400 bg-amber-400/10 text-amber-200"
+                              : "border-white/15 bg-white/5 text-white/60 hover:border-white/30"
+                          }`}
+                        >
+                          {e.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Stage 5 — Current Level */}
+            {step === 4 && (
+              <div className="space-y-5">
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 5 of 8</p>
                   <h2 className="text-2xl font-semibold text-white leading-snug">
                     Where are you with the skills?
                   </h2>
@@ -487,11 +589,11 @@ export default function Onboarding() {
               </div>
             )}
 
-            {/* Stage 5 — Reality Gap Preview */}
-            {step === 4 && feasibility && (
+            {/* Stage 6 — Reality Gap Preview */}
+            {step === 5 && feasibility && (
               <div className="space-y-5">
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 5 of 7</p>
+                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 6 of 8</p>
                   <h2 className="text-2xl font-semibold text-white leading-snug">
                     Here's how Moment sees your pathway
                   </h2>
@@ -537,7 +639,7 @@ export default function Onboarding() {
 
                 <button
                   type="button"
-                  onClick={() => setStep(3)}
+                  onClick={() => setStep(4)}
                   className="text-xs text-white/30 hover:text-white/50 transition-colors"
                 >
                   ← Adjust my current level
@@ -545,11 +647,11 @@ export default function Onboarding() {
               </div>
             )}
 
-            {/* Stage 6 — How Moment Should Help */}
-            {step === 5 && (
+            {/* Stage 7 — How Moment Should Help */}
+            {step === 6 && (
               <div className="space-y-5">
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 6 of 7</p>
+                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 7 of 8</p>
                   <h2 className="text-2xl font-semibold text-white leading-snug">
                     How do you want Moment to help?
                   </h2>
@@ -587,11 +689,11 @@ export default function Onboarding() {
               </div>
             )}
 
-            {/* Stage 7 — What Moment Still Needs to Learn */}
-            {step === 6 && (
+            {/* Stage 8 — What Moment Still Needs to Learn */}
+            {step === 7 && (
               <div className="space-y-5">
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 7 of 7</p>
+                  <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 8 of 8</p>
                   <h2 className="text-2xl font-semibold text-white leading-snug">
                     Here's what Moment knows about you so far
                   </h2>

@@ -70,7 +70,7 @@ const Chat = () => {
   );
 
   const initialGreeting = isSpecialisation ? specialisationGreeting : defaultGreeting;
-  const persisted = (state as any)?.chat_messages as ChatMessage[] | undefined;
+  const persisted = state?.chat_messages as ChatMessage[] | undefined;
   const [messages, setMessages] = useState<ChatMessage[]>(
     persisted && persisted.length ? persisted : [initialGreeting],
   );
@@ -81,7 +81,7 @@ const Chat = () => {
 
   // When mode switches or user changes, rehydrate or reset to correct greeting.
   useEffect(() => {
-    const stored = (state as any)?.chat_messages as ChatMessage[] | undefined;
+    const stored = state?.chat_messages as ChatMessage[] | undefined;
     const greeting = isSpecialisation ? specialisationGreeting : defaultGreeting;
     setMessages(stored && stored.length ? stored : [greeting]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -365,6 +365,17 @@ const Chat = () => {
             </>
           )}
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            const greeting = isSpecialisation ? specialisationGreeting : defaultGreeting;
+            setMessages([greeting]);
+            dispatch({ type: "chat/clear_messages" });
+          }}
+          className="shrink-0 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+        >
+          Clear
+        </button>
       </div>
 
       {/* Specialisation status banner */}

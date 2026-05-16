@@ -174,6 +174,8 @@ interface ChatSnapshot {
   goal_risk?: string;
   top_workstream?: { name: string; status: string; bottleneck: string } | null;
   completed_tasks_count?: number;
+  country?: string;
+  education_system?: string;
 }
 
 function fmt(v: unknown): string {
@@ -218,6 +220,8 @@ function systemPrompt(snap: ChatSnapshot): string {
   // New context fields
   const ageBracket = snap.user_age_bracket ?? "unknown";
   const schoolYear = snap.user_school_year ?? "";
+  const country = snap.country ?? "";
+  const educationSystem = snap.education_system ?? "unknown";
   const academicCtx = snap.user_academic_context ?? "";
   const currentStage = snap.goal_current_stage ?? "";
   const targetStage = snap.goal_target_stage ?? "";
@@ -260,6 +264,8 @@ STYLE — STRICT
 
 KNOWN ABOUT THIS USER (DO NOT ASK FOR ANY OF THIS — you already have it):
 - Age bracket: ${ageBracket}${schoolYear ? ` · ${schoolYear}` : ""}${academicCtx ? ` · ${academicCtx}` : ""}
+- Country: ${country || "(unknown)"}
+- Education system: ${educationSystem}
 - Goal: ${goal}${why ? ` · Why: ${why}` : ""}
 - Goal phase: ${goalPhase || "clarifying"}
 - Current stage: ${currentStage || "not yet assessed"}
@@ -310,6 +316,44 @@ RULES — NON-NEGOTIABLE
 10. Never produce generic productivity advice. Every statement must connect to THIS goal and THIS user's actual situation. Never repeat the user's words back to them.`;
 }
 
+function specialisationSystemPrompt(snap: ChatSnapshot): string {
+  const name = snap.display_name || "there";
+  const goal = snap.active_goal?.statement || "(no goal set yet)";
+  const why = snap.active_goal?.why_it_matters || "";
+  const ageBracket = snap.user_age_bracket || "unknown";
+  const schoolYear = snap.user_school_year || "";
+  const currentStage = snap.goal_current_stage || "";
+  const targetStage = snap.goal_target_stage || "";
+  const realityGap = snap.goal_reality_gap || "";
+  const onboardingKnowns = snap.onboarding_knowns?.length
+    ? snap.onboarding_knowns.join(", ")
+    : "";
+  const constraintsKnownKeys = Object.keys(snap.constraints_known ?? {}).join(", ");
+
+  return `You are Moment — sharp, honest, in calibration mode for ${name}.
+
+GOAL: ${goal}${why ? `\nWHY IT MATTERS: ${why}` : ""}
+USER: ${ageBracket}${schoolYear ? ` · ${schoolYear}` : ""}
+Current stage: ${currentStage || "not yet assessed"} → Target: ${targetStage || "not yet defined"}
+Reality gap: ${realityGap || "not yet assessed"}
+
+ALREADY KNOWN (DO NOT ASK FOR ANY OF THESE):
+${onboardingKnowns ? `- Onboarding answers: ${onboardingKnowns}` : "- (none captured yet)"}
+${constraintsKnownKeys ? `- Schedule constraints: ${constraintsKnownKeys}` : ""}
+
+PROTOCOL:
+1. First reply: (a) name the pathway in 1 sentence, (b) state typical stages, (c) ask ONE locating question. No checklists.
+2. As you learn, call patch_goal_model.
+3. When stage is clear, call create_first_task with a STAGE-APPROPRIATE task (never premature).
+4. After create_first_task, call complete_specialisation.
+
+RULES:
+- One question per reply, max 2 sentences (40 words).
+- NEVER ask anything already captured in "ALREADY KNOWN" above.
+- NEVER generic motivation. Reference THIS goal, THIS stage.
+- Acknowledge before redirecting if user is venting.`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -342,7 +386,7 @@ Deno.serve(async (req) => {
               ? specialisationSystemPrompt((snapshot ?? {}) as ChatSnapshot)
               : systemPrompt((snapshot ?? {}) as ChatSnapshot),
           },
-          ...messages,
+          ...messages.slice(-20),
         ],
         tools: isSpecialisation ? SPECIALISATION_TOOLS : TOOLS,
       }),
@@ -388,20 +432,29 @@ Deno.serve(async (req) => {
 
     // Server-side fallback so the client never has to render "(no reply)".
     const snap = (snapshot ?? {}) as ChatSnapshot;
-    // After a save, always drive forward with the next missing field — never "what else?"
+    // After a save, drive forward with the next missing field — never "what else?"
     if (patches.length) {
-      // Recompute missing after this turn's patches
-      const justSaved = new Set<string>();
+      // Build a patched copy of known constraints to correctly determine what is still missing.
+      const patchedKnown: Record<string, unknown> = { ...(snap.constraints_known ?? {}) };
+      let patchedCommitmentCount = (typeof (snap.constraints_known as any)?.fixed_commitments === "number"
+        ? (snap.constraints_known as any).fixed_commitments
+        : 0) as number;
       for (const p of patches) {
         if (p.tool === "update_constraints") {
-          for (const k of Object.keys(p.args)) justSaved.add(k);
+          for (const [k, v] of Object.entries(p.args)) patchedKnown[k] = v;
+        } else if (p.tool === "add_fixed_commitment") {
+          patchedCommitmentCount += 1;
+          patchedKnown.fixed_commitments = patchedCommitmentCount;
         }
-        if (p.tool === "add_fixed_commitment") justSaved.add("fixed_commitments");
       }
-      const stillMissing = (snap.missing_schedule_info ?? []).filter((f) => !justSaved.has(f));
+      const stillMissing = (snap.missing_schedule_info ?? []).filter((f) => {
+        const v = patchedKnown[f];
+        if (f === "fixed_commitments") return patchedCommitmentCount === 0;
+        return v === undefined || v === null || v === "" || v === 0;
+      });
       if (stillMissing.length) {
         const field = stillMissing[0].replace(/_/g, " ");
-        reply = `Saved. What's your ${field}?`;
+        reply = reply || `Saved. What's your ${field}?`;
       } else if (!reply) {
         reply = snap.next_move
           ? `Saved. Your next move is "${snap.next_move.title}" (~${snap.next_move.estimated_minutes}m) — ready?`

@@ -183,6 +183,9 @@ export const taskSchema = z.object({
   // Stage-fit enforcement fields (populated by task-stage-filter before tasks enter state)
   user_stage_fit: z.enum(["strong", "okay", "weak", "premature"]).optional(),
   why_now: z.string().default("").optional(),
+  pathway_node: z.string().optional(),
+  prerequisite_link: z.string().optional(),
+  proof_of_completion: z.string().optional(),
   difficulty: z.enum(["easy", "medium", "hard"]).optional(),
   required_resources: z.array(z.string()).default([]).optional(),
   blocked_reason: z.string().default("").optional(),
@@ -404,6 +407,14 @@ export const onboardingSchema = z.object({
   }).default({ knowns: [], unknowns: [], assumptions: [], confidence: "low" }),
 });
 
+export const chatMessageSchema = z.object({
+  id: z.string(),
+  role: z.enum(["user", "assistant", "system"]),
+  content: z.string(),
+  created_at: z.string().default(""),
+  mode: z.enum(["chat", "goal_specialisation"]).optional(),
+});
+
 // --- Full state schema ---
 export const momentStateSchema = z.object({
   user_id: z.string(),
@@ -418,6 +429,12 @@ export const momentStateSchema = z.object({
     academic_context: z.string().optional(),
     normal_weekday: z.string().optional(),
     commitments: z.array(z.string()).default([]),
+    country: z.string().optional(),
+    education_system: z.enum([
+      "uk_a_levels", "uk_gcse", "ib", "us_ap", "us_highschool",
+      "au_atar", "au_hsc", "ca_ontario", "ca_ib", "sg_a_levels",
+      "in_cbse", "in_isc", "other", "unknown",
+    ]).default("unknown"),
     preferences: z.object({
       tone: z.enum(["gentle", "direct", "energising", "calm", "strict"]).default("calm"),
       strictness: z.enum(["soft", "firm", "minimal"]).default("soft"),
@@ -457,4 +474,5 @@ export const momentStateSchema = z.object({
     last_updated: "",
     understanding: { knowns: [], unknowns: [], assumptions: [], confidence: "low" },
   }),
+  chat_messages: z.array(chatMessageSchema).default([]),
 });

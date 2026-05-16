@@ -205,37 +205,81 @@ const Plan = () => {
       setAiPlan(plan);
       saveCachedPlan(goalText, plan);
 
-      // Sync the AI day-list into real Tasks so Today, Tasks, and the
-      // Constellation all light up from the same source of truth.
+      // Sync the AI day-list into real Tasks and real ScheduleBlocks so Today,
+      // Tasks, the Constellation, and the schedule all light up from the same source of truth.
       const existingTitles = new Set(
         (state.tasks ?? []).map((t) => t.title.trim().toLowerCase()),
       );
       const nowIso = new Date().toISOString();
+      const firstWorkstreamId = state.pursuit_model?.workstreams?.[0]?.id;
+
+      // Compute day-start cursor: school_end + 30 min buffer, or 16:00
+      const schoolEnd = state.constraints?.school_end_time || "15:30";
+      const [seh, sem] = schoolEnd.split(":").map(Number);
+      let cursorMin = seh * 60 + sem + 30;
+
+      const dayBlocks: ScheduleBlock[] = [];
       let addedCount = 0;
-      (plan.days ?? []).forEach((d, i) => {
+
+      (plan.days ?? []).slice(0, 5).forEach((d, i) => {
         const title = (d.title || "").trim();
-        if (!title || existingTitles.has(title.toLowerCase())) return;
-        const due = new Date();
-        due.setDate(due.getDate() + i);
-        dispatch({
-          type: "task/add",
-          payload: {
-            id: crypto.randomUUID(),
-            title,
-            description: d.detail || "",
-            status: "pending",
-            priority: i === 0 ? "high" : "medium",
-            goal_id: "primary",
-            domain_id: "",
-            estimated_minutes: d.estimated_minutes ?? 30,
-            category: "goal_direct",
-            created_at: nowIso,
-            completed_at: "",
-            due_date: due.toISOString().slice(0, 10),
-          },
+        if (!title) return;
+
+        const taskId = crypto.randomUUID();
+        const blockId = `aiplan-${Date.now()}-${i}`;
+        const dur = Math.max(15, Math.min(90, d.estimated_minutes ?? 30));
+        const startHH = String(Math.floor(cursorMin / 60)).padStart(2, "0");
+        const startMM = String(cursorMin % 60).padStart(2, "0");
+        const endMin = cursorMin + dur;
+        const endHH = String(Math.floor(endMin / 60)).padStart(2, "0");
+        const endMM = String(endMin % 60).padStart(2, "0");
+
+        dayBlocks.push({
+          id: blockId,
+          title,
+          type: "goal_work",
+          start_time: `${startHH}:${startMM}`,
+          end_time: `${endHH}:${endMM}`,
+          duration_minutes: dur,
+          priority: i === 0 ? 1 : 2,
+          is_fixed: false,
+          source: "ai_plan",
+          goal_link: goalText,
+          fallback_version: "",
+          status: "upcoming",
+          linked_task_ids: [taskId],
         });
-        addedCount++;
+        cursorMin = endMin + 15;
+
+        if (!existingTitles.has(title.toLowerCase())) {
+          const due = new Date();
+          due.setDate(due.getDate() + i);
+          dispatch({
+            type: "task/add",
+            payload: {
+              id: taskId,
+              title,
+              description: d.detail || "",
+              status: "pending",
+              priority: i === 0 ? "high" : "medium",
+              goal_id: "primary",
+              domain_id: "",
+              estimated_minutes: dur,
+              category: "goal_direct",
+              created_at: nowIso,
+              completed_at: "",
+              due_date: due.toISOString().slice(0, 10),
+              created_by: "ai",
+              why_now: d.detail ?? "",
+              pathway_node: d.when ?? "",
+              ...(firstWorkstreamId ? { workstream_id: firstWorkstreamId } : {}),
+            },
+          });
+          addedCount++;
+        }
       });
+
+      dispatch({ type: "schedule/set_day_plan", payload: dayBlocks });
 
       toast.success(
         addedCount
@@ -252,7 +296,7 @@ const Plan = () => {
   const tiles = selectPursuitPreview(state);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6">
       {/* Header */}
       <div className="flex items-end justify-between gap-4">
         <div>

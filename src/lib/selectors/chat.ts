@@ -47,6 +47,8 @@ export interface ChatSnapshot {
   top_workstream: { name: string; status: string; bottleneck: string } | null;
   completed_tasks_count: number;
   recent_chat: Array<{ role: "user" | "assistant"; content: string }>;
+  country: string;
+  education_system: string;
 }
 
 const SCHEDULE_FIELD_MAP: Array<[keyof MomentState["constraints"], string]> = [
@@ -180,6 +182,8 @@ export function selectChatSnapshot(state: MomentState): ChatSnapshot {
       ? { name: topWs.name, status: topWs.status, bottleneck: topWs.bottleneck ?? "" }
       : null,
     completed_tasks_count: allDone.length,
-    recent_chat: ((state as any).chat_messages ?? []).slice(-10).map((m: any) => ({ role: m.role as "user" | "assistant", content: m.content as string })),
+    recent_chat: (state.chat_messages ?? []).slice(-10).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+    country: state.profile.country ?? "",
+    education_system: state.profile.education_system ?? "unknown",
   };
 }

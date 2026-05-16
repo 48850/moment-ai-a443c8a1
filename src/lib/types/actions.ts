@@ -18,6 +18,7 @@ import type {
   FeatureRunResult,
   ForgeSignal,
   GoalFeasibilityReport,
+  ChatMessage,
 } from "@/lib/types";
 
 /**
@@ -97,6 +98,11 @@ export type MomentAction =
       feasibility: GoalFeasibilityReport;
     } }
   | { type: "task/bulk_add"; payload: Task[] }
+  | { type: "schedule/set_day_plan"; payload: ScheduleBlock[] }
+  // ─── Chat message persistence ─────────────────────────────────────────────
+  | { type: "chat/append"; payload: ChatMessage }
+  | { type: "chat/clear_messages" }
+  | { type: "chat/replace_messages"; payload: ChatMessage[] }
   // ─── Goal-specialisation chat flow ────────────────────────────────────────
   | { type: "chat/begin_specialisation" }
   | { type: "chat/set_specialisation_phase"; payload: {
