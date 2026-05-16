@@ -40,7 +40,7 @@ export function detectSystemGap(state: MomentState): ForgeSystemGap {
 
   // Look for bottleneck in pursuit model
   const bottleneckWorkstream = model?.workstreams?.find((w) => w.bottleneck);
-  const bottleneck = bottleneckWorkstream?.bottleneck ?? model?.workstreams?.[0]?.title ?? null;
+  const bottleneck = bottleneckWorkstream?.bottleneck ?? model?.workstreams?.[0]?.name ?? null;
 
   // Look at recent reflections for struggle patterns
   const recentStruggles = reflections
