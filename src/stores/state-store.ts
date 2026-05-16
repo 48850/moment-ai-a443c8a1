@@ -127,6 +127,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
           post_onboarding_specialisation_required: false,
           specialisation_phase: "explain_goal" as const,
         },
+        chat_messages: (saved as any).chat_messages ?? [],
         onboarding: onboardingBackfill,
       };
       // In demo mode, use demo state instead of saved (only for fresh demo sessions)

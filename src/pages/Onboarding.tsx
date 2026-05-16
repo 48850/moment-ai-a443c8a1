@@ -198,25 +198,26 @@ export default function Onboarding() {
     const unknowns: string[] = [];
     const assumptions: string[] = [];
 
-    if (data.goal_statement.trim()) knowns.push("goal");
-    else unknowns.push("goal");
+    if (data.goal_statement.trim()) knowns.push(`goal: "${data.goal_statement.trim()}"`);
+    else unknowns.push("what their goal actually is");
 
-    if (data.why_it_matters.trim()) knowns.push("why it matters");
-    else unknowns.push("why it matters");
+    if (data.why_it_matters.trim()) knowns.push(`why it matters: "${data.why_it_matters.trim()}"`);
+    else unknowns.push("why this goal matters to them personally");
 
-    if (data.stage_of_life) knowns.push("stage of life");
-    else unknowns.push("stage of life");
+    if (data.stage_of_life) knowns.push(`stage of life: ${data.stage_of_life}`);
+    else unknowns.push("stage of life (student / working / other)");
 
-    if (data.school_year) knowns.push("school year");
-    else if (data.stage_of_life === "School student") unknowns.push("specific school year");
+    if (data.school_year) knowns.push(`school year: ${data.school_year}`);
+    else if (data.stage_of_life === "School student") unknowns.push("specific school year / grade");
 
-    if (data.age_str) knowns.push("age");
-    else unknowns.push("age");
+    if (data.age_str) knowns.push(`age: ${data.age_str}`);
+    else unknowns.push("their age");
 
-    if (data.current_level) knowns.push("current ability level");
-    else unknowns.push("current ability level");
+    if (data.current_level) knowns.push(`current ability level: ${data.current_level}`);
+    else unknowns.push("their current ability level in the relevant area");
 
-    if (!data.normal_weekday.trim()) unknowns.push("available weekly hours");
+    if (data.normal_weekday.trim()) knowns.push(`typical weekday: ${data.normal_weekday.trim()}`);
+    else unknowns.push("how their typical weekday is structured and how many hours are available");
 
     if (!data.age_str && data.stage_of_life === "School student") {
       assumptions.push("User is in secondary/high school");
