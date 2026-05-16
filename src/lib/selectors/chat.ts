@@ -1,20 +1,19 @@
-// @ts-nocheck
 /**
  * Single source of truth for the chat-coach context.
  * Every Chat call should pass this — it is what keeps Moment from asking
  * for things it already knows or losing the thread of execution.
  */
-import type { MomentState } from "@/lib/types";
+import type { MomentState, ChatMessage } from "@/lib/types";
 import { selectNextBestTask } from "@/lib/engine/next-best-task";
 
 export interface ChatSnapshot {
   display_name: string;
   profile: {
     age: number;
-    school_name: string;
-    grade_level: string;
-    weekly_schedule_summary: string;
-    predispositions: string;
+    age_bracket: string;
+    school_year: string;
+    academic_context: string;
+    normal_weekday: string;
     onboarded: boolean;
   };
   active_goal: { statement: string; why_it_matters: string; status: string };
@@ -107,12 +106,13 @@ export function selectChatSnapshot(state: MomentState): ChatSnapshot {
   }));
 
   const modules = (state.forge_state?.generated_modules ?? [])
-    .filter((m: any) => m.status === "active")
-    .map((m: any) => {
-      const entries = m.entries ?? [];
+    .filter((m) => (m as { status?: string }).status === "active")
+    .map((m) => {
+      const mod = m as { title?: string; name?: string; module_type?: string; entries?: Array<{ created_at: string }> };
+      const entries = mod.entries ?? [];
       return {
-        name: m.title || m.name,
-        type: m.module_type,
+        name: mod.title || mod.name || "",
+        type: mod.module_type || "",
         runs: entries.length,
         last_entry: entries.length ? entries[entries.length - 1].created_at : undefined,
       };
@@ -180,6 +180,9 @@ export function selectChatSnapshot(state: MomentState): ChatSnapshot {
       ? { name: topWs.name, status: topWs.status, bottleneck: topWs.bottleneck ?? "" }
       : null,
     completed_tasks_count: allDone.length,
-    recent_chat: ((state as any).chat_messages ?? []).slice(-10).map((m: any) => ({ role: m.role as "user" | "assistant", content: m.content as string })),
+    recent_chat: (state.chat_messages ?? [])
+      .slice(-10)
+      .filter((m): m is ChatMessage & { role: "user" | "assistant" } => m.role === "user" || m.role === "assistant")
+      .map((m) => ({ role: m.role, content: m.content })),
   };
 }
