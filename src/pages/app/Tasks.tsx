@@ -19,6 +19,8 @@ type SuggestedTask = {
   why_now?: string;
   proof_of_completion?: string;
   user_stage_fit?: string;
+  resource_url?: string;
+  resource_label?: string;
 };
 
 type RefinedTask = {
@@ -28,6 +30,8 @@ type RefinedTask = {
   estimated_minutes: number;
   priority: "high" | "medium" | "low";
   category: Task["category"];
+  resource_url?: string;
+  resource_label?: string;
 };
 
 function normaliseTaskTitle(title: unknown): string {
