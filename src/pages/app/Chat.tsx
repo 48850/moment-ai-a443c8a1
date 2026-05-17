@@ -36,7 +36,9 @@ const Chat = () => {
   const applyPatch = useStateStore((s) => s.applyPatch);
   const [searchParams] = useSearchParams();
 
-  const specialisationComplete = state?.chat_state?.specialisation_phase === "complete";
+  const specialisationComplete =
+    state?.chat_state?.specialisation_phase === "complete" ||
+    (Boolean(state?.active_goal?.current_stage?.trim()) && (state?.tasks?.length ?? 0) > 0);
   const isSpecialisation =
     !specialisationComplete &&
     (searchParams.get("mode") === "goal_specialisation" ||
