@@ -230,7 +230,49 @@ const Plan = () => {
   const [reformNote, setReformNote] = useState("");
   const [reforming, setReforming] = useState(false);
   const [horizon, setHorizon] = useState<Horizon>("days");
+  const [notesTaskId, setNotesTaskId] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
 
+  const tasksList = state?.tasks ?? [];
+  const getTaskById = (id?: string) => (id ? tasksList.find((t) => t.id === id) ?? null : null);
+  const getTaskForBlock = (block: { linked_task_ids?: string[] }) =>
+    getTaskById(block.linked_task_ids?.[0]);
+  const notesTask = useMemo(
+    () => (notesTaskId ? tasksList.find((t) => t.id === notesTaskId) ?? null : null),
+    [notesTaskId, tasksList],
+  );
+
+  const addNoteToTask = (taskId: string, content: string) => {
+    const text = content.trim();
+    if (!text) return;
+    const target = tasksList.find((t) => t.id === taskId);
+    if (!target) return;
+    dispatch({
+      type: "task/update",
+      payload: {
+        id: taskId,
+        changes: {
+          notes: [
+            ...(target.notes ?? []),
+            { id: crypto.randomUUID(), content: text, created_at: new Date().toISOString() },
+          ],
+        },
+      },
+    });
+    setNoteDraft("");
+  };
+
+  const removeNoteFromTask = (taskId: string, noteId: string) => {
+    const target = tasksList.find((t) => t.id === taskId);
+    if (!target) return;
+    dispatch({
+      type: "task/update",
+      payload: {
+        id: taskId,
+        changes: { notes: (target.notes ?? []).filter((n) => n.id !== noteId) },
+      },
+    });
+  };
   const goalText = state?.active_goal?.statement ?? "";
   const [aiPlan, setAiPlan] = useState<AiPlan | null>(() => goalText ? loadCachedPlan(goalText) : null);
   const [aiLoading, setAiLoading] = useState(false);
