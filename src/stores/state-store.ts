@@ -29,7 +29,9 @@ interface StateStore {
 
 const now = () => new Date().toISOString();
 const tz = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
-const todayKey = () => new Date().toISOString().slice(0, 10);
+const dateKey = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const todayKey = () => dateKey();
 
 function capTasksForToday(tasks: MomentState["tasks"]): MomentState["tasks"] {
   const today = todayKey();
@@ -56,7 +58,7 @@ function capTasksForToday(tasks: MomentState["tasks"]): MomentState["tasks"] {
     if (!activeToday.some((candidate) => candidate.id === t.id) || keep.has(t.id)) return t;
     const due = new Date();
     due.setDate(due.getDate() + deferIndex++);
-    return { ...t, due_date: due.toISOString().slice(0, 10) };
+    return { ...t, due_date: dateKey(due) };
   });
 }
 
