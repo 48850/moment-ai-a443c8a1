@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { Link } from "react-router-dom";
 import { DecisiveMoveCard } from "./DecisiveMoveCard";
 
 export const Hero = () => {
@@ -51,13 +52,13 @@ export const Hero = () => {
             transition={{ duration: 0.8, delay: 0.45 }}
             className="mt-10 flex flex-col items-start gap-4 sm:flex-row sm:items-center"
           >
-            <a
-              href="#cta"
+            <Link
+              to="/app"
               className="group inline-flex items-center gap-3 rounded-full bg-ink px-6 py-3.5 text-sm font-medium text-paper shadow-elevated transition-transform hover:-translate-y-0.5"
             >
               Claim your moment
               <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-paper/15 transition-transform group-hover:translate-x-0.5">→</span>
-            </a>
+            </Link>
             <a href="#how" className="text-sm font-medium text-foreground/80 underline-offset-4 hover:underline">
               See how it works
             </a>
