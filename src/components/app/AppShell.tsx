@@ -56,6 +56,7 @@ export const AppShell = () => {
 
   return (
     <div className="app-zone min-h-screen">
+      <FlameBurstOverlay />
       {/* Top bar */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/80 px-4 py-3 backdrop-blur md:px-8">
         <Link to="/" className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground">
