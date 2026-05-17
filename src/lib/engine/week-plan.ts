@@ -172,7 +172,7 @@ function parseDayName(s: string): number | null {
  */
 export function reformWeekPlan(state: MomentState, current: WeekBlock[]): WeekBlock[] {
   const locked = current.filter((b) => b.is_locked);
-  const fresh = seedWeekPlan(state, { variation: Math.floor(Math.random() * 5) });
+  const fresh = seedWeekPlan(state, { variation: 1 + Math.floor(Math.random() * 999) });
   // Drop fresh blocks that conflict with a locked block on the same day
   const kept = fresh.filter((nb) => {
     return !locked.some(
