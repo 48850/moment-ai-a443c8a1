@@ -303,6 +303,8 @@ const SPECIALISATION_TOOLS = [
           },
           why_now: { type: "string", description: "Why is this the right first move given where the user is?" },
           difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+          resource_url: { type: "string", description: "REQUIRED if the first task involves any internet work (research, course, signup, watch/read online). Real, specific https URL. Use reputable sources or a Google search URL." },
+          resource_label: { type: "string", description: "Short label for the URL. Required if resource_url is set." },
         },
         required: ["title", "category", "why_now"],
         additionalProperties: false,
