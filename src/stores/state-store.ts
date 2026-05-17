@@ -29,6 +29,36 @@ interface StateStore {
 
 const now = () => new Date().toISOString();
 const tz = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+const todayKey = () => new Date().toISOString().slice(0, 10);
+
+function capTasksForToday(tasks: MomentState["tasks"]): MomentState["tasks"] {
+  const today = todayKey();
+  const activeToday = tasks.filter((t) =>
+    t.status !== "done" &&
+    t.status !== "skipped" &&
+    (!t.due_date || t.due_date === today)
+  );
+  if (activeToday.length <= 3) return tasks;
+
+  const keep = new Set(
+    [...activeToday]
+      .sort((a, b) => {
+        const pri = { high: 0, medium: 1, low: 2 } as const;
+        const p = pri[a.priority] - pri[b.priority];
+        return p || a.created_at.localeCompare(b.created_at);
+      })
+      .slice(0, 3)
+      .map((t) => t.id),
+  );
+
+  let deferIndex = 1;
+  return tasks.map((t) => {
+    if (!activeToday.some((candidate) => candidate.id === t.id) || keep.has(t.id)) return t;
+    const due = new Date();
+    due.setDate(due.getDate() + deferIndex++);
+    return { ...t, due_date: due.toISOString().slice(0, 10) };
+  });
+}
 
 function persist(state: MomentState) {
   storage.saveState(state.user_id, state);
