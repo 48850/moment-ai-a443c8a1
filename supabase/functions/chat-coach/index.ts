@@ -385,7 +385,7 @@ function latestUserMessage(messages: Array<{ role: string; content: string }>): 
 
 function isGreetingOnly(text: string): boolean {
   const normalized = text.toLowerCase().replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
-  return /^(hi|hey|hello|yo|sup|ok|okay|k|hii|hiya|how r u|how are you)$/.test(normalized);
+  return /^(hi|hey|hello|yo|sup|ok|okay|k|hii|hiya|how r u|how are you|hi how r u|hi how are you|hello how r u|hello how are you)$/.test(normalized);
 }
 
 function fmt(v: unknown): string {
