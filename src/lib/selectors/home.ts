@@ -28,8 +28,13 @@ function todayLabel(): string {
   return `Today, ${d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}`;
 }
 
+function todayKey(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function isTodayTask(task: Task): boolean {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKey();
   if (task.status === "done") return task.completed_at?.slice(0, 10) === today;
   if (task.status === "skipped") return false;
   return !task.due_date || task.due_date === today;
