@@ -128,7 +128,8 @@ function tools(intent: string) {
         properties: {
           tasks: {
             type: "array",
-            maxItems: 5,
+            maxItems: 3,
+            description: "Maximum 3 tasks per day. Quality over quantity.",
             items: {
               type: "object",
               properties: {
@@ -139,10 +140,17 @@ function tools(intent: string) {
                 why_now: { type: "string", description: "Why this task fits the user's current stage — not generic motivation." },
                 proof_of_completion: { type: "string", description: "One concrete, observable thing the user produces or does that proves this task is done. Must be specific to this task." },
                 user_stage_fit: { type: "string", enum: ["strong", "okay", "weak", "premature"] },
-                resource_url: { type: "string", description: "REQUIRED if the task involves any online work (research, course, signup, doc, watch a video, read an article, use a tool). Provide a real, working https URL — a specific page, not just a homepage. Omit only for purely offline tasks (writing on paper, going outside, talking to someone in person)." },
-                resource_label: { type: "string", description: "Short label for the URL, e.g. 'Khan Academy intro', 'Coursera course page', 'sign-up form'. Required whenever resource_url is set." },
+                resource_url: { type: "string", description: "REQUIRED if the task involves any online work. Real working https URL to a specific page, not a homepage." },
+                resource_label: { type: "string", description: "Short label for the URL. Required whenever resource_url is set." },
+                elaborated_notes: {
+                  type: "array",
+                  minItems: 2,
+                  maxItems: 5,
+                  description: "REQUIRED. 2-5 substantive note paragraphs (~2-4 sentences each) that elaborate the task: how to approach it, what to look for, common pitfalls, specific sub-steps, and — if there's a resource_url — what the user should extract or notice in that resource. Not fluff, not motivation. Concrete guidance the user can act on.",
+                  items: { type: "string" },
+                },
               },
-              required: ["title", "estimated_minutes", "category", "priority", "why_now", "proof_of_completion"],
+              required: ["title", "estimated_minutes", "category", "priority", "why_now", "proof_of_completion", "elaborated_notes"],
               additionalProperties: false,
             },
           },
