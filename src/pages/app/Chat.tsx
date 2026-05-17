@@ -457,17 +457,11 @@ const Chat = () => {
         (f) => !justPatched.has(f),
       );
 
-      let display = reply.trim();
+      const display = reply.trim();
       if (!display) {
-        if (patches.some((p) => p.tool === "create_first_task")) {
-          display = "Your first move is in your task list. Let's get started.";
-        } else if (!isSpecialisation && remainingMissing.length) {
-          display = `What's your ${remainingMissing[0].replace(/_/g, " ")}?`;
-        } else if (snapshot.next_move) {
-          display = `Your next move is "${snapshot.next_move.title}" (${snapshot.next_move.estimated_minutes}m). Want help shrinking it?`;
-        } else {
-          display = "Tell me where you're stuck or what just happened.";
-        }
+        // Server is self-deterministic — if it returned no reply, surface nothing
+        // rather than inventing a hardcoded one. Skip appending the message.
+        return;
       }
 
       const assistantMsg: ChatMessage = {
