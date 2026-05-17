@@ -209,6 +209,71 @@ function tools(intent: string) {
         additionalProperties: false,
       },
     },
+    forge_guidebook_candidates: {
+      name: "answer",
+      description: "Generate exactly 3 distinct, specific, runnable Forge tool candidates.",
+      parameters: {
+        type: "object",
+        properties: {
+          candidates: {
+            type: "array",
+            minItems: 3,
+            maxItems: 3,
+            items: {
+              type: "object",
+              properties: {
+                title: {
+                  type: "string",
+                  description: "Short specific name. NEVER 'Custom Feature', 'Analyser', 'AI Analysis'. Must reference the user's goal domain.",
+                },
+                feature_type: {
+                  type: "string",
+                  enum: ["drill_lab", "tracker", "planner", "decision_engine", "protocol",
+                         "research_helper", "proof_builder", "coach_lens", "simulator", "custom"],
+                },
+                purpose: {
+                  type: "string",
+                  description: "One sentence: what problem this solves and for whom. Must name the goal domain.",
+                },
+                why_this_one: {
+                  type: "string",
+                  description: "Why this specific tool fits this user's CURRENT stage, not a generic reason.",
+                },
+                inputs: {
+                  type: "array",
+                  minItems: 1,
+                  items: {
+                    type: "object",
+                    properties: {
+                      id: { type: "string" },
+                      label: { type: "string" },
+                      type: { type: "string", enum: ["text", "textarea", "select", "number", "date", "scale"] },
+                      required: { type: "boolean" },
+                      placeholder: { type: "string" },
+                    },
+                    required: ["id", "label", "type", "required"],
+                    additionalProperties: false,
+                  },
+                },
+                first_run_example: {
+                  type: "string",
+                  description: "Concrete example of what the user sees after clicking Run for the first time.",
+                },
+                creates: {
+                  type: "array",
+                  items: { type: "string", enum: ["task", "plan_block", "context_signal", "reflection"] },
+                  description: "What useful outputs this tool can generate for the user.",
+                },
+              },
+              required: ["title", "feature_type", "purpose", "why_this_one", "inputs", "first_run_example", "creates"],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ["candidates"],
+        additionalProperties: false,
+      },
+    },
     forge_guidebook: {
       name: "answer",
       description: "Generate a complete, build-ready, goal-specific Forge guidebook.",
@@ -494,6 +559,50 @@ Feedback breakdown: ${Object.keys(feedbackBreakdown).length ? JSON.stringify(fee
 Explain in 1–2 sentences exactly WHY the plan is changing (based on their feedback and task signals, not generically). Then list 2–3 specific adjustments being made. Then name the single most important focus for the adjusted plan.`;
     }
 
+    case "forge_guidebook_candidates": {
+      const userDescription = (payload?.description ?? "").trim() || "a custom tool for my goal";
+      const education_system = snapshot?.user?.education_system ?? "unknown";
+      const country = snapshot?.user?.country ?? "unknown";
+      type ForgeToolSummary = { name?: string; title?: string };
+      const existingToolTitles = (snapshot?.forge?.active_tools as ForgeToolSummary[] ?? [])
+        .map((t) => t.name ?? t.title ?? "")
+        .filter(Boolean)
+        .join(", ") || "none yet";
+      return `${ctx}
+
+The user wants to build a Forge tool. Their description: "${userDescription}"
+User's goal: ${goal}
+Current stage: ${current_stage || "foundation"}
+Education system: ${education_system} | Country: ${country}
+Existing Forge tools (do NOT duplicate): ${existingToolTitles}
+
+Generate EXACTLY 3 distinct Forge tool candidates. They must be meaningfully DIFFERENT — different function types, different problem angles, different run behaviours. NOT 3 versions of the same idea.
+
+TOOL ARCHETYPES (use these as inspiration):
+1. Drill Lab — active recall, quiz, revision practice (e.g. "Biology Micro-Recall Drill")
+2. Mapper — prerequisites, steps, pathway clarity (e.g. "Science Prerequisite Mapper")
+3. Tracker — pattern tracking over time (e.g. "Review Skip Pattern Tracker")
+4. Recovery Protocol — help when falling behind (e.g. "Homework Rescue Splitter")
+5. Research Helper — compress complex learning material (e.g. "Neuroscience Reading Compressor")
+6. Decision Engine — choose between competing next moves (e.g. "Next Best Study Move")
+7. Proof Builder — convert actions into evidence (e.g. "Medicine Pathway Proof Log")
+8. Coach Lens — CBT-informed reflection and reframing (e.g. "Failure Recovery Lens")
+
+Rules per candidate:
+- title: SHORT, SPECIFIC, references the goal domain. NEVER "Custom Feature" or "Analyser".
+- purpose: Names the goal domain. Explains what the tool helps the user DO.
+- why_this_one: Specific to this user's CURRENT stage — not generic reasons.
+- inputs: At least 1 concrete input. Make it specific to the problem.
+- first_run_example: Concrete. What would the user actually see output on the first run?
+- creates: What useful follow-up does this generate? (task, plan_block, context_signal, reflection)
+
+Candidate quality checks:
+✗ Generic: "Custom Feature" / "Helps you with your goal"
+✓ Specific: "Biology Micro-Recall Drill" / "Turns passive neuroscience reading into active recall questions with difficulty rating"
+
+For a user pursuing "${goal || "their goal"}" at ${current_stage || "foundation"} stage — what 3 DIFFERENT tool angles would a great tutor/coach offer?`;
+    }
+
     case "forge_guidebook": {
       const userDescription = (payload?.description ?? "").trim() || "a custom tool for my goal";
       const moduleType = payload?.module_type ?? payload?.feature_type ?? "custom";
@@ -581,7 +690,7 @@ Return ONLY the JSON object the contract describes — no prose, no markdown, no
   }
 }
 
-const FREEFORM_INTENTS = new Set(["forge_guidebook", "forge_feature_ai"]);
+const FREEFORM_INTENTS = new Set(["forge_guidebook", "forge_feature_ai", "forge_guidebook_candidates"]);
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
