@@ -379,6 +379,15 @@ interface ChatSnapshot {
   week_blocks?: Array<{ id: string; day_index: number; start_time: string; end_time: string; title: string; category: string; is_locked: boolean }>;
 }
 
+function latestUserMessage(messages: Array<{ role: string; content: string }>): string {
+  return [...messages].reverse().find((m) => m.role === "user" && typeof m.content === "string")?.content?.trim() ?? "";
+}
+
+function isGreetingOnly(text: string): boolean {
+  const normalized = text.toLowerCase().replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+  return /^(hi|hey|hello|yo|sup|ok|okay|k|hii|hiya|how r u|how are you)$/.test(normalized);
+}
+
 function fmt(v: unknown): string {
   if (v === null || v === undefined || v === "") return "—";
   if (Array.isArray(v)) return v.length ? v.join(", ") : "—";
