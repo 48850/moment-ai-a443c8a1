@@ -19,7 +19,6 @@ import type {
   FeatureRunResult,
   ForgeSignal,
   GoalFeasibilityReport,
-  ChatMessage,
 } from "@/lib/types";
 
 /**
@@ -113,4 +112,13 @@ export type MomentAction =
   | { type: "chat/complete_specialisation"; payload: {
       goal_patch: Partial<MomentState["active_goal"]>;
       first_task: Task;
+    } }
+  | { type: "mission/snapshot"; payload: {
+      date: string;
+      taken_at: string;
+      overall_health: number;
+      total_tasks: number;
+      total_done: number;
+      velocity_7d: number;
+      workstreams: Array<Record<string, unknown>>;
     } };
