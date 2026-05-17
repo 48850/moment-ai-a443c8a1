@@ -123,6 +123,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
 
       const hydrated: MomentState = {
         ...saved,
+        tasks: capTasksForToday(saved.tasks ?? []),
         profile: profileBackfill,
         active_goal: goalBackfill,
         execution_feedback: saved.execution_feedback ?? [],
