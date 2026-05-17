@@ -186,60 +186,71 @@ const Dashboard = () => {
       {/* Task list */}
       <section>
         <div className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Today</div>
-        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+        <ul className="space-y-3">
           {vm.tasks.map((t) => {
             const done = t.status === "done";
-            const expanded = expandedId === t.id;
             const showFeedback = justCompletedId === t.id;
-            const hasDetail = !!t.resource_url || (t.notes?.length ?? 0) > 0;
             return (
-              <li key={t.id} className="px-4 py-3">
-                <button
-                  type="button"
-                  onClick={() => setExpandedId(expanded ? null : t.id)}
-                  className="flex w-full items-center gap-3 text-left"
-                >
-                  <span
-                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
-                      done ? "border-primary bg-primary text-primary-foreground" : "border-border"
+              <li
+                key={t.id}
+                className="rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
+              >
+                <div className="flex items-start gap-3">
+                  <button
+                    type="button"
+                    onClick={() => onComplete(t.id)}
+                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+                      done ? "border-primary bg-primary text-primary-foreground" : "border-border hover:border-primary/50"
                     }`}
-                    aria-hidden
+                    aria-label={done ? "Mark incomplete" : "Mark complete"}
                   >
                     {done && <Check className="h-3 w-3" strokeWidth={3} />}
-                  </span>
-                  <span className={`flex-1 text-sm ${done ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                    {t.title}
-                  </span>
-                  <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
-                    {t.estimated_minutes}m
-                  </span>
-                </button>
+                  </button>
 
-                {expanded && (
-                  <div className="mt-3 space-y-2 pl-8">
-                    {t.resource_url && (
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <h3 className={`text-sm font-medium leading-snug ${done ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                        {t.title}
+                      </h3>
+                      <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
+                        {t.estimated_minutes}m
+                      </span>
+                    </div>
+
+                    {t.why_now && !done && (
+                      <p className="text-xs leading-relaxed text-muted-foreground">{t.why_now}</p>
+                    )}
+
+                    {t.proof_of_completion && !done && (
+                      <div className="flex items-start gap-1.5 text-[11px] text-emerald-500/80">
+                        <Sparkles className="mt-0.5 h-3 w-3 shrink-0" />
+                        <span>{t.proof_of_completion}</span>
+                      </div>
+                    )}
+
+                    {t.resource_url && !done && (
                       <a
                         href={t.resource_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-primary underline-offset-2 hover:underline"
+                        className="inline-flex items-center gap-1 text-[11px] text-primary underline-offset-2 hover:underline"
                       >
                         <ExternalLink className="h-3 w-3 shrink-0" />
                         {t.resource_label || "Open source"}
                       </a>
                     )}
-                    {(t.notes?.length ?? 0) > 0 && (
-                      <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                        <NotebookPen className="mt-0.5 h-3 w-3 shrink-0" />
-                        <div className="space-y-1.5 whitespace-pre-wrap leading-relaxed">
+
+                    {(t.notes?.length ?? 0) > 0 && !done && (
+                      <div className="rounded-md border border-border/60 bg-background/40 p-2">
+                        <div className="mb-1 flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                          <NotebookPen className="h-3 w-3" /> Notes
+                        </div>
+                        <div className="space-y-1.5 whitespace-pre-wrap text-[11px] leading-relaxed text-muted-foreground">
                           {t.notes!.map((n) => (
                             <p key={n.id}>{n.content}</p>
                           ))}
                         </div>
                       </div>
-                    )}
-                    {!hasDetail && (
-                      <div className="text-[11px] italic text-muted-foreground">No notes attached.</div>
                     )}
 
                     {showFeedback ? (
@@ -251,10 +262,7 @@ const Dashboard = () => {
                     ) : (
                       <div className="flex flex-wrap items-center gap-2 pt-1">
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onComplete(t.id);
-                          }}
+                          onClick={() => onComplete(t.id)}
                           className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
                         >
                           {done ? "Mark incomplete" : "Done ✓"}
@@ -263,7 +271,7 @@ const Dashboard = () => {
                       </div>
                     )}
                   </div>
-                )}
+                </div>
               </li>
             );
           })}
