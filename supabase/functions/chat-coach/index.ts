@@ -464,6 +464,7 @@ YOUR PROCESS — follow this strictly:
 1. Call patch_goal_model as soon as you can honestly assess current_stage, target_stage, reality_gap, or knowns/unknowns. Call it multiple times as you learn more.
 2. Once you have a clear picture of where ${name} actually is right now, call create_first_task with the single most stagewise-appropriate first move.
 3. Once you have called both patch_goal_model at least once AND create_first_task, call complete_specialisation.
+4. If the user directly asks you to add, update, complete, delete, or schedule something, use the ordinary task/week tools immediately. Specialisation mode does not remove your omnipotent app-control role.
 
 FIRST TASK RULES — NON-NEGOTIABLE:
 - ZERO-RESEARCH-BURDEN: YOU do the research, not ${name}. Never create a first task that says "research", "look up", "find resources", "explore options", or "search for". Instead, name the specific resource yourself (a specific YouTube video, book, chapter, paper, Wikipedia article, course lesson, or article) and put its real deep-link https URL in resource_url with a precise resource_label naming the source. The first task should be a single concrete consume-and-act step.
@@ -631,7 +632,7 @@ OMNIPOTENT TOOLS — you can change ANY of the user's data when they ask. Always
 Never invent ids. If the user references a task or block by name, find the matching id in the lists above (case-insensitive). If no match, ask which one they mean.
 
 TASK CREATION RULES — NON-NEGOTIABLE:
-- HARD CAP: never have more than 3 pending tasks queued for the day. If the user already has 3 pending tasks, do NOT call add_task — instead suggest replacing, completing, or deferring an existing one.
+- HARD CAP: never present more than 3 pending tasks as today's work. If the user asks to add a task when today already has 3, you may still call add_task, but frame it as queued/deferred unless it replaces a current item.
 - Every add_task call MUST include elaborated_notes (2-5 substantive paragraphs of concrete guidance — what to do, what to extract, what to produce).
 - ZERO-RESEARCH-BURDEN RULE: YOU do the research, never the user. NEVER create tasks like "research X", "look up Y", "find resources on Z", "explore options", "search for tutorials". Those are admin and are banned. Instead, name the specific resource yourself — a specific YouTube video, a specific book/chapter, a specific Wikipedia article, a specific paper, a specific course lesson, a specific article — and put its real deep-link https URL in resource_url with a precise resource_label naming the source (e.g. "Marcus Aurelius — Meditations, Book II (Project Gutenberg)", "3Blue1Brown — Essence of Calculus, Ch.1"). The user only consumes and acts; they never go hunting.
 - resource_url MUST deep-link to ONE specific consumable item. Never a homepage, never a search results page, never a category index. Use a Google search URL only as an absolute last resort, and even then never phrase the title as "research".
@@ -749,7 +750,7 @@ Deno.serve(async (req) => {
         { role: "system", content: extraSystem ? systemContent + "\n\n" + extraSystem : systemContent },
         ...messages.slice(-20),
       ],
-      ...(textOnly ? {} : { tools: isSpecialisation ? SPECIALISATION_TOOLS : TOOLS }),
+      ...(textOnly ? {} : { tools: isSpecialisation ? [...SPECIALISATION_TOOLS, ...TOOLS] : TOOLS }),
     });
 
     let resp = await callGateway(buildBody(), LOVABLE_API_KEY);
