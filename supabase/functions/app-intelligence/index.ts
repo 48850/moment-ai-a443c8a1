@@ -139,6 +139,8 @@ function tools(intent: string) {
                 why_now: { type: "string", description: "Why this task fits the user's current stage — not generic motivation." },
                 proof_of_completion: { type: "string", description: "One concrete, observable thing the user produces or does that proves this task is done. Must be specific to this task." },
                 user_stage_fit: { type: "string", enum: ["strong", "okay", "weak", "premature"] },
+                resource_url: { type: "string", description: "REQUIRED if the task involves any online work (research, course, signup, doc, watch a video, read an article, use a tool). Provide a real, working https URL — a specific page, not just a homepage. Omit only for purely offline tasks (writing on paper, going outside, talking to someone in person)." },
+                resource_label: { type: "string", description: "Short label for the URL, e.g. 'Khan Academy intro', 'Coursera course page', 'sign-up form'. Required whenever resource_url is set." },
               },
               required: ["title", "estimated_minutes", "category", "priority", "why_now", "proof_of_completion"],
               additionalProperties: false,
