@@ -22,6 +22,7 @@ type SuggestedTask = {
   user_stage_fit?: string;
   resource_url?: string;
   resource_label?: string;
+  elaborated_notes?: string[];
 };
 
 type RefinedTask = {
