@@ -437,6 +437,17 @@ const Tasks = () => {
                   {t.proof_of_completion}
                 </p>
               )}
+              {t.resource_url && !done && (
+                <a
+                  href={t.resource_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-0.5 pl-8 flex items-center gap-1 text-[11px] text-primary underline-offset-2 hover:underline"
+                >
+                  <ExternalLink className="h-3 w-3 shrink-0" />
+                  {t.resource_label || t.resource_url}
+                </a>
+              )}
             </li>
           );
         })}
