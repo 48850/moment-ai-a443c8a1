@@ -97,6 +97,119 @@ function saveCachedPlan(goal: string, plan: AiPlan) {
   } catch { /* ignore */ }
 }
 
+/* ─── Week constellation — 7-day completion bars ──────────────────────────── */
+function WeekConstellation({ state }: { state: MomentState }) {
+  const days = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      const dateStr = d.toISOString().slice(0, 10);
+      const completed = (state.tasks ?? []).filter(
+        (t) => t.status === "done" && t.completed_at?.startsWith(dateStr),
+      ).length;
+      return {
+        dateStr,
+        label: d.toLocaleDateString("en-AU", { weekday: "short" }),
+        completed,
+        isToday: i === 6,
+      };
+    });
+  }, [state.tasks]);
+
+  const total = days.reduce((s, d) => s + d.completed, 0);
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Last 7 days</div>
+        {total > 0 && <div className="text-xs text-muted-foreground">{total} tasks completed</div>}
+      </div>
+      {total === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          Not enough progress data yet. Complete tasks and give feedback to build your week view.
+        </p>
+      ) : (
+        <div className="flex items-end gap-2 h-16">
+          {days.map((d) => (
+            <div key={d.dateStr} className="flex flex-1 flex-col items-center gap-1">
+              <div
+                className={`w-full rounded-sm transition-all ${
+                  d.completed > 0 ? "bg-emerald-500/70" : "bg-border"
+                } ${d.isToday ? "ring-1 ring-primary" : ""}`}
+                style={{ height: `${Math.max(8, Math.min(56, d.completed * 16))}px` }}
+              />
+              <div className="text-[9px] text-muted-foreground">{d.label}</div>
+              {d.completed > 0 && <div className="text-[9px] font-medium text-emerald-400">{d.completed}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Month progress — 4-week completion grid ──────────────────────────────── */
+function MonthProgress({ state }: { state: MomentState }) {
+  const weeks = useMemo(() => {
+    return Array.from({ length: 4 }, (_, w) => {
+      const endOffset = (3 - w) * 7;
+      const startOffset = endOffset + 6;
+      const endDate = new Date(); endDate.setDate(endDate.getDate() - endOffset);
+      const startDate = new Date(); startDate.setDate(startDate.getDate() - startOffset);
+      const startStr = startDate.toISOString().slice(0, 10);
+      const endStr = endDate.toISOString().slice(0, 10);
+      const completed = (state.tasks ?? []).filter((t) => {
+        const d = t.completed_at?.slice(0, 10);
+        return t.status === "done" && d && d >= startStr && d <= endStr;
+      }).length;
+      const friction = (state.execution_feedback ?? []).filter((f) => {
+        const d = f.created_at?.slice(0, 10);
+        return (f.feedback === "hard" || f.feedback === "too_big") && d && d >= startStr && d <= endStr;
+      }).length;
+      return { label: `Week ${w + 1}`, completed, friction, isCurrent: w === 3 };
+    });
+  }, [state.tasks, state.execution_feedback]);
+
+  const total = weeks.reduce((s, w) => s + w.completed, 0);
+
+  if (total === 0) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-4">
+        <p className="text-xs text-muted-foreground">
+          Not enough progress data yet. Complete tasks and give feedback to build your month view.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Last 4 weeks</div>
+        <div className="text-xs text-muted-foreground">{total} proofs completed</div>
+      </div>
+      <div className="grid grid-cols-4 gap-2">
+        {weeks.map((w) => (
+          <div
+            key={w.label}
+            className={`rounded-lg p-3 flex flex-col gap-1 border ${
+              w.isCurrent ? "border-primary/40 bg-primary/5" : "border-border bg-muted/30"
+            }`}
+          >
+            <div className="text-[10px] text-muted-foreground">{w.label}</div>
+            <div className={`text-lg font-semibold ${w.completed > 0 ? "text-emerald-400" : "text-muted-foreground/40"}`}>
+              {w.completed}
+            </div>
+            <div className="text-[9px] text-muted-foreground">
+              {w.completed === 0 ? "no data" : w.friction > 0 ? `${w.friction} hard` : "smooth"}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const Plan = () => {
   const state = useStateStore((s) => s.state);
   const dispatch = useStateStore((s) => s.dispatch);
@@ -108,6 +221,27 @@ const Plan = () => {
   const goalText = state?.active_goal?.statement ?? "";
   const [aiPlan, setAiPlan] = useState<AiPlan | null>(() => goalText ? loadCachedPlan(goalText) : null);
   const [aiLoading, setAiLoading] = useState(false);
+
+  const todayCompletedBlocks = useMemo((): ScheduleBlock[] => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    return (state?.tasks ?? [])
+      .filter((t) => t.status === "done" && t.completed_at?.startsWith(todayStr))
+      .map((t) => ({
+        id: `completed-${t.id}`,
+        title: t.title,
+        type: "goal_work" as const,
+        start_time: "",
+        end_time: "",
+        duration_minutes: t.estimated_minutes ?? 30,
+        priority: 1,
+        is_fixed: false,
+        source: "task",
+        goal_link: t.goal_id ?? "",
+        fallback_version: "",
+        status: "completed" as const,
+        linked_task_ids: [t.id],
+      }));
+  }, [state?.tasks]);
 
   if (!state) return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
   const vm = selectPlanViewModel(state);
@@ -494,14 +628,18 @@ const Plan = () => {
                 />
               ) : null}
 
-              {vm.scheduleBlocks.length > 0 && (
-                <Constellation blocks={vm.scheduleBlocks as ScheduleBlock[]} decisiveMoveTitle={vm.scheduleBlocks[0]?.title} />
+              {(vm.scheduleBlocks.length > 0 || todayCompletedBlocks.length > 0) && (
+                <Constellation
+                  blocks={[...vm.scheduleBlocks as ScheduleBlock[], ...todayCompletedBlocks]}
+                  decisiveMoveTitle={vm.scheduleBlocks[0]?.title}
+                />
               )}
             </>
           )}
 
           {horizon === "weeks" && (
             <div className="space-y-6">
+              <WeekConstellation state={state} />
               <WeeklyGrid />
               {aiPlan?.weeks?.length ? (
                 <HorizonList
@@ -519,18 +657,21 @@ const Plan = () => {
           )}
 
           {horizon === "months" && (
-            aiPlan?.months?.length ? (
-              <HorizonList
-                title="Monthly milestones"
-                items={aiPlan.months.map((m, i) => ({
-                  key: `mo-${i}`,
-                  badge: m.month,
-                  title: m.title,
-                  detail: m.detail,
-                  meta: `🏁 ${m.milestone}`,
-                }))}
-              />
-            ) : <EmptyHorizon onGenerate={generatePlan} loading={aiLoading} hasGoal={!!goalText} label="monthly milestones" />
+            <div className="space-y-6">
+              <MonthProgress state={state} />
+              {aiPlan?.months?.length ? (
+                <HorizonList
+                  title="Monthly milestones"
+                  items={aiPlan.months.map((m, i) => ({
+                    key: `mo-${i}`,
+                    badge: m.month,
+                    title: m.title,
+                    detail: m.detail,
+                    meta: `🏁 ${m.milestone}`,
+                  }))}
+                />
+              ) : <EmptyHorizon onGenerate={generatePlan} loading={aiLoading} hasGoal={!!goalText} label="monthly milestones" />}
+            </div>
           )}
 
           {horizon === "years" && (

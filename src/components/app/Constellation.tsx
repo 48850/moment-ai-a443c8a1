@@ -132,6 +132,7 @@ export function Constellation({
       .attr("r", (d: any) => (d.isDecisive ? 12 : 8))
       .attr("fill", (d: any) => {
         if (d.isDecisive) return primary;
+        if (d.status === "completed" || d.status === "done") return primary;
         if (d.type === "fixed_commitment" || d.type === "commute" || d.type === "wind_down") return muted;
         return card;
       })

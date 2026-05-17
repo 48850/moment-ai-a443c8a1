@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { buildContextPacket } from "@/lib/ai/context-packet";
 import {
   Hammer, Sparkles, Loader2, Plus, Archive, Pencil, Play,
   X, ChevronRight, Zap, Target, Clock, BarChart2, Activity,
@@ -24,6 +26,7 @@ import type {
   ModuleEntry,
   ForgeGuidebook,
   ForgeFeatureType,
+  GuidebookInput,
 } from "@/lib/types";
 
 // ─── Feature type options ─────────────────────────────────────────────────────
@@ -294,7 +297,22 @@ function SystemGapCard({
 
 // ─── Forge builder flow ───────────────────────────────────────────────────────
 
-type BuildStep = "type_select" | "question" | "ai_generating" | "preview";
+type BuildStep = "type_select" | "question" | "candidates_generating" | "pick_candidate" | "ai_generating" | "preview";
+
+interface CandidateOption {
+  title: string;
+  feature_type: ForgeFeatureType;
+  purpose: string;
+  why_this_one: string;
+  inputs: Array<{ id: string; label: string; type: string; required: boolean; placeholder?: string }>;
+  first_run_example: string;
+  creates: string[];
+}
+
+const GENERIC_TITLES = new Set([
+  "custom feature", "analyser", "analyzer", "ai analysis",
+  "goal helper", "your own ai-powered system", "feature",
+]);
 
 function ForgeBuilderFlow({
   onCancel,
@@ -317,6 +335,7 @@ function ForgeBuilderFlow({
   const [draft, setDraft] = useState<Partial<ForgeGuidebook> | null>(null);
   const [activating, setActivating] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [candidates, setCandidates] = useState<CandidateOption[]>([]);
 
   const question =
     systemQuestion ??
@@ -377,6 +396,79 @@ function ForgeBuilderFlow({
     setStep("preview");
   };
 
+  const handleGenerateCandidates = async () => {
+    if (!description.trim() || !state) return;
+    setStep("candidates_generating");
+    setValidationErrors([]);
+    try {
+      const { data } = await supabase.functions.invoke("app-intelligence", {
+        body: {
+          intent: "forge_guidebook_candidates",
+          snapshot: buildContextPacket(state),
+          payload: { description, feature_type: selectedType ?? "custom" },
+        },
+      });
+      const raw = data?.result;
+      const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+      const list: CandidateOption[] = parsed?.candidates ?? [];
+      if (list.length >= 1) {
+        setCandidates(list);
+        setStep("pick_candidate");
+      } else {
+        await handleGenerate();
+      }
+    } catch {
+      await handleGenerate();
+    }
+  };
+
+  const handleGenerateFromCandidate = async (candidate: CandidateOption) => {
+    if (!state) return;
+    setStep("ai_generating");
+    setValidationErrors([]);
+    const seededDescription = `${candidate.title}: ${candidate.purpose}`;
+    try {
+      const { guidebook, validation } = await generateCustomGuidebookViaAI(state, seededDescription);
+      // Preserve candidate identity — override generic AI output
+      if (GENERIC_TITLES.has(guidebook.title.toLowerCase().trim())) {
+        guidebook.title = candidate.title;
+      }
+      if (!guidebook.purpose?.trim()) guidebook.purpose = candidate.purpose;
+      if (!guidebook.bottleneck_addressed) guidebook.bottleneck_addressed = candidate.why_this_one;
+      // Preserve candidate inputs if AI returned fewer
+      if ((guidebook.required_inputs?.length ?? 0) < candidate.inputs.length) {
+        guidebook.required_inputs = candidate.inputs.map((inp) => ({
+          id: inp.id,
+          label: inp.label,
+          type: inp.type as GuidebookInput["type"],
+          placeholder: inp.placeholder ?? "",
+          required: inp.required,
+        }));
+      }
+      setDraft(guidebook);
+      setValidationErrors(validation.ok ? [] : validation.reasons);
+      setStep("preview");
+    } catch {
+      // Hard fallback: use candidate fields directly to build a minimal guidebook
+      const template = buildTemplateGuidebook("custom", state.active_goal?.statement ?? "");
+      template.title = candidate.title;
+      template.purpose = candidate.purpose;
+      template.bottleneck_addressed = candidate.why_this_one;
+      if (candidate.inputs.length > 0) {
+        template.required_inputs = candidate.inputs.map((inp) => ({
+          id: inp.id,
+          label: inp.label,
+          type: inp.type as GuidebookInput["type"],
+          placeholder: inp.placeholder ?? "",
+          required: inp.required,
+        }));
+      }
+      setDraft(template);
+      setValidationErrors(["AI generation failed — built from your selection. You can still use this tool."]);
+      setStep("preview");
+    }
+  };
+
   const handleActivate = () => {
     if (!draft || !state) return;
     setActivating(true);
@@ -401,7 +493,7 @@ function ForgeBuilderFlow({
       <div className="flex items-center justify-between border-b border-border/60 bg-primary/5 px-5 py-3">
         <div className="flex items-center gap-2">
           <Hammer className="h-3.5 w-3.5 text-primary" />
-          <span className="text-xs font-medium text-primary">Forge a feature</span>
+          <span className="text-xs font-medium text-primary">Forge a tool</span>
           {selectedType && step !== "type_select" && (
             <>
               <ChevronRight className="h-3 w-3 text-muted-foreground" />
@@ -459,21 +551,73 @@ function ForgeBuilderFlow({
               </button>
               <button
                 disabled={!description.trim() || ai.loading}
-                onClick={handleGenerate}
+                onClick={selectedType === "custom" || !selectedType ? handleGenerateCandidates : handleGenerate}
                 className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
               >
-                <Sparkles className="h-3.5 w-3.5" /> Generate Guidebook
+                <Sparkles className="h-3.5 w-3.5" />
+                {selectedType === "custom" || !selectedType ? "Find tool options" : "Generate tool"}
               </button>
             </div>
             {ai.error && <p className="text-xs text-destructive">{ai.error}</p>}
           </div>
         )}
 
-        {/* Step 3: AI generating */}
+        {/* Step 2.5a: Finding candidates */}
+        {step === "candidates_generating" && (
+          <div className="flex flex-col items-center gap-3 py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Finding the right tools for your goal…</p>
+            <p className="text-xs text-muted-foreground/70">Generating three specific options based on your context</p>
+          </div>
+        )}
+
+        {/* Step 2.5b: Pick a candidate */}
+        {step === "pick_candidate" && candidates.length > 0 && (
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Pick the tool that fits best</p>
+              <p className="text-xs text-muted-foreground">Three options specific to your goal. Choose one to build it.</p>
+            </div>
+            <div className="space-y-3">
+              {candidates.map((c) => (
+                <button
+                  key={c.title}
+                  onClick={() => handleGenerateFromCandidate(c)}
+                  className="w-full rounded-xl border border-border bg-card p-4 text-left hover:border-primary/40 transition-colors space-y-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.15em] text-primary">
+                      {c.feature_type.replace(/_/g, " ")}
+                    </span>
+                  </div>
+                  <div className="text-sm font-semibold text-foreground">{c.title}</div>
+                  <div className="text-xs text-muted-foreground">{c.purpose}</div>
+                  {c.why_this_one && (
+                    <div className="text-[11px] text-muted-foreground/70 italic">{c.why_this_one}</div>
+                  )}
+                  {c.first_run_example && (
+                    <div className="mt-2 rounded-md bg-muted/40 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+                      <span className="font-medium text-foreground/70">First run: </span>
+                      {c.first_run_example}
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setStep("question")}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              ← Describe differently
+            </button>
+          </div>
+        )}
+
+        {/* Step 3: AI generating tool from candidate */}
         {step === "ai_generating" && (
           <div className="flex flex-col items-center gap-3 py-8">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Building your Guidebook…</p>
+            <p className="text-sm text-muted-foreground">Building your tool…</p>
             <p className="text-xs text-muted-foreground/70">Designing inputs, AI functions, sections, and state connections</p>
           </div>
         )}
@@ -640,7 +784,7 @@ const Forge = () => {
         <div className="text-xs text-muted-foreground">/ forge</div>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">Forge</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Build custom AI systems around your goal. Describe what you need — Forge creates a full feature page with AI functions, inputs, and state connections.
+          Build small, runnable tools for your goal. Describe what you want help with — Moment generates three specific options, you pick one.
         </p>
       </div>
 
@@ -689,7 +833,7 @@ const Forge = () => {
           onClick={() => { setPreselectedType(undefined); setSystemQuestion(undefined); setBuilding(true); }}
           className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90"
         >
-          <Plus className="h-4 w-4" /> Forge a feature
+          <Plus className="h-4 w-4" /> Forge a tool
         </button>
       )}
 

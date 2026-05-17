@@ -4,7 +4,6 @@ import { Send, Sparkles, CheckCircle2, Target } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { FeedbackChips } from "@/components/app/FeedbackChips";
 import { selectChatSnapshot } from "@/lib/selectors/chat";
 import type { ChatMessage } from "@/lib/types";
 
@@ -467,14 +466,6 @@ const Chat = () => {
               >
                 {m.content}
               </div>
-              {m.role === "assistant" && !["greet", "spec-greet"].includes(m.id) && (
-                <FeedbackChips
-                  source="chat"
-                  targetId={m.id}
-                  groups={["value", "tone", "fit"]}
-                  compact
-                />
-              )}
             </div>
           </div>
         ))}

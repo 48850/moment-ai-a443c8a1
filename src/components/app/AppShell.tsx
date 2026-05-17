@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { Home, Calendar, Target, ArrowLeft, MessageSquare, Heart, LifeBuoy, ListChecks, Hammer, BarChart3, Sun, Moon } from "lucide-react";
+import { Home, Calendar, Target, ArrowLeft, MessageSquare, Heart, LifeBuoy, ListChecks, Hammer, Sun, Moon } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { useTheme } from "@/hooks/use-theme";
 
@@ -34,10 +34,9 @@ const tabs: { to: string; label: string; icon: React.ComponentType<{ className?:
     to: "/app/mission",
     label: "Mission",
     icon: Target,
-    match: ["/app/mission", "/app/audit"],
+    match: ["/app/mission"],
     sub: [
       { to: "/app/mission", label: "Mission", icon: Target },
-      { to: "/app/audit", label: "Audit", icon: BarChart3 },
     ],
   },
 ];
