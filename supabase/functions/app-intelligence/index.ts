@@ -209,6 +209,8 @@ function tools(intent: string) {
           estimated_minutes: { type: "number" },
           priority: { type: "string", enum: ["high", "medium", "low"] },
           category: { type: "string", enum: ["goal_direct", "bottleneck_removal", "discovery", "maintenance"] },
+          resource_url: { type: "string", description: "REQUIRED if the refined task involves online work (research, course, signup, watch/read online). Real, specific https URL." },
+          resource_label: { type: "string", description: "Short label for the URL. Required if resource_url is set." },
         },
         required: ["refined_title", "why_now", "proof_of_completion", "estimated_minutes", "priority", "category"],
         additionalProperties: false,
