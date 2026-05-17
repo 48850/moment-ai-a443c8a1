@@ -95,6 +95,13 @@ const TOOLS = [
           category: { type: "string", enum: ["goal_direct", "bottleneck_removal", "discovery", "maintenance"] },
           resource_url: { type: "string", description: "REQUIRED if task involves online work (research, course, signup, watch/read). Real specific https URL — not a homepage. Use reputable sources or a Google search URL." },
           resource_label: { type: "string", description: "Short label for the URL. Required if resource_url is set." },
+          elaborated_notes: {
+            type: "array",
+            minItems: 2,
+            maxItems: 5,
+            description: "REQUIRED. 2-5 substantive note paragraphs (~2-4 sentences each) elaborating the task: how to approach it, sub-steps, what to look for, pitfalls, and — if resource_url is set — what to extract from that resource. Concrete guidance, not motivation.",
+            items: { type: "string" },
+          },
           schedule_for: {
             type: "object",
             description: "Optional: also place this task on the weekly calendar.",
