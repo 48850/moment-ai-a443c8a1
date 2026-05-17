@@ -352,6 +352,18 @@ const Tasks = () => {
                       {t.proof_of_completion}
                     </div>
                   )}
+                  {t.resource_url && (
+                    <a
+                      href={t.resource_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-1 inline-flex items-center gap-1 text-[10px] text-primary underline-offset-2 hover:underline"
+                    >
+                      <ExternalLink className="h-2.5 w-2.5" />
+                      {t.resource_label || "Open link"}
+                    </a>
+                  )}
                   <div className="mt-1 flex gap-1.5 text-[10px] text-muted-foreground">
                     <span>{t.estimated_minutes}m</span>·<span>{t.priority}</span>·<span>{t.category}</span>
                   </div>
