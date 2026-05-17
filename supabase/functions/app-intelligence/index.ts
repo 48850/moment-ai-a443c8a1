@@ -212,6 +212,7 @@ function tools(intent: string) {
         additionalProperties: false,
       },
     },
+    plan_reform: {
       name: "answer",
       description: "Explain why the plan needs to change and what adjustments to make.",
       parameters: {
