@@ -176,10 +176,28 @@ function tools(intent: string) {
       parameters: {
         type: "object",
         properties: {
-          observation: { type: "string" },
-          suggestion: { type: "string" },
+          observation: { type: "string", description: "Headline notice — one tight sentence the user should notice first." },
+          suggestion: { type: "string", description: "Optional one-line nudge tied to the headline observation." },
+          notices: {
+            type: "array",
+            description: "3 to 5 additional tailored notices, each grounded in a DIFFERENT signal from the user's actual mission state (velocity, drift, bottleneck, momentum, workstream imbalance, feedback pattern, stage progress, blind spot). No duplicates with the headline observation.",
+            items: {
+              type: "object",
+              properties: {
+                kind: { type: "string", enum: ["momentum", "bottleneck", "drift", "imbalance", "feedback_pattern", "stage_progress", "blind_spot", "risk", "celebrate"] },
+                tone: { type: "string", enum: ["good", "warn", "bad", "neutral"] },
+                title: { type: "string", description: "3-6 word label." },
+                detail: { type: "string", description: "One sentence grounded in the user's actual data — name the workstream / number / pattern. No generic productivity talk." },
+                next_step: { type: "string", description: "Optional concrete one-line next move." },
+              },
+              required: ["kind", "tone", "title", "detail"],
+              additionalProperties: false,
+            },
+            minItems: 3,
+            maxItems: 5,
+          },
         },
-        required: ["observation"],
+        required: ["observation", "notices"],
         additionalProperties: false,
       },
     },
@@ -609,7 +627,18 @@ Propose AT MOST 3 tasks. Quality over quantity. Remember: ≥2 of 3 must include
       return `${ctx}\n\nReflections: ${JSON.stringify(payload?.reflections ?? [])}\nName one true pattern (energy, friction, timing). One line of honest encouragement.`;
 
     case "mission_insight":
-      return `${ctx}\n\nPursuit model: ${JSON.stringify(snapshot?.pursuit ?? null)}\nWorkstream statuses: ${JSON.stringify(payload?.workstreams ?? [])}\nWhat's the one thing the user should notice about their pathway right now?`;
+      return `${ctx}
+
+Pursuit model: ${JSON.stringify(snapshot?.pursuit ?? null)}
+Workstream analytics (per workstream: name, health 0-1, trend, velocity_7d, headline, top feedback labels): ${JSON.stringify(payload?.analytics ?? payload?.workstreams ?? [])}
+Recent mission history (last 7 daily snapshots of overall_health): ${JSON.stringify(payload?.history ?? [])}
+
+Produce a tailored mission read-out for THIS user, grounded in the numbers above. Output:
+1. observation: the single most important thing they should notice right now — name the specific workstream or signal.
+2. suggestion: optional one-line nudge tied to that observation.
+3. notices: 3 to 5 additional tailored notices. Each one MUST come from a different angle (pick from: momentum, bottleneck, drift, imbalance, feedback_pattern, stage_progress, blind_spot, risk, celebrate). Each notice MUST reference real data — a workstream name, a number, a trend, a feedback label. NO generic productivity tropes. NO repeating the headline. If a workstream has health < 0.4, surface it as a bottleneck or risk. If velocity dropped vs the prior week, flag drift. If one workstream dominates completions while others stall, flag imbalance. If the user just hit a stage threshold or a streak of completions, celebrate it specifically.
+
+Tone: calm, direct, age-aware, quietly invested. Never preachy.`;
 
     case "refine_task":
       return `Goal: ${payload?.goal || goal}\n\nTask after first-pass shrink: ${JSON.stringify(payload?.task ?? {})}\nUser's Tune feedback: "${payload?.feedback}".\n\nRefine ONLY the fields that need it. Lead with the first physical step. Be specific to THIS goal.`;
