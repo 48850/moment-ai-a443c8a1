@@ -52,7 +52,12 @@ function scoreTask(task: Task, state: MomentState): number {
 }
 
 export function selectNextBestTask(state: MomentState) {
-  const tasks = (state.tasks || []).filter((t) => t.status === "pending" || t.status === "in_progress");
+  const today = getTodayString();
+  const tasks = (state.tasks || []).filter(
+    (t) =>
+      (t.status === "pending" || t.status === "in_progress") &&
+      (!t.due_date || t.due_date === today),
+  );
   if (tasks.length === 0) return { best: null as ScoredTask | null, ranked: [] as ScoredTask[] };
   const scored: ScoredTask[] = tasks
     .map((t) => ({ ...t, score: scoreTask(t, state) }))
