@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, Plus, Sparkles, Trash2, User as UserIcon, Zap, Loader2, ExternalLink } from "lucide-react";
+import { Check, Plus, Sparkles, Trash2, User as UserIcon, Zap, Loader2, ExternalLink, NotebookPen, X } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { FeedbackChips } from "@/components/app/FeedbackChips";
 import { AIInsight } from "@/components/app/AIInsight";
@@ -8,6 +8,7 @@ import { DoneCheckIn } from "@/components/app/DoneCheckIn";
 import type { Task } from "@/lib/types";
 import { COMPLIMENTS } from "@/components/app/StreakFlame";
 import { toast } from "sonner";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
 type Filter = "all" | "pending" | "completed";
 
