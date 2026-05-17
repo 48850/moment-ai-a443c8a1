@@ -475,7 +475,7 @@ function HistoryEntry({ run, guidebook }: { run: FeatureRunResult; guidebook: Fo
                 {Object.entries(run.inputs).map(([k, v]) => (
                   <div key={k} className="flex gap-2 text-xs">
                     <span className="shrink-0 text-muted-foreground">{k}:</span>
-                    <span className="text-foreground">{String(v).slice(0, 120)}</span>
+                    <span className="text-foreground">{flattenToString(v).slice(0, 160)}</span>
                   </div>
                 ))}
               </div>
