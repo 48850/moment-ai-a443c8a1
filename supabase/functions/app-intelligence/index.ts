@@ -623,12 +623,12 @@ Current stage: ${current_stage}
 The user just typed this task themselves: "${payload?.raw_title}" (${payload?.estimated_minutes ?? 30} min, priority "${payload?.priority ?? "medium"}").
 
 Refine it into a single concrete, observable action tied to their goal and current stage:
-- refined_title: keep the user's intent; tighten the wording; make it a verb-led action; no fluff.
+- refined_title: keep the user's intent; tighten the wording; make it a verb-led action; no fluff. NEVER rephrase as "research X" / "find resources on Y" / "look up Z" — if the user typed that, convert it into consuming a specific named resource you provide.
 - why_now: one sentence that links it to the goal at this stage (no generic motivation).
 - proof_of_completion: one observable artefact, score, list, draft, or signal that proves it's done.
 - estimated_minutes: adjust only if the user's number is clearly off.
 - priority + category: infer from the action.
-- resource_url + resource_label: if the task involves any internet work (course, signup, watch/read online), include one real specific https URL and short label. Never use a homepage, category page, or search results URL. Omit only for purely offline tasks.
+- resource_url + resource_label: STRONGLY PREFERRED — attach a real, specific https URL (deep-linked to one consumable item: a specific video, article, lesson, paper, official page) whenever the task could plausibly involve any online consumption. Omit ONLY when the action is genuinely offline and self-contained. Never use a homepage, category page, or search results URL. Never use Google search links.
 
 Do not invent a different task. Do not lecture. Output only the JSON via the tool.`;
 
