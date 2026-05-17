@@ -73,11 +73,15 @@ const Tasks = () => {
   const tasks = state?.tasks ?? [];
   const todaysTasks = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
-    return tasks.filter((t) => {
-      if (t.status === "done") return t.completed_at?.slice(0, 10) === today;
-      if (t.status === "skipped") return false;
-      return !t.due_date || t.due_date === today;
-    });
+    const priority = { high: 0, medium: 1, low: 2 } as const;
+    return tasks
+      .filter((t) => {
+        if (t.status === "done") return t.completed_at?.slice(0, 10) === today;
+        if (t.status === "skipped") return false;
+        return !t.due_date || t.due_date === today;
+      })
+      .sort((a, b) => priority[a.priority] - priority[b.priority] || a.created_at.localeCompare(b.created_at))
+      .slice(0, 3);
   }, [tasks]);
   const goalText = state?.active_goal?.statement ?? "";
   const currentStage = state?.active_goal?.current_stage ?? "";
