@@ -8,7 +8,8 @@ export type ConstellationNodeType =
   | "PROOF_STAR"
   | "GATE_STAR"
   | "FRICTION_STAR"
-  | "TODAY_STAR";
+  | "TODAY_STAR"
+  | "SCHEDULE_STAR";
 
 export interface ConstellationNode {
   id: string;
