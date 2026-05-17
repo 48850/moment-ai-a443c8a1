@@ -32,12 +32,6 @@ export const Nav = () => (
     </nav>
 
     <div className="flex items-center gap-3">
-      <Link
-        to="/app"
-        className="hidden rounded-full border border-border bg-background px-4 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted sm:inline-flex"
-      >
-        Skip to app →
-      </Link>
       <a
         href="#cta"
         className="group inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-medium text-paper transition-transform hover:-translate-y-0.5"
