@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { RefreshCw, Loader2, Compass, Sparkles, Sun, CalendarDays, CalendarRange, Telescope } from "lucide-react";
+import { RefreshCw, Loader2, Compass, Sparkles, Sun, CalendarDays, CalendarRange, Telescope, ExternalLink, NotebookPen, X, Plus } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { motion, AnimatePresence } from "motion/react";
 import { useStateStore } from "@/stores/state-store";
 import { selectPlanViewModel } from "@/lib/selectors/plan";
