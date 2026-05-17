@@ -538,6 +538,79 @@ const Tasks = () => {
       </ul>
 
       <DoneCheckIn task={checkInTask} onClose={() => setCheckInTask(null)} />
+
+      <Sheet
+        open={!!notesTaskId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setNotesTaskId(null);
+            setNoteDraft("");
+          }
+        }}
+      >
+        <SheetContent side="right" className="flex w-full flex-col gap-4 sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle className="text-base">Notes</SheetTitle>
+            <SheetDescription className="line-clamp-2 text-xs">
+              {notesTask?.title ?? "Task notes"}
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="flex-1 space-y-2 overflow-y-auto pr-1">
+            {(notesTask?.notes ?? []).length === 0 ? (
+              <p className="rounded-md border border-dashed border-border bg-background/40 p-4 text-center text-xs text-muted-foreground">
+                No notes yet. Capture what you learned, what got in the way, or what to try next.
+              </p>
+            ) : (
+              [...(notesTask?.notes ?? [])]
+                .sort((a, b) => b.created_at.localeCompare(a.created_at))
+                .map((n) => (
+                  <div
+                    key={n.id}
+                    className="group relative rounded-md border border-border bg-card p-3 text-sm"
+                  >
+                    <p className="whitespace-pre-wrap pr-6 leading-relaxed">{n.content}</p>
+                    <div className="mt-1 text-[10px] text-muted-foreground">
+                      {new Date(n.created_at).toLocaleString()}
+                    </div>
+                    <button
+                      onClick={() => notesTask && removeNoteFromTask(notesTask.id, n.id)}
+                      className="absolute right-1.5 top-1.5 rounded-md p-1 text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:bg-secondary hover:text-destructive"
+                      aria-label="Delete note"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))
+            )}
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (notesTask) addNoteToTask(notesTask.id, noteDraft);
+            }}
+            className="space-y-2 border-t border-border pt-3"
+          >
+            <textarea
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              placeholder="Write a note for this task…"
+              rows={3}
+              className="w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+            />
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={!noteDraft.trim()}
+                className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+              >
+                <Plus className="h-3 w-3" /> Add note
+              </button>
+            </div>
+          </form>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
