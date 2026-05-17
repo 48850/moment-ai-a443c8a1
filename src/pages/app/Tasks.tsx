@@ -6,6 +6,8 @@ import { AIInsight } from "@/components/app/AIInsight";
 import { useAI } from "@/lib/ai/useAI";
 import { DoneCheckIn } from "@/components/app/DoneCheckIn";
 import type { Task } from "@/lib/types";
+import { COMPLIMENTS } from "@/components/app/StreakFlame";
+import { toast } from "sonner";
 
 type Filter = "all" | "pending" | "completed";
 
