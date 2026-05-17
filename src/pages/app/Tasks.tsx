@@ -393,6 +393,14 @@ const Tasks = () => {
                   {t.estimated_minutes}m
                 </span>
                 <FeedbackChips source="task" targetId={t.id} taskId={t.id} taskTitle={t.title} compact />
+                <button
+                  onClick={() => removeTask(t.id)}
+                  className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-destructive"
+                  aria-label="Remove task"
+                  title="Remove task"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
               </div>
               {t.why_now && !done && (
                 <p className="mt-1 pl-8 text-[11px] text-muted-foreground">{t.why_now}</p>
