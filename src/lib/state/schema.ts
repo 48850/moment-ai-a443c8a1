@@ -26,6 +26,7 @@ export const goalFeasibilityReportSchema = z.object({
 });
 
 export const activeGoalSchema = z.object({
+  id: z.string().default(""),
   statement: z.string(),
   why_it_matters: z.string(),
   status: z.enum(["forming", "locked", "testing", "active", "unstable"]),
