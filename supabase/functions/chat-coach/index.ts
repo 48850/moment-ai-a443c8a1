@@ -672,22 +672,7 @@ function isRepeat(candidate: string, history: string[]): boolean {
   return false;
 }
 
-const FALLBACK_QUESTIONS_SPECIALISATION = [
-  "Pick the closest fit: (a) total beginner, (b) dabbled, (c) actively practicing, (d) already advanced.",
-  "What's one thing you've already done — even tiny — that's related to this goal?",
-  "What made you pick this goal in the first place?",
-  "What's the biggest thing in the way right now — time, knowledge, money, or something else?",
-  "If you had a free afternoon for this tomorrow, what would you actually do with it?",
-  "Name one person or resource that's helped you on this so far (or 'none').",
-  "On a scale 1–10, how committed do you feel to this goal this month?",
-  "What would 'progress this week' look like to you — even a small win?",
-];
-const FALLBACK_QUESTIONS_DEFAULT = [
-  "What would 'done for today' look like for you?",
-  "What's the smallest next step you could take in the next 15 minutes?",
-  "What's getting in the way right now?",
-  "Want me to shrink your next move into something tiny?",
-];
+// No hardcoded fallback questions — the model is fully self-deterministic.
 
 async function callGateway(body: unknown, apiKey: string) {
   return fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -796,76 +781,27 @@ Deno.serve(async (req) => {
       return { tool: c.function.name, args };
     });
 
-    // Server-side fallback so the client never has to render an empty reply.
-    const snap = (snapshot ?? {}) as ChatSnapshot;
-
-    if (!isSpecialisation && patches.length) {
-      const patchedKnown: Record<string, unknown> = { ...(snap.constraints_known ?? {}) };
-      let patchedCommitmentCount = (
-        typeof (snap.constraints_known as Record<string, unknown>)?.fixed_commitments === "number"
-          ? (snap.constraints_known as Record<string, unknown>).fixed_commitments
-          : 0
-      ) as number;
-      let patchedCommitmentsChecked = !!(snap.constraints_known as Record<string, unknown>)?.fixed_commitments_checked;
-      for (const p of patches) {
-        if (p.tool === "update_constraints") {
-          for (const [k, v] of Object.entries(p.args)) patchedKnown[k] = v;
-          if (p.args.fixed_commitments_checked === true) patchedCommitmentsChecked = true;
-        } else if (p.tool === "add_fixed_commitment") {
-          patchedCommitmentCount += 1;
-          patchedKnown.fixed_commitments = patchedCommitmentCount;
-          patchedCommitmentsChecked = true;
-        }
-      }
-      const stillMissing = (snap.missing_schedule_info ?? []).filter((f) => {
-        const v = patchedKnown[f];
-        if (f === "fixed_commitments") {
-          return !patchedCommitmentsChecked && patchedCommitmentCount === 0;
-        }
-        return v === undefined || v === null || v === "" || v === 0;
-      });
-      if (stillMissing.length) {
-        reply = reply || `Got it — what's your ${stillMissing[0].replace(/_/g, " ")}?`;
-      } else if (!reply) {
-        reply = snap.next_move
-          ? `Saved. Your next move is "${snap.next_move.title}" (~${snap.next_move.estimated_minutes}m) — ready?`
-          : "Got it. What's the one goal this app should be pointed at?";
-      }
-    } else if (isSpecialisation && patches.length && !reply) {
-      const hasFirstTask = patches.some((p) => p.tool === "create_first_task");
-      if (hasFirstTask) {
-        reply = "Your first move is ready — head to your task list to start.";
-      }
-    }
-
-    const lastUser = [...messages].reverse().find((m: any) => m.role === "user")?.content?.toString().trim().toLowerCase() ?? "";
-    const userIsUnsure = /^(idk|dunno|i don'?t know|not sure|no idea|unsure|maybe|kinda)\b/.test(lastUser);
-
+    // If the model returned no text (e.g. only tool calls, or empty), ask it
+    // once more to produce a self-determined reply. No hardcoded fallback
+    // copy — the model must speak for itself.
     if (!reply) {
-      if (isSpecialisation) {
-        reply = userIsUnsure
-          ? FALLBACK_QUESTIONS_SPECIALISATION[0]
-          : FALLBACK_QUESTIONS_SPECIALISATION[1];
-      } else if (snap.next_move) {
-        reply = `Your next move is "${snap.next_move.title}" (~${snap.next_move.estimated_minutes}m). Want me to shrink it?`;
-      } else if (snap.missing_schedule_info?.length) {
-        reply = `Quick one — what's your ${snap.missing_schedule_info[0].replace(/_/g, " ")}?`;
-      } else {
-        reply = "I'm here. What's on your mind?";
-      }
-    }
-
-    // Final guard: walk a rotating fallback list and pick the first unused one.
-    if (isRepeat(reply, priorAssistant)) {
-      const pool = isSpecialisation ? FALLBACK_QUESTIONS_SPECIALISATION : FALLBACK_QUESTIONS_DEFAULT;
-      const fresh = pool.find((q) => !isRepeat(q, priorAssistant));
-      if (fresh) {
-        reply = fresh;
-      } else {
-        // Everything's been asked — be honest.
-        reply = isSpecialisation
-          ? "I think I've asked enough — based on what you've shared, I'll set up your first move now."
-          : "I'm here whenever you want to push on the next step.";
+      const followup = await callGateway(
+        buildBody(
+          patches.length
+            ? "You just called tools silently. Now write a 1–2 sentence reply to the user that acknowledges what just happened in your own words and moves the conversation forward. Do not narrate the tool call. Do not use generic filler."
+            : "Write a 1–2 sentence reply to the user in your own words. Do not return empty content. Do not use generic filler.",
+        ),
+        LOVABLE_API_KEY,
+      );
+      if (followup.ok) {
+        const fdata = await followup.json();
+        const fchoice = fdata.choices?.[0]?.message;
+        const fReply = (fchoice?.content || "").trim();
+        if (fReply && !isRepeat(fReply, priorAssistant)) {
+          reply = fReply;
+        } else if (fReply) {
+          reply = fReply;
+        }
       }
     }
 
