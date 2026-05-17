@@ -596,7 +596,7 @@ RULES:
 7. RESOURCE QUALITY: resource_url must deep-link to ONE specific consumable item — not a homepage, not a search results page, not a category index. Examples:
    GOOD: a specific YouTube video URL, a specific Wikipedia article, a specific arXiv paper, a specific Khan Academy lesson, a specific MDN reference page, a specific government info page.
    BAD: youtube.com, wikipedia.org, "google.com/search?q=...", a course catalog, a homepage.
-   Only use a Google search URL as an absolute last resort when no specific canonical source plausibly exists — and even then, the task title must not say "research". Prefer naming a known specific source you are confident exists.
+    Never use Google search URLs. Prefer naming a known specific source you are confident exists.
 8. resource_label must name the specific resource (e.g. "3Blue1Brown — Essence of Calculus, Ch.1", "Marcus Aurelius, Meditations Book II (Penguin Classics, free Project Gutenberg ed.)", "Khan Academy: Intro to Limits"), not a vague label like "video" or "article".
 9. HARD CAP: Propose at most 3 tasks for the day. Never more. Pick the highest-leverage 3.
 10. Every task MUST include elaborated_notes — 2 to 5 paragraphs of substantive, specific guidance the user can read before starting. Include: what the resource covers, the exact sections/timestamps/chapters to focus on, what to extract, common pitfalls, and the specific output to produce. No motivation, no filler, no "do your own research".
@@ -627,7 +627,7 @@ Refine it into a single concrete, observable action tied to their goal and curre
 - proof_of_completion: one observable artefact, score, list, draft, or signal that proves it's done.
 - estimated_minutes: adjust only if the user's number is clearly off.
 - priority + category: infer from the action.
-- resource_url + resource_label: if the task involves any internet work (research, course, signup, watch/read online), include a real specific https URL and short label. Use reputable sources or a Google search URL with the exact query. Omit only for purely offline tasks.
+- resource_url + resource_label: if the task involves any internet work (course, signup, watch/read online), include one real specific https URL and short label. Never use a homepage, category page, or search results URL. Omit only for purely offline tasks.
 
 Do not invent a different task. Do not lecture. Output only the JSON via the tool.`;
 
