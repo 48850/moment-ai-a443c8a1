@@ -584,6 +584,7 @@ RULES:
 3. Do NOT suggest tasks the user already has (check existing_tasks list).
 4. Prefer foundational, exploratory, and pathway-clarity tasks for school-age users.
 5. For students, tasks should produce something tangible: a note, a list, a draft, a score, a question set.
+6. If a task involves ANY internet work — reading an article, watching a video, taking a course, signing up for something, looking up info, using an online tool — you MUST include resource_url with a real, specific https URL (deep-link to the actual page, not a homepage) and a short resource_label. Prefer well-known, free, reputable sources (Khan Academy, Coursera, MDN, Wikipedia, official docs, government sites, established YouTube channels). Do NOT invent fake URLs. If you're not sure of a specific page, link to a reputable search like "https://www.google.com/search?q=..." with the exact query.
 
 Propose up to 5 tasks. Quality over quantity.`;
     }
