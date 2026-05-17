@@ -176,10 +176,28 @@ function tools(intent: string) {
       parameters: {
         type: "object",
         properties: {
-          observation: { type: "string" },
-          suggestion: { type: "string" },
+          observation: { type: "string", description: "Headline notice — one tight sentence the user should notice first." },
+          suggestion: { type: "string", description: "Optional one-line nudge tied to the headline observation." },
+          notices: {
+            type: "array",
+            description: "3 to 5 additional tailored notices, each grounded in a DIFFERENT signal from the user's actual mission state (velocity, drift, bottleneck, momentum, workstream imbalance, feedback pattern, stage progress, blind spot). No duplicates with the headline observation.",
+            items: {
+              type: "object",
+              properties: {
+                kind: { type: "string", enum: ["momentum", "bottleneck", "drift", "imbalance", "feedback_pattern", "stage_progress", "blind_spot", "risk", "celebrate"] },
+                tone: { type: "string", enum: ["good", "warn", "bad", "neutral"] },
+                title: { type: "string", description: "3-6 word label." },
+                detail: { type: "string", description: "One sentence grounded in the user's actual data — name the workstream / number / pattern. No generic productivity talk." },
+                next_step: { type: "string", description: "Optional concrete one-line next move." },
+              },
+              required: ["kind", "tone", "title", "detail"],
+              additionalProperties: false,
+            },
+            minItems: 3,
+            maxItems: 5,
+          },
         },
-        required: ["observation"],
+        required: ["observation", "notices"],
         additionalProperties: false,
       },
     },
