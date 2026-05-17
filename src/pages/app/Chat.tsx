@@ -5,6 +5,7 @@ import { useStateStore } from "@/stores/state-store";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { selectChatSnapshot } from "@/lib/selectors/chat";
+import { buildContextPacket } from "@/lib/ai/context-packet";
 import type { ChatMessage } from "@/lib/types";
 
 const SCHEDULE_FIELDS: { key: string; label: string }[] = [
@@ -35,9 +36,13 @@ const Chat = () => {
   const applyPatch = useStateStore((s) => s.applyPatch);
   const [searchParams] = useSearchParams();
 
+  const specialisationComplete =
+    state?.chat_state?.specialisation_phase === "complete" ||
+    (Boolean(state?.active_goal?.current_stage?.trim()) && (state?.tasks?.length ?? 0) > 0);
   const isSpecialisation =
-    searchParams.get("mode") === "goal_specialisation" ||
-    state?.chat_state?.post_onboarding_specialisation_required === true;
+    !specialisationComplete &&
+    (searchParams.get("mode") === "goal_specialisation" ||
+      state?.chat_state?.post_onboarding_specialisation_required === true);
 
   const specialisationGreeting = useMemo<ChatMessage>(
     () => ({
@@ -78,6 +83,7 @@ const Chat = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [specialisationDone, setSpecialisationDone] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const inFlightRef = useRef(false);
 
   // When mode switches or user changes, rehydrate or reset to correct greeting.
   // If there's no stored history, persist the greeting so the AI context is never empty.
@@ -406,15 +412,20 @@ const Chat = () => {
   };
 
   const onSendMessage = async (text: string) => {
-    if (!text.trim() || !state) return;
+    if (!text.trim() || !state || inFlightRef.current) return;
+    inFlightRef.current = true;
     const userMsg: ChatMessage = { id: crypto.randomUUID(), role: "user" as const, content: text, created_at: new Date().toISOString() };
+    const stateWithLatestMessage = {
+      ...state,
+      chat_messages: [...(state.chat_messages ?? []), userMsg],
+    };
     setMessages((m) => [...m, userMsg]);
     dispatch({ type: "chat/append", payload: userMsg });
     setInput("");
     setIsTyping(true);
 
     try {
-      const snapshot = selectChatSnapshot(state);
+      const snapshot = selectChatSnapshot(stateWithLatestMessage);
 
       const apiMessages = [...messages, userMsg].map((m) => ({
         role: m.role,
@@ -425,6 +436,7 @@ const Chat = () => {
         body: {
           messages: apiMessages,
           snapshot,
+          context_packet: buildContextPacket(stateWithLatestMessage),
           mode: isSpecialisation ? "goal_specialisation" : undefined,
         },
       });
@@ -485,6 +497,7 @@ const Chat = () => {
       dispatch({ type: "chat/append", payload: errMsg });
     } finally {
       setIsTyping(false);
+      inFlightRef.current = false;
     }
   };
 
@@ -594,6 +607,7 @@ const Chat = () => {
       <form
         onSubmit={(e) => {
           e.preventDefault();
+            if (isTyping) return;
           onSendMessage(input);
         }}
         className="mt-3 flex gap-2"
@@ -602,18 +616,20 @@ const Chat = () => {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={
-            isSpecialisation
+            isTyping
+              ? "Moment is thinking…"
+              : isSpecialisation
               ? "Reply to Moment…"
               : missing.length
               ? `Tell Moment your ${missing[0].toLowerCase()}…`
               : "Message Moment…"
           }
           className="flex-1 rounded-full border border-border bg-card px-4 py-2.5 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-          disabled={specialisationDone}
+          disabled={isTyping || (isSpecialisation && specialisationDone)}
         />
         <button
           type="submit"
-          disabled={isTyping || !input.trim() || specialisationDone}
+          disabled={isTyping || !input.trim() || (isSpecialisation && specialisationDone)}
           className="inline-flex items-center justify-center rounded-full bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
           aria-label="Send"
         >

@@ -379,6 +379,15 @@ interface ChatSnapshot {
   week_blocks?: Array<{ id: string; day_index: number; start_time: string; end_time: string; title: string; category: string; is_locked: boolean }>;
 }
 
+function latestUserMessage(messages: Array<{ role: string; content: string }>): string {
+  return [...messages].reverse().find((m) => m.role === "user" && typeof m.content === "string")?.content?.trim() ?? "";
+}
+
+function isGreetingOnly(text: string): boolean {
+  const normalized = text.toLowerCase().replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+  return /^(hi|hey|hello|yo|sup|ok|okay|k|hii|hiya|how r u|how are you|hi how r u|hi how are you|hello how r u|hello how are you)$/.test(normalized);
+}
+
 function fmt(v: unknown): string {
   if (v === null || v === undefined || v === "") return "—";
   if (Array.isArray(v)) return v.length ? v.join(", ") : "—";
@@ -567,6 +576,8 @@ STYLE — STRICT
 - One question max per reply, and only if it actually moves things forward.
 - Don't explain what you're about to do — just do it (call tools silently).
 - If you have nothing sharp to say, say one specific thing about their next move or latest signal. Never generic encouragement.
+- The latest user message is the command. If they ask a status/progress question, answer it directly from the data before suggesting action. If they greet you, respond naturally and continue the thread.
+- Do not let tool calls hijack the reply. If you add/update a task, the visible reply must mainly answer the latest user message, then mention the saved change briefly.
 
 KNOWN ABOUT THIS USER (DO NOT ASK FOR ANY OF THIS — you already have it):
 - Age bracket: ${ageBracket}${schoolYear ? ` · ${schoolYear}` : ""}${academicCtx ? ` · ${academicCtx}` : ""}
@@ -637,6 +648,10 @@ TASK CREATION RULES — NON-NEGOTIABLE:
 - ZERO-RESEARCH-BURDEN RULE: YOU do the research, never the user. NEVER create tasks like "research X", "look up Y", "find resources on Z", "explore options", "search for tutorials". Those are admin and are banned. Instead, name the specific resource yourself — a specific YouTube video, a specific book/chapter, a specific Wikipedia article, a specific paper, a specific course lesson, a specific article — and put its real deep-link https URL in resource_url with a precise resource_label naming the source (e.g. "Marcus Aurelius — Meditations, Book II (Project Gutenberg)", "3Blue1Brown — Essence of Calculus, Ch.1"). The user only consumes and acts; they never go hunting.
 - resource_url MUST deep-link to ONE specific consumable item. Never a homepage, never a search results page, never a category index, never a Google search URL.
 - If the task is purely offline (writing on paper, going outside, speaking to a person), omit resource_url. Otherwise it is required.
+
+PROGRESS ANSWERS — when asked "how am I progressing", "what have I done", or similar:
+- Answer with the actual completed count, recent completed titles if any, pending count, next move, and the most relevant recent feedback signal.
+- If completed count is 0, say that clearly but do not sound broken; point to the first pending task as the next proof.
 
 
 ${!snap.missing_schedule_info?.length
@@ -713,7 +728,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, snapshot, mode } = await req.json();
+    const { messages, snapshot, context_packet, mode } = await req.json();
     if (!Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: "messages required" }), {
         status: 400,
@@ -722,6 +737,7 @@ Deno.serve(async (req) => {
     }
 
     const isSpecialisation = mode === "goal_specialisation";
+    const latestUser = latestUserMessage(messages as Array<{ role: string; content: string }>);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
@@ -740,11 +756,19 @@ Deno.serve(async (req) => {
       ? `\n\nALREADY ASKED — DO NOT REPEAT OR PARAPHRASE ANY OF THESE QUESTIONS. Ask something genuinely different:\n${priorAssistant.slice(-12).map((q, i) => `${i + 1}. ${q}`).join("\n")}`
       : "";
 
-    const systemContent = baseSystem + noRepeatBlock +
-      `\n\nHARD RULE: Never ask a question you have already asked, even rephrased. If the user gave a vague answer like "idk", do NOT repeat your question — instead offer 2–4 concrete options or pivot to a different angle.`;
+    const contextBlock = context_packet
+      ? `\n\nFULL CONTEXT PACKET — authoritative app state. Use it to answer the latest message, not generic memory:\n${JSON.stringify(context_packet).slice(0, 9000)}`
+      : "";
+
+    const latestBlock = latestUser
+      ? `\n\nLATEST USER MESSAGE — answer this directly first: "${latestUser}"${isGreetingOnly(latestUser) ? "\nThis is a greeting/check-in; respond like a live companion, not a task-status bot." : ""}`
+      : "";
+
+    const systemContent = baseSystem + contextBlock + latestBlock + noRepeatBlock +
+      `\n\nHARD RULE: Never ask a question you have already asked, even rephrased. If the user gave a vague answer like "idk", do NOT repeat your question — instead offer 2–4 concrete options or pivot to a different angle. Never ignore the latest user message.`;
 
     const buildBody = (extraSystem?: string, textOnly = false) => ({
-      model: "google/gemini-2.5-flash",
+      model: "google/gemini-3-flash-preview",
       max_tokens: 2048,
       messages: [
         { role: "system", content: extraSystem ? systemContent + "\n\n" + extraSystem : systemContent },
