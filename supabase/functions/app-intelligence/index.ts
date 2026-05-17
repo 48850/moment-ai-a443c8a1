@@ -594,7 +594,10 @@ RULES:
 5. For students, tasks should produce something tangible: a note, a list, a draft, a score, a question set.
 6. If a task involves ANY internet work — reading an article, watching a video, taking a course, signing up for something, looking up info, using an online tool — you MUST include resource_url with a real, specific https URL (deep-link to the actual page, not a homepage) and a short resource_label. Prefer well-known, free, reputable sources (Khan Academy, Coursera, MDN, Wikipedia, official docs, government sites, established YouTube channels). Do NOT invent fake URLs. If you're not sure of a specific page, link to a reputable search like "https://www.google.com/search?q=..." with the exact query.
 
-Propose up to 5 tasks. Quality over quantity.`;
+7. HARD CAP: Propose at most 3 tasks for the day. Never more. Pick the highest-leverage 3.
+8. Every task MUST include elaborated_notes — 2 to 5 paragraphs of substantive, specific guidance the user can read before starting. Include: how to approach it, what to look for, sub-steps, common pitfalls, and (if resource_url is set) exactly what to extract or notice from that resource. No motivation, no filler.
+
+Propose AT MOST 3 tasks. Quality over quantity.`;
     }
 
     case "reflect_summary":
