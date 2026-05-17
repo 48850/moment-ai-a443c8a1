@@ -990,10 +990,10 @@ function OutputWorkspace({
   };
 
   const saveSignal = () => {
-    const value = String(
+    const candidate =
       output.summary ?? output.pathway ?? output.gaps ?? output.analysis ??
-      output.result ?? JSON.stringify(output).slice(0, 300)
-    );
+      output.result ?? output;
+    const value = flattenToString(candidate).slice(0, 500) || "(no summary)";
     dispatch({
       type: "forge/log_signal",
       payload: {
