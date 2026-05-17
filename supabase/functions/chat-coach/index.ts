@@ -672,22 +672,7 @@ function isRepeat(candidate: string, history: string[]): boolean {
   return false;
 }
 
-const FALLBACK_QUESTIONS_SPECIALISATION = [
-  "Pick the closest fit: (a) total beginner, (b) dabbled, (c) actively practicing, (d) already advanced.",
-  "What's one thing you've already done — even tiny — that's related to this goal?",
-  "What made you pick this goal in the first place?",
-  "What's the biggest thing in the way right now — time, knowledge, money, or something else?",
-  "If you had a free afternoon for this tomorrow, what would you actually do with it?",
-  "Name one person or resource that's helped you on this so far (or 'none').",
-  "On a scale 1–10, how committed do you feel to this goal this month?",
-  "What would 'progress this week' look like to you — even a small win?",
-];
-const FALLBACK_QUESTIONS_DEFAULT = [
-  "What would 'done for today' look like for you?",
-  "What's the smallest next step you could take in the next 15 minutes?",
-  "What's getting in the way right now?",
-  "Want me to shrink your next move into something tiny?",
-];
+// No hardcoded fallback questions — the model is fully self-deterministic.
 
 async function callGateway(body: unknown, apiKey: string) {
   return fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
