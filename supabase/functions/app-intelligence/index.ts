@@ -624,6 +624,34 @@ Feedback breakdown: ${Object.keys(feedbackBreakdown).length ? JSON.stringify(fee
 Explain in 1–2 sentences exactly WHY the plan is changing (based on their feedback and task signals, not generically). Then list 2–3 specific adjustments being made. Then name the single most important focus for the adjusted plan.`;
     }
 
+    case "week_regenerate": {
+      const reformNote = (payload?.reform_note ?? "").toString().trim() || "Make it work better for me this week.";
+      const currentBlocks = payload?.current_blocks ?? [];
+      const commitments = snapshot?.commitments ?? [];
+      const hobbies = snapshot?.hobbies ?? [];
+      return `${ctx}
+
+The user wants you to REGENERATE their weekly calendar based on this note:
+"${reformNote}"
+
+Their goal: ${goal}
+Current stage: ${current_stage || "foundation"}
+Fixed commitments (must keep): ${JSON.stringify(commitments)}
+Hobbies they care about: ${JSON.stringify(hobbies)}
+Current week_plan blocks (id, day_index 0=Mon..6=Sun, start, end, title, category, is_locked):
+${JSON.stringify(currentBlocks)}
+
+Rules:
+1. KEEP every block with is_locked === true exactly as is (same day_index, times, title, category, is_locked: true).
+2. Reshape/move/replace all other blocks according to the user's note.
+3. Cover all 7 days. Times must be between 07:00 and 22:00 (24h), end after start, no overlaps within a single day.
+4. Block titles must be specific to their goal (e.g. "Biology recall drill" not "Study"). Use category 'goal' for goal work, 'school' for school, 'commitment' for fixed obligations, 'hobby' for hobbies, 'rest' for breaks/sleep wind-down.
+5. Aim for sustainable load: at least one rest/hobby block per weekday evening, lighter Sundays.
+6. Return the FULL new week (locked + regenerated), not just diffs.
+
+Output only the JSON via the tool.`;
+    }
+
     case "forge_guidebook_candidates": {
       const userDescription = (payload?.description ?? "").trim() || "a custom tool for my goal";
       const education_system = snapshot?.user?.education_system ?? "unknown";
