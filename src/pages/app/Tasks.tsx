@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, Plus, Sparkles, User as UserIcon, Zap, Loader2 } from "lucide-react";
+import { Check, Plus, Sparkles, Trash2, User as UserIcon, Zap, Loader2 } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { FeedbackChips } from "@/components/app/FeedbackChips";
 import { AIInsight } from "@/components/app/AIInsight";
