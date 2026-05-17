@@ -238,6 +238,8 @@ const Tasks = () => {
         created_by: "ai",
         why_now: t.why_now ?? "",
         proof_of_completion: t.proof_of_completion ?? "",
+        resource_url: t.resource_url ?? "",
+        resource_label: t.resource_label ?? "",
       } as Task,
     });
   };
