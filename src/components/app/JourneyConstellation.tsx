@@ -227,6 +227,16 @@ function DrawerContent({ node }: { node: ConstellationNode }) {
           <p className="text-xs text-white/30">Consider shrinking or clarifying this area.</p>
         </div>
       );
+    case "SCHEDULE_STAR":
+      return (
+        <div className="space-y-2 text-xs text-white/60">
+          {node.subtitle && <div>When · <span className="text-white/80">{node.subtitle}</span></div>}
+          <p className="text-sm text-white/70">{node.why_it_matters}</p>
+          {node.status === "locked" && (
+            <div className="text-[11px] text-white/40">Locked block — protected from reform.</div>
+          )}
+        </div>
+      );
     default:
       return <p className="text-sm text-white/60">{node.why_it_matters}</p>;
   }
