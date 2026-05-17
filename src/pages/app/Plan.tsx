@@ -647,15 +647,38 @@ const Plan = () => {
                   <div className="px-4 py-8 text-center text-sm text-muted-foreground">Nothing planned yet.</div>
                 ) : (
                   <ul className="divide-y divide-border">
-                    {vm.scheduleBlocks.map((b) => (
-                      <li key={b.id} className={`flex items-center gap-4 px-4 py-3 ${b.status === "completed" ? "opacity-50" : ""}`}>
+                    {vm.scheduleBlocks.map((b) => {
+                      const linkedTask = getTaskForBlock(b as any);
+                      const noteCount = linkedTask?.notes?.length ?? 0;
+                      return (
+                      <li key={b.id} className={`flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 ${b.status === "completed" ? "opacity-50" : ""}`}>
                         <span className="w-24 shrink-0 font-mono text-xs text-muted-foreground">
                           {b.start_time}–{b.end_time}
                         </span>
-                        <span className="flex-1 text-sm">{b.title}</span>
+                        <span className="flex-1 min-w-[8rem] text-sm">{b.title}</span>
                         <span className={`rounded-full border px-2 py-0.5 text-[10px] lowercase ${typeStyles[b.type] ?? "bg-secondary text-muted-foreground border-border"}`}>
                           {b.type.replace("_", " ")}
                         </span>
+                        {linkedTask?.resource_url && (
+                          <a
+                            href={linkedTask.resource_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] text-primary hover:bg-primary/20"
+                          >
+                            <ExternalLink className="h-2.5 w-2.5" />
+                            {linkedTask.resource_label || "Open link"}
+                          </a>
+                        )}
+                        {linkedTask && (
+                          <button
+                            onClick={() => setNotesTaskId(linkedTask.id)}
+                            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-0.5 text-[10px] text-muted-foreground hover:bg-secondary hover:text-foreground"
+                          >
+                            <NotebookPen className="h-2.5 w-2.5" />
+                            Notes{noteCount > 0 ? ` (${noteCount})` : ""}
+                          </button>
+                        )}
                         <FeedbackChips
                           source="schedule_block"
                           targetId={b.id}
@@ -664,7 +687,8 @@ const Plan = () => {
                           compact
                         />
                       </li>
-                    ))}
+                      );
+                    })}
                   </ul>
                 )}
               </section>
