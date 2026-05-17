@@ -592,10 +592,14 @@ RULES:
 3. Do NOT suggest tasks the user already has (check existing_tasks list).
 4. Prefer foundational, exploratory, and pathway-clarity tasks for school-age users.
 5. For students, tasks should produce something tangible: a note, a list, a draft, a score, a question set.
-6. If a task involves ANY internet work — reading an article, watching a video, taking a course, signing up for something, looking up info, using an online tool — you MUST include resource_url with a real, specific https URL (deep-link to the actual page, not a homepage) and a short resource_label. Prefer well-known, free, reputable sources (Khan Academy, Coursera, MDN, Wikipedia, official docs, government sites, established YouTube channels). Do NOT invent fake URLs. If you're not sure of a specific page, link to a reputable search like "https://www.google.com/search?q=..." with the exact query.
-
-7. HARD CAP: Propose at most 3 tasks for the day. Never more. Pick the highest-leverage 3.
-8. Every task MUST include elaborated_notes — 2 to 5 paragraphs of substantive, specific guidance the user can read before starting. Include: how to approach it, what to look for, sub-steps, common pitfalls, and (if resource_url is set) exactly what to extract or notice from that resource. No motivation, no filler.
+6. ZERO-RESEARCH-BURDEN RULE: You — the AI — do the research, not the user. NEVER produce tasks like "research X", "find resources on Y", "look up Z", "explore options for...", "search for tutorials on...". Those are admin tasks and are banned. Instead, you must name the specific resource yourself (a specific YouTube video, a specific book, a specific Wikipedia page, a specific paper, a specific course, a specific article) and put its real https URL in resource_url. The user's job is to CONSUME and ACT on what you found, not to go hunting for it.
+7. RESOURCE QUALITY: resource_url must deep-link to ONE specific consumable item — not a homepage, not a search results page, not a category index. Examples:
+   GOOD: a specific YouTube video URL, a specific Wikipedia article, a specific arXiv paper, a specific Khan Academy lesson, a specific MDN reference page, a specific government info page.
+   BAD: youtube.com, wikipedia.org, "google.com/search?q=...", a course catalog, a homepage.
+   Only use a Google search URL as an absolute last resort when no specific canonical source plausibly exists — and even then, the task title must not say "research". Prefer naming a known specific source you are confident exists.
+8. resource_label must name the specific resource (e.g. "3Blue1Brown — Essence of Calculus, Ch.1", "Marcus Aurelius, Meditations Book II (Penguin Classics, free Project Gutenberg ed.)", "Khan Academy: Intro to Limits"), not a vague label like "video" or "article".
+9. HARD CAP: Propose at most 3 tasks for the day. Never more. Pick the highest-leverage 3.
+10. Every task MUST include elaborated_notes — 2 to 5 paragraphs of substantive, specific guidance the user can read before starting. Include: what the resource covers, the exact sections/timestamps/chapters to focus on, what to extract, common pitfalls, and the specific output to produce. No motivation, no filler, no "do your own research".
 
 Propose AT MOST 3 tasks. Quality over quantity.`;
     }
