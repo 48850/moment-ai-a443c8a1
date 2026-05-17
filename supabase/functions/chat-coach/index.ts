@@ -666,6 +666,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
+        max_tokens: 2048,
         messages: [
           {
             role: "system",
