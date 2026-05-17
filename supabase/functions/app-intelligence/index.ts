@@ -562,6 +562,23 @@ Propose up to 5 tasks. Quality over quantity.`;
     case "refine_task":
       return `Goal: ${payload?.goal || goal}\n\nTask after first-pass shrink: ${JSON.stringify(payload?.task ?? {})}\nUser's Tune feedback: "${payload?.feedback}".\n\nRefine ONLY the fields that need it. Lead with the first physical step. Be specific to THIS goal.`;
 
+    case "refine_user_task":
+      return `${ctx}
+
+Goal: ${goal}
+Current stage: ${current_stage}
+
+The user just typed this task themselves: "${payload?.raw_title}" (${payload?.estimated_minutes ?? 30} min, priority "${payload?.priority ?? "medium"}").
+
+Refine it into a single concrete, observable action tied to their goal and current stage:
+- refined_title: keep the user's intent; tighten the wording; make it a verb-led action; no fluff.
+- why_now: one sentence that links it to the goal at this stage (no generic motivation).
+- proof_of_completion: one observable artefact, score, list, draft, or signal that proves it's done.
+- estimated_minutes: adjust only if the user's number is clearly off.
+- priority + category: infer from the action.
+
+Do not invent a different task. Do not lecture. Output only the JSON via the tool.`;
+
     case "plan_reform": {
       const completedTasks = (payload?.completed_tasks ?? []) as Array<{ title: string; feedback?: string }>;
       const feedbackBreakdown = payload?.feedback_breakdown ?? {};
