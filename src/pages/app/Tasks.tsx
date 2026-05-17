@@ -247,6 +247,44 @@ const Tasks = () => {
     });
   };
 
+  const notesTask = useMemo(
+    () => (notesTaskId ? tasks.find((t) => t.id === notesTaskId) ?? null : null),
+    [notesTaskId, tasks],
+  );
+
+  const addNoteToTask = (taskId: string, content: string) => {
+    const text = content.trim();
+    if (!text) return;
+    const target = tasks.find((t) => t.id === taskId);
+    if (!target) return;
+    const existing = target.notes ?? [];
+    dispatch({
+      type: "task/update",
+      payload: {
+        id: taskId,
+        changes: {
+          notes: [
+            ...existing,
+            { id: crypto.randomUUID(), content: text, created_at: new Date().toISOString() },
+          ],
+        },
+      },
+    });
+    setNoteDraft("");
+  };
+
+  const removeNoteFromTask = (taskId: string, noteId: string) => {
+    const target = tasks.find((t) => t.id === taskId);
+    if (!target) return;
+    dispatch({
+      type: "task/update",
+      payload: {
+        id: taskId,
+        changes: { notes: (target.notes ?? []).filter((n) => n.id !== noteId) },
+      },
+    });
+  };
+
   const visible: Task[] =
     filter === "all"
       ? [...sections.pending, ...sections.completed]
