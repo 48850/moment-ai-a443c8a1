@@ -6,6 +6,8 @@ import { AIInsight } from "@/components/app/AIInsight";
 import { useAI } from "@/lib/ai/useAI";
 import { DoneCheckIn } from "@/components/app/DoneCheckIn";
 import type { Task } from "@/lib/types";
+import { COMPLIMENTS } from "@/components/app/StreakFlame";
+import { toast } from "sonner";
 
 type Filter = "all" | "pending" | "completed";
 
@@ -91,6 +93,10 @@ const Tasks = () => {
       const completedAt = new Date().toISOString();
       dispatch({ type: "task/complete", payload: { id, completed_at: completedAt } });
       setCheckInTask({ ...t, status: "done", completed_at: completedAt });
+      // Fire flame burst + compliment
+      window.dispatchEvent(new CustomEvent("streak:burst"));
+      const msg = COMPLIMENTS[Math.floor(Math.random() * COMPLIMENTS.length)];
+      toast.success(msg, { duration: 2400, icon: "🔥" });
     }
   };
 
