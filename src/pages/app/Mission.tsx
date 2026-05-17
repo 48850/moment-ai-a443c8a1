@@ -365,7 +365,7 @@ const Mission = () => {
   const goalStatement = m.goal.statement;
   const rawStage = state.active_goal?.current_stage ?? "";
   const stage = readableStage(rawStage);
-  const stageBrief = STAGE_BRIEF[stage] ?? STAGE_BRIEF["Foundation"];
+  const stageBrief = stage ? STAGE_BRIEF[stage] ?? null : null;
 
   /* Top workstream by priority */
   const sev: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
@@ -406,20 +406,24 @@ const Mission = () => {
             {goalStatement && (
               <p className="mt-1.5 text-lg text-muted-foreground leading-snug">{goalStatement}</p>
             )}
-            <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/8 px-3.5 py-1 text-sm font-medium text-primary">
-              <Layers className="h-3.5 w-3.5" />
-              {stage} stage
-            </div>
+            {stage && (
+              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/8 px-3.5 py-1 text-sm font-medium text-primary">
+                <Layers className="h-3.5 w-3.5" />
+                {stage} stage
+              </div>
+            )}
           </div>
 
-          {/* Stage explanation */}
-          <div className="rounded-xl border border-border/60 bg-background/30 p-5 space-y-2.5">
-            <p className="text-[15px] leading-relaxed text-muted-foreground">{stageBrief.description}</p>
-            <div className="flex items-start gap-2 pt-1">
-              <BookOpen className="mt-0.5 h-4 w-4 shrink-0 text-primary/60" />
-              <p className="text-sm text-foreground font-medium">{stageBrief.focus}</p>
+          {/* Stage explanation — only render when we actually know the stage */}
+          {stageBrief && (
+            <div className="rounded-xl border border-border/60 bg-background/30 p-5 space-y-2.5">
+              <p className="text-[15px] leading-relaxed text-muted-foreground">{stageBrief.description}</p>
+              <div className="flex items-start gap-2 pt-1">
+                <BookOpen className="mt-0.5 h-4 w-4 shrink-0 text-primary/60" />
+                <p className="text-sm text-foreground font-medium">{stageBrief.focus}</p>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Action row */}
           {nextProof && (
