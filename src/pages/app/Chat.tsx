@@ -275,6 +275,16 @@ const Chat = () => {
     for (const p of patches) {
       if (p.tool === "add_task") {
         const id = crypto.randomUUID();
+        const nowIso = new Date().toISOString();
+        const seededNotes = Array.isArray(p.args.elaborated_notes)
+          ? (p.args.elaborated_notes as unknown[])
+              .filter((n): n is string => typeof n === "string" && n.trim().length > 0)
+              .map((content) => ({
+                id: crypto.randomUUID(),
+                content: content.trim(),
+                created_at: nowIso,
+              }))
+          : [];
         dispatch({
           type: "task/add",
           payload: {
@@ -287,7 +297,7 @@ const Chat = () => {
             domain_id: "",
             estimated_minutes: p.args.estimated_minutes ?? 30,
             category: (p.args.category ?? "goal_direct") as any,
-            created_at: new Date().toISOString(),
+            created_at: nowIso,
             completed_at: "",
             due_date: "",
             created_by: "ai",
@@ -295,6 +305,7 @@ const Chat = () => {
             proof_of_completion: p.args.proof_of_completion ?? "",
             resource_url: p.args.resource_url ?? "",
             resource_label: p.args.resource_label ?? "",
+            notes: seededNotes,
           } as any,
         });
         if (p.args.schedule_for?.day_index !== undefined && p.args.schedule_for?.start_time) {
