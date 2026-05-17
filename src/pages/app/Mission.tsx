@@ -10,6 +10,7 @@ import { useStateStore } from "@/stores/state-store";
 import { selectMissionViewModel } from "@/lib/selectors/mission";
 import { analyzeMission, type WorkstreamAnalytics } from "@/lib/selectors/mission-analytics";
 import { MissionConstellation } from "@/components/app/MissionConstellation";
+import { StreakFlame } from "@/components/app/StreakFlame";
 import type { CapabilityCluster, EvidenceSignal, PursuitRisk, PursuitStandard, PursuitWorkstream, Task } from "@/lib/types";
 import { FeedbackChips } from "@/components/app/FeedbackChips";
 import { PatternBanner } from "@/components/app/PatternBanner";
