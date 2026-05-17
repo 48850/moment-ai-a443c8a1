@@ -194,7 +194,46 @@ export function computeConstellationNodes(state: MomentState): ConstellationNode
     }
   }
 
-  // FRICTION_STARs — only if ≥2 of the same negative feedback signal exist for a workstream area
+  // SCHEDULE_STARs — upcoming blocks from the live week plan.
+  // This is what keeps the constellation in lock-step with what the user
+  // actually scheduled (manual edits, AI reform, omnipotent chat changes).
+  const weekPlan = (state.schedule_state?.week_plan ?? []) as Array<{
+    id: string;
+    day_index: number;
+    start_time: string;
+    end_time: string;
+    title: string;
+    category?: string;
+    notes?: string;
+    is_locked?: boolean;
+    linked_task_ids?: string[];
+  }>;
+  const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  // Hide blocks whose linked task is already done (those become PROOF_STARs).
+  const doneTaskIds = new Set(
+    (state.tasks ?? [])
+      .filter((t) => t.status === "done")
+      .map((t) => t.id),
+  );
+  for (const b of weekPlan) {
+    const linked = b.linked_task_ids ?? [];
+    if (linked.length > 0 && linked.every((id) => doneTaskIds.has(id))) continue;
+    const dayLabel = DAY_LABELS[b.day_index] ?? `Day ${b.day_index + 1}`;
+    nodes.push({
+      id: `node_sched_${b.id}`,
+      type: "SCHEDULE_STAR",
+      title: b.title || "Untitled block",
+      subtitle: `${dayLabel} · ${b.start_time}–${b.end_time}`,
+      why_it_matters: b.notes?.trim()
+        ? b.notes
+        : `Scheduled ${dayLabel} ${b.start_time}–${b.end_time}.`,
+      linked_task_id: linked[0],
+      stage_fit: "strong",
+      status: b.is_locked ? "locked" : "active",
+      evidence: [b.title, `${dayLabel} ${b.start_time}`],
+      next_action: b.title,
+    });
+  }
   const negativeFeedback = ["hard", "too_big", "too_vague", "overwhelming", "feels_unrealistic"];
   const feedbackCounts: Record<string, number> = {};
   for (const fb of (state.execution_feedback ?? [])) {
