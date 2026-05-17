@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Plus, Trash2, Lock, RefreshCw, Sparkles, X, GraduationCap, Target, CalendarClock, Music, Moon } from "lucide-react";
+import { Plus, Trash2, Lock, RefreshCw, Sparkles, X, GraduationCap, Target, CalendarClock, Music, Moon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useStateStore } from "@/stores/state-store";
 import { sortBlocks } from "@/lib/engine/week-plan";
+import { useAI } from "@/lib/ai/useAI";
 import type { WeekBlock, WeekCategory } from "@/lib/types";
 
 const HOUR_START = 7;
