@@ -72,7 +72,46 @@ export function WeeklyGrid() {
   const [editing, setEditing] = useState<WeekBlock | null>(null);
   const [hoverDay, setHoverDay] = useState<number | null>(null);
   const [selectedDay, setSelectedDay] = useState<number>(todayIdx);
+  const [reformOpen, setReformOpen] = useState(false);
+  const [reformNote, setReformNote] = useState("");
+  const { run: runRegenerate, loading: regenerating } = useAI<{ explanation: string; blocks: Omit<WeekBlock, "id" | "notes" | "is_locked"> & { notes?: string; is_locked?: boolean }[] | any }>("week_regenerate");
   const hourPx = useHourPx();
+
+  const onAiReform = async () => {
+    if (!reformNote.trim()) return;
+    const res: any = await runRegenerate({
+      reform_note: reformNote.trim(),
+      current_blocks: blocks.map((b) => ({
+        id: b.id, day_index: b.day_index, start_time: b.start_time,
+        end_time: b.end_time, title: b.title, category: b.category, is_locked: b.is_locked,
+      })),
+    });
+    if (!res || !Array.isArray(res.blocks) || res.blocks.length === 0) {
+      toast.error("Couldn't regenerate", { description: "Try a more specific note (e.g. 'less evening study, add morning runs')." });
+      return;
+    }
+    const rebuilt: WeekBlock[] = res.blocks
+      .filter((b: any) => b && typeof b.day_index === "number" && b.start_time && b.end_time && b.title && b.category)
+      .map((b: any) => ({
+        id: uid(),
+        day_index: Math.max(0, Math.min(6, Number(b.day_index))),
+        start_time: String(b.start_time),
+        end_time: String(b.end_time),
+        title: String(b.title),
+        category: (["school","goal","commitment","hobby","rest"].includes(b.category) ? b.category : "goal") as WeekCategory,
+        notes: typeof b.notes === "string" ? b.notes : "",
+        is_locked: Boolean(b.is_locked),
+      }));
+    if (rebuilt.length === 0) {
+      toast.error("Regeneration returned no usable blocks");
+      return;
+    }
+    dispatch({ type: "week/set", payload: rebuilt });
+    toast.success("Week regenerated", { description: res.explanation || "Updated based on your note." });
+    setReformOpen(false);
+    setReformNote("");
+  };
+
 
   const blocksByDay = useMemo(() => {
     const out: WeekBlock[][] = [[], [], [], [], [], [], []];
