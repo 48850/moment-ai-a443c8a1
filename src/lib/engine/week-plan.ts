@@ -51,30 +51,35 @@ export function seedWeekPlan(state: MomentState, opts?: { variation?: number }):
       notes: "",
       is_locked: true,
     });
-    // After-school goal work with slight variation per day
-    const startGoal = bumpTime(schoolEnd, 30 + (day + variation) * 5);
-    const endGoal = bumpTime(startGoal, studyMin);
+    // After-school goal work: start window shifts dramatically per reseed
+    const baseDelay = 20 + Math.floor(rand() * 90); // 20..110 min after school
+    const startGoal = bumpTime(schoolEnd, baseDelay + day * 5);
+    const dynamicStudy = studyMin + Math.floor(rand() * 30) - 10; // ±10–20 min
+    const endGoal = bumpTime(startGoal, Math.max(30, dynamicStudy));
     blocks.push({
       id: uid(),
       day_index: day,
       start_time: startGoal,
       end_time: endGoal,
       title: pendingGoalTasks.length
-        ? truncate(pendingGoalTasks[day % pendingGoalTasks.length].title, 40)
+        ? truncate(pendingGoalTasks[(day + variation) % pendingGoalTasks.length].title, 40)
         : goalLabel,
       category: "goal",
       notes: "",
       is_locked: false,
     });
-    // Hobby / movement window
-    const startHobby = bumpTime(endGoal, 20);
-    const endHobby = bumpTime(startHobby, exerciseMin);
+    // Hobby / movement window — sometimes before goal, sometimes after, length varies
+    const hobbyGap = 15 + Math.floor(rand() * 30);
+    const startHobby = bumpTime(endGoal, hobbyGap);
+    const dynamicEx = exerciseMin + Math.floor(rand() * 20) - 5;
+    const endHobby = bumpTime(startHobby, Math.max(15, dynamicEx));
+    const hobbyNames = ["Run", "Hobby time", "Strength", "Walk + read", "Creative time"];
     blocks.push({
       id: uid(),
       day_index: day,
       start_time: startHobby,
       end_time: endHobby,
-      title: day % 2 === variation % 2 ? "Run" : "Hobby time",
+      title: hobbyNames[(day + variation) % hobbyNames.length],
       category: "hobby",
       notes: "",
       is_locked: false,
