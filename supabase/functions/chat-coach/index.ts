@@ -78,6 +78,181 @@ const TOOLS = [
       },
     },
   },
+  // ─── Omnipotent task tools ───────────────────────────────────────────────
+  {
+    type: "function",
+    function: {
+      name: "add_task",
+      description: "Create a new task for the user. Use when they describe something they want to do.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          why_now: { type: "string", description: "One sentence linking this to their goal/stage." },
+          proof_of_completion: { type: "string", description: "Observable signal that proves it's done." },
+          estimated_minutes: { type: "number" },
+          priority: { type: "string", enum: ["high", "medium", "low"] },
+          category: { type: "string", enum: ["goal_direct", "bottleneck_removal", "discovery", "maintenance"] },
+          schedule_for: {
+            type: "object",
+            description: "Optional: also place this task on the weekly calendar.",
+            properties: {
+              day_index: { type: "number", minimum: 0, maximum: 6, description: "0=Mon..6=Sun" },
+              start_time: { type: "string", description: "HH:MM 24h" },
+            },
+            additionalProperties: false,
+          },
+        },
+        required: ["title"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_task",
+      description: "Update an existing task. Pick the id from pending_tasks in context.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "Task id from pending_tasks." },
+          title: { type: "string" },
+          why_now: { type: "string" },
+          proof_of_completion: { type: "string" },
+          estimated_minutes: { type: "number" },
+          priority: { type: "string", enum: ["high", "medium", "low"] },
+        },
+        required: ["id"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "complete_task",
+      description: "Mark a task as done by id.",
+      parameters: {
+        type: "object",
+        properties: { id: { type: "string" } },
+        required: ["id"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_task",
+      description: "Remove a task by id. Use only when the user explicitly wants it gone.",
+      parameters: {
+        type: "object",
+        properties: { id: { type: "string" } },
+        required: ["id"],
+        additionalProperties: false,
+      },
+    },
+  },
+  // ─── Omnipotent week-plan tools ──────────────────────────────────────────
+  {
+    type: "function",
+    function: {
+      name: "add_week_block",
+      description: "Add a new block to the weekly calendar.",
+      parameters: {
+        type: "object",
+        properties: {
+          day_index: { type: "number", minimum: 0, maximum: 6 },
+          start_time: { type: "string", description: "HH:MM 24h" },
+          end_time: { type: "string", description: "HH:MM 24h" },
+          title: { type: "string" },
+          category: { type: "string", enum: ["school", "goal", "commitment", "hobby", "rest"] },
+          is_locked: { type: "boolean" },
+        },
+        required: ["day_index", "start_time", "end_time", "title", "category"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_week_block",
+      description: "Change an existing week block. Pick the id from week_blocks in context.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          day_index: { type: "number", minimum: 0, maximum: 6 },
+          start_time: { type: "string" },
+          end_time: { type: "string" },
+          title: { type: "string" },
+          category: { type: "string", enum: ["school", "goal", "commitment", "hobby", "rest"] },
+          is_locked: { type: "boolean" },
+        },
+        required: ["id"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_week_block",
+      description: "Remove a week block by id.",
+      parameters: {
+        type: "object",
+        properties: { id: { type: "string" } },
+        required: ["id"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "regenerate_week",
+      description: "Trigger a full week reshuffle that keeps locked blocks. Use when the user wants their whole week rebuilt.",
+      parameters: {
+        type: "object",
+        properties: { note: { type: "string", description: "What the user wants changed; passed to the regenerator." } },
+        additionalProperties: false,
+      },
+    },
+  },
+  // ─── Profile + preferences ───────────────────────────────────────────────
+  {
+    type: "function",
+    function: {
+      name: "update_profile",
+      description: "Patch the user's profile fields (name, country, school year, education system, normal weekday).",
+      parameters: {
+        type: "object",
+        properties: {
+          display_name: { type: "string" },
+          country: { type: "string" },
+          school_year: { type: "string" },
+          academic_context: { type: "string" },
+          normal_weekday: { type: "string" },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "set_tone",
+      description: "Change the chat tone preference.",
+      parameters: {
+        type: "object",
+        properties: { tone: { type: "string", enum: ["gentler", "default", "more_direct"] } },
+        required: ["tone"],
+        additionalProperties: false,
+      },
+    },
+  },
 ];
 
 const SPECIALISATION_TOOLS = [
