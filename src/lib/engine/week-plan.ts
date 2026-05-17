@@ -21,7 +21,9 @@ function hm(h: number, m = 0) {
  * Weekdays carry school + goal work + hobby; weekends invert toward goal + hobby + rest.
  */
 export function seedWeekPlan(state: MomentState, opts?: { variation?: number }): WeekBlock[] {
-  const variation = opts?.variation ?? Math.floor(Math.random() * 3);
+  // Variation 0-9 produces visibly different layouts every reseed.
+  const variation = opts?.variation ?? Math.floor(Math.random() * 10);
+  const rand = mulberry32(variation * 9301 + 49297);
   const c = state.constraints;
   const goalLabel = state.active_goal?.statement
     ? truncate(state.active_goal.statement, 32)
