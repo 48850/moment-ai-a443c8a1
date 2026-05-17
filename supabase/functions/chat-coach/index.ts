@@ -95,6 +95,13 @@ const TOOLS = [
           category: { type: "string", enum: ["goal_direct", "bottleneck_removal", "discovery", "maintenance"] },
           resource_url: { type: "string", description: "REQUIRED if task involves online work (research, course, signup, watch/read). Real specific https URL — not a homepage. Use reputable sources or a Google search URL." },
           resource_label: { type: "string", description: "Short label for the URL. Required if resource_url is set." },
+          elaborated_notes: {
+            type: "array",
+            minItems: 2,
+            maxItems: 5,
+            description: "REQUIRED. 2-5 substantive note paragraphs (~2-4 sentences each) elaborating the task: how to approach it, sub-steps, what to look for, pitfalls, and — if resource_url is set — what to extract from that resource. Concrete guidance, not motivation.",
+            items: { type: "string" },
+          },
           schedule_for: {
             type: "object",
             description: "Optional: also place this task on the weekly calendar.",
@@ -305,6 +312,13 @@ const SPECIALISATION_TOOLS = [
           difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
           resource_url: { type: "string", description: "REQUIRED if the first task involves any internet work (research, course, signup, watch/read online). Real, specific https URL. Use reputable sources or a Google search URL." },
           resource_label: { type: "string", description: "Short label for the URL. Required if resource_url is set." },
+          elaborated_notes: {
+            type: "array",
+            minItems: 2,
+            maxItems: 5,
+            description: "REQUIRED. 2-5 substantive note paragraphs (~2-4 sentences each) elaborating the task: how to approach it, sub-steps, what to look for, pitfalls, and — if resource_url is set — what to extract from that resource. Concrete guidance, not motivation.",
+            items: { type: "string" },
+          },
         },
         required: ["title", "category", "why_now"],
         additionalProperties: false,
@@ -610,6 +624,11 @@ OMNIPOTENT TOOLS — you can change ANY of the user's data when they ask. Always
 - update_profile / set_tone for personal preferences.
 - update_constraints / add_fixed_commitment / set_goal as before.
 Never invent ids. If the user references a task or block by name, find the matching id in the lists above (case-insensitive). If no match, ask which one they mean.
+
+TASK CREATION RULES — NON-NEGOTIABLE:
+- HARD CAP: never have more than 3 pending tasks queued for the day. If the user already has 3 pending tasks, do NOT call add_task — instead suggest replacing, completing, or deferring an existing one.
+- Every add_task call MUST include elaborated_notes (2-5 substantive paragraphs of concrete guidance).
+- If the task involves any online work, add_task MUST include resource_url and resource_label. No exceptions.
 
 
 ${!snap.missing_schedule_info?.length

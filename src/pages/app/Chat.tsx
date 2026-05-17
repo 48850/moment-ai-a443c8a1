@@ -175,42 +175,20 @@ const Chat = () => {
     }
 
     // Apply first task + complete
+    const seedNotesFromArgs = (args: Record<string, any> | null) => {
+      const list = args?.elaborated_notes;
+      if (!Array.isArray(list)) return [];
+      const nowIso = new Date().toISOString();
+      return list
+        .filter((n: unknown): n is string => typeof n === "string" && n.trim().length > 0)
+        .map((content: string) => ({
+          id: crypto.randomUUID(),
+          content: content.trim(),
+          created_at: nowIso,
+        }));
+    };
+
     if (firstTaskArgs && shouldComplete) {
-      const firstTask = {
-        id: crypto.randomUUID(),
-        title: firstTaskArgs.title ?? "First step",
-        description: firstTaskArgs.description ?? "",
-        status: "pending" as const,
-        priority: "high" as const,
-        goal_id: "",
-        domain_id: "",
-        estimated_minutes: firstTaskArgs.estimated_minutes ?? 30,
-        category: (firstTaskArgs.category ?? "discovery") as any,
-        created_at: new Date().toISOString(),
-        completed_at: "",
-        due_date: "",
-        created_by: "ai" as const,
-        user_stage_fit: "strong" as const,
-        why_now: firstTaskArgs.why_now ?? "",
-        difficulty: (firstTaskArgs.difficulty ?? "easy") as any,
-      };
-
-      const latestGoalPatch: Record<string, any> = {};
-      if (goalModelPatch?.current_stage) latestGoalPatch.current_stage = goalModelPatch.current_stage;
-      if (goalModelPatch?.target_stage) latestGoalPatch.target_stage = goalModelPatch.target_stage;
-      if (goalModelPatch?.reality_gap) latestGoalPatch.reality_gap = goalModelPatch.reality_gap;
-
-      dispatch({
-        type: "chat/complete_specialisation",
-        payload: {
-          goal_patch: latestGoalPatch,
-          first_task: firstTask,
-        },
-      });
-      setSpecialisationDone(true);
-      toast.success("Your first move is ready — check your task list.");
-    } else if (firstTaskArgs && !shouldComplete) {
-      // Task created but complete_specialisation not yet called — add it anyway
       const firstTask = {
         id: crypto.randomUUID(),
         title: firstTaskArgs.title ?? "First step",
@@ -230,6 +208,44 @@ const Chat = () => {
         difficulty: (firstTaskArgs.difficulty ?? "easy") as any,
         resource_url: firstTaskArgs.resource_url ?? "",
         resource_label: firstTaskArgs.resource_label ?? "",
+        notes: seedNotesFromArgs(firstTaskArgs),
+      };
+
+      const latestGoalPatch: Record<string, any> = {};
+      if (goalModelPatch?.current_stage) latestGoalPatch.current_stage = goalModelPatch.current_stage;
+      if (goalModelPatch?.target_stage) latestGoalPatch.target_stage = goalModelPatch.target_stage;
+      if (goalModelPatch?.reality_gap) latestGoalPatch.reality_gap = goalModelPatch.reality_gap;
+
+      dispatch({
+        type: "chat/complete_specialisation",
+        payload: {
+          goal_patch: latestGoalPatch,
+          first_task: firstTask,
+        },
+      });
+      setSpecialisationDone(true);
+      toast.success("Your first move is ready — check your task list.");
+    } else if (firstTaskArgs && !shouldComplete) {
+      const firstTask = {
+        id: crypto.randomUUID(),
+        title: firstTaskArgs.title ?? "First step",
+        description: firstTaskArgs.description ?? "",
+        status: "pending" as const,
+        priority: "high" as const,
+        goal_id: "",
+        domain_id: "",
+        estimated_minutes: firstTaskArgs.estimated_minutes ?? 30,
+        category: (firstTaskArgs.category ?? "discovery") as any,
+        created_at: new Date().toISOString(),
+        completed_at: "",
+        due_date: "",
+        created_by: "ai" as const,
+        user_stage_fit: "strong" as const,
+        why_now: firstTaskArgs.why_now ?? "",
+        difficulty: (firstTaskArgs.difficulty ?? "easy") as any,
+        resource_url: firstTaskArgs.resource_url ?? "",
+        resource_label: firstTaskArgs.resource_label ?? "",
+        notes: seedNotesFromArgs(firstTaskArgs),
       };
       dispatch({ type: "task/add", payload: firstTask });
     }
@@ -275,6 +291,16 @@ const Chat = () => {
     for (const p of patches) {
       if (p.tool === "add_task") {
         const id = crypto.randomUUID();
+        const nowIso = new Date().toISOString();
+        const seededNotes = Array.isArray(p.args.elaborated_notes)
+          ? (p.args.elaborated_notes as unknown[])
+              .filter((n): n is string => typeof n === "string" && n.trim().length > 0)
+              .map((content) => ({
+                id: crypto.randomUUID(),
+                content: content.trim(),
+                created_at: nowIso,
+              }))
+          : [];
         dispatch({
           type: "task/add",
           payload: {
@@ -287,7 +313,7 @@ const Chat = () => {
             domain_id: "",
             estimated_minutes: p.args.estimated_minutes ?? 30,
             category: (p.args.category ?? "goal_direct") as any,
-            created_at: new Date().toISOString(),
+            created_at: nowIso,
             completed_at: "",
             due_date: "",
             created_by: "ai",
@@ -295,6 +321,7 @@ const Chat = () => {
             proof_of_completion: p.args.proof_of_completion ?? "",
             resource_url: p.args.resource_url ?? "",
             resource_label: p.args.resource_label ?? "",
+            notes: seededNotes,
           } as any,
         });
         if (p.args.schedule_for?.day_index !== undefined && p.args.schedule_for?.start_time) {
