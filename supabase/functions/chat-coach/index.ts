@@ -666,6 +666,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
+        max_tokens: 2048,
         messages: [
           {
             role: "system",
@@ -763,21 +764,40 @@ Deno.serve(async (req) => {
       if (hasFirstTask) {
         reply = "Your first move is ready — head to your task list to start.";
       } else if (hasGoalPatch) {
-        reply = "What's your current level in the area your goal requires?";
+        reply = "Got it. What's the biggest gap between where you are now and where this goal needs you to be?";
       } else {
         reply = "Tell me a bit more about where you're starting from.";
       }
     }
 
+    // Anti-repeat guard: find last assistant message and last user message.
+    const prevAssistant = [...messages].reverse().find((m: any) => m.role === "assistant")?.content?.toString().trim() ?? "";
+    const lastUser = [...messages].reverse().find((m: any) => m.role === "user")?.content?.toString().trim().toLowerCase() ?? "";
+    const userIsUnsure = /^(idk|dunno|i don'?t know|not sure|no idea|unsure)\b/.test(lastUser);
+
     if (!reply) {
       if (isSpecialisation) {
-        reply = "What's your current situation in the area your goal requires?";
+        const goalText = snap.active_goal?.statement || "this goal";
+        reply = userIsUnsure
+          ? `No worries — roughly, would you say you're a complete beginner, have dabbled a bit, or already have some real experience with ${goalText}?`
+          : "What's one thing you've already done — even small — that's related to this goal?";
       } else if (snap.next_move) {
         reply = `Your next move is "${snap.next_move.title}" (~${snap.next_move.estimated_minutes}m). Want me to shrink it?`;
       } else if (snap.missing_schedule_info?.length) {
         reply = `Quick one — what's your ${snap.missing_schedule_info[0].replace(/_/g, " ")}?`;
       } else {
         reply = "I'm here. What's on your mind?";
+      }
+    }
+
+    // If we're about to send the exact same thing we sent last turn, pivot.
+    if (prevAssistant && reply.trim() === prevAssistant) {
+      if (isSpecialisation) {
+        reply = userIsUnsure
+          ? "Totally fine. Pick the closest: (a) just curious, (b) explored a little, (c) actively practicing, (d) already advanced. Which fits?"
+          : "Let me ask differently — what made you set this goal in the first place?";
+      } else {
+        reply = "Let me reframe — what would 'done for today' look like for you?";
       }
     }
 
