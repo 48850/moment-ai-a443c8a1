@@ -641,6 +641,58 @@ YOUR JOB NOW:
 }`;
 }
 
+// ---------- anti-repeat helpers ----------
+function normaliseQ(s: string): string {
+  return s.toLowerCase().replace(/[^\w\s?]/g, " ").replace(/\s+/g, " ").trim();
+}
+function wordSet(s: string): Set<string> {
+  const stop = new Set(["the","a","an","is","are","you","your","what","s","to","of","in","on","for","do","does","i","me","my","and","or","it","this","that","with","at","be","have","has","one"]);
+  return new Set(normaliseQ(s).split(" ").filter((w) => w && w.length > 1 && !stop.has(w)));
+}
+function similarity(a: string, b: string): number {
+  const A = wordSet(a), B = wordSet(b);
+  if (!A.size || !B.size) return 0;
+  let inter = 0;
+  for (const w of A) if (B.has(w)) inter++;
+  return inter / new Set([...A, ...B]).size;
+}
+function isRepeat(candidate: string, history: string[]): boolean {
+  const c = normaliseQ(candidate);
+  if (!c) return false;
+  for (const h of history) {
+    const nh = normaliseQ(h);
+    if (!nh) continue;
+    if (nh === c) return true;
+    if (similarity(candidate, h) >= 0.6) return true;
+  }
+  return false;
+}
+
+const FALLBACK_QUESTIONS_SPECIALISATION = [
+  "Pick the closest fit: (a) total beginner, (b) dabbled, (c) actively practicing, (d) already advanced.",
+  "What's one thing you've already done — even tiny — that's related to this goal?",
+  "What made you pick this goal in the first place?",
+  "What's the biggest thing in the way right now — time, knowledge, money, or something else?",
+  "If you had a free afternoon for this tomorrow, what would you actually do with it?",
+  "Name one person or resource that's helped you on this so far (or 'none').",
+  "On a scale 1–10, how committed do you feel to this goal this month?",
+  "What would 'progress this week' look like to you — even a small win?",
+];
+const FALLBACK_QUESTIONS_DEFAULT = [
+  "What would 'done for today' look like for you?",
+  "What's the smallest next step you could take in the next 15 minutes?",
+  "What's getting in the way right now?",
+  "Want me to shrink your next move into something tiny?",
+];
+
+async function callGateway(body: unknown, apiKey: string) {
+  return fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -658,27 +710,34 @@ Deno.serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        max_tokens: 2048,
-        messages: [
-          {
-            role: "system",
-            content: isSpecialisation
-              ? specialisationSystemPrompt((snapshot ?? {}) as ChatSnapshot)
-              : systemPrompt((snapshot ?? {}) as ChatSnapshot),
-          },
-          ...messages.slice(-20),
-        ],
-        tools: isSpecialisation ? SPECIALISATION_TOOLS : TOOLS,
-      }),
+    // All prior assistant turns — anything in here is FORBIDDEN to repeat.
+    const priorAssistant: string[] = (messages as Array<{ role: string; content: string }>)
+      .filter((m) => m.role === "assistant" && typeof m.content === "string")
+      .map((m) => m.content.trim())
+      .filter(Boolean);
+
+    const baseSystem = isSpecialisation
+      ? specialisationSystemPrompt((snapshot ?? {}) as ChatSnapshot)
+      : systemPrompt((snapshot ?? {}) as ChatSnapshot);
+
+    const noRepeatBlock = priorAssistant.length
+      ? `\n\nALREADY ASKED — DO NOT REPEAT OR PARAPHRASE ANY OF THESE QUESTIONS. Ask something genuinely different:\n${priorAssistant.slice(-12).map((q, i) => `${i + 1}. ${q}`).join("\n")}`
+      : "";
+
+    const systemContent = baseSystem + noRepeatBlock +
+      `\n\nHARD RULE: Never ask a question you have already asked, even rephrased. If the user gave a vague answer like "idk", do NOT repeat your question — instead offer 2–4 concrete options or pivot to a different angle.`;
+
+    const buildBody = (extraSystem?: string) => ({
+      model: "google/gemini-2.5-flash",
+      max_tokens: 2048,
+      messages: [
+        { role: "system", content: extraSystem ? systemContent + "\n\n" + extraSystem : systemContent },
+        ...messages.slice(-20),
+      ],
+      tools: isSpecialisation ? SPECIALISATION_TOOLS : TOOLS,
     });
+
+    let resp = await callGateway(buildBody(), LOVABLE_API_KEY);
 
     if (!resp.ok) {
       if (resp.status === 429) {
@@ -698,13 +757,28 @@ Deno.serve(async (req) => {
       });
     }
 
-    const data = await resp.json();
-    const choice = data.choices?.[0]?.message;
+    let data = await resp.json();
+    let choice = data.choices?.[0]?.message;
     let reply: string = (choice?.content || "").trim();
-    const toolCalls = (choice?.tool_calls ?? []) as Array<{
-      id: string;
-      function: { name: string; arguments: string };
-    }>;
+    let toolCalls = (choice?.tool_calls ?? []) as Array<{ id: string; function: { name: string; arguments: string } }>;
+
+    // If the model repeated a prior question, retry once with explicit pushback.
+    if (reply && isRepeat(reply, priorAssistant)) {
+      console.log("chat-coach: detected repeat, retrying", { reply });
+      const retry = await callGateway(
+        buildBody(`Your previous draft repeated a question you already asked: "${reply}". Ask a DIFFERENT question that moves the conversation forward. If the user was vague, offer concrete multiple-choice options instead.`),
+        LOVABLE_API_KEY,
+      );
+      if (retry.ok) {
+        data = await retry.json();
+        choice = data.choices?.[0]?.message;
+        const retryReply = (choice?.content || "").trim();
+        if (retryReply && !isRepeat(retryReply, priorAssistant)) {
+          reply = retryReply;
+          toolCalls = (choice?.tool_calls ?? []) as typeof toolCalls;
+        }
+      }
+    }
 
     const patches = toolCalls.map((c) => {
       let args: Record<string, unknown> = {};
@@ -722,8 +796,6 @@ Deno.serve(async (req) => {
     const snap = (snapshot ?? {}) as ChatSnapshot;
 
     if (!isSpecialisation && patches.length) {
-      // Default mode only: drive forward through missing schedule fields using patchedKnown
-      // so we never ask for a field the user just answered in this same turn.
       const patchedKnown: Record<string, unknown> = { ...(snap.constraints_known ?? {}) };
       let patchedCommitmentCount = (
         typeof (snap.constraints_known as Record<string, unknown>)?.fixed_commitments === "number"
@@ -738,13 +810,12 @@ Deno.serve(async (req) => {
         } else if (p.tool === "add_fixed_commitment") {
           patchedCommitmentCount += 1;
           patchedKnown.fixed_commitments = patchedCommitmentCount;
-          patchedCommitmentsChecked = true; // at least one commitment was recorded
+          patchedCommitmentsChecked = true;
         }
       }
       const stillMissing = (snap.missing_schedule_info ?? []).filter((f) => {
         const v = patchedKnown[f];
         if (f === "fixed_commitments") {
-          // answered if user confirmed "none" OR recorded at least one commitment
           return !patchedCommitmentsChecked && patchedCommitmentCount === 0;
         }
         return v === undefined || v === null || v === "" || v === 0;
@@ -757,30 +828,20 @@ Deno.serve(async (req) => {
           : "Got it. What's the one goal this app should be pointed at?";
       }
     } else if (isSpecialisation && patches.length && !reply) {
-      // Specialisation mode: when tool was called but LLM generated no text, produce a
-      // context-appropriate continuation — NEVER ask about schedule fields here.
       const hasFirstTask = patches.some((p) => p.tool === "create_first_task");
-      const hasGoalPatch = patches.some((p) => p.tool === "patch_goal_model");
       if (hasFirstTask) {
         reply = "Your first move is ready — head to your task list to start.";
-      } else if (hasGoalPatch) {
-        reply = "Got it. What's the biggest gap between where you are now and where this goal needs you to be?";
-      } else {
-        reply = "Tell me a bit more about where you're starting from.";
       }
     }
 
-    // Anti-repeat guard: find last assistant message and last user message.
-    const prevAssistant = [...messages].reverse().find((m: any) => m.role === "assistant")?.content?.toString().trim() ?? "";
     const lastUser = [...messages].reverse().find((m: any) => m.role === "user")?.content?.toString().trim().toLowerCase() ?? "";
-    const userIsUnsure = /^(idk|dunno|i don'?t know|not sure|no idea|unsure)\b/.test(lastUser);
+    const userIsUnsure = /^(idk|dunno|i don'?t know|not sure|no idea|unsure|maybe|kinda)\b/.test(lastUser);
 
     if (!reply) {
       if (isSpecialisation) {
-        const goalText = snap.active_goal?.statement || "this goal";
         reply = userIsUnsure
-          ? `No worries — roughly, would you say you're a complete beginner, have dabbled a bit, or already have some real experience with ${goalText}?`
-          : "What's one thing you've already done — even small — that's related to this goal?";
+          ? FALLBACK_QUESTIONS_SPECIALISATION[0]
+          : FALLBACK_QUESTIONS_SPECIALISATION[1];
       } else if (snap.next_move) {
         reply = `Your next move is "${snap.next_move.title}" (~${snap.next_move.estimated_minutes}m). Want me to shrink it?`;
       } else if (snap.missing_schedule_info?.length) {
@@ -790,14 +851,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    // If we're about to send the exact same thing we sent last turn, pivot.
-    if (prevAssistant && reply.trim() === prevAssistant) {
-      if (isSpecialisation) {
-        reply = userIsUnsure
-          ? "Totally fine. Pick the closest: (a) just curious, (b) explored a little, (c) actively practicing, (d) already advanced. Which fits?"
-          : "Let me ask differently — what made you set this goal in the first place?";
+    // Final guard: walk a rotating fallback list and pick the first unused one.
+    if (isRepeat(reply, priorAssistant)) {
+      const pool = isSpecialisation ? FALLBACK_QUESTIONS_SPECIALISATION : FALLBACK_QUESTIONS_DEFAULT;
+      const fresh = pool.find((q) => !isRepeat(q, priorAssistant));
+      if (fresh) {
+        reply = fresh;
       } else {
-        reply = "Let me reframe — what would 'done for today' look like for you?";
+        // Everything's been asked — be honest.
+        reply = isSpecialisation
+          ? "I think I've asked enough — based on what you've shared, I'll set up your first move now."
+          : "I'm here whenever you want to push on the next step.";
       }
     }
 
