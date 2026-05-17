@@ -224,6 +224,14 @@ const Tasks = () => {
   };
 
   const addSuggested = (t: SuggestedTask) => {
+    const nowIso = new Date().toISOString();
+    const seededNotes = (t.elaborated_notes ?? [])
+      .filter((n) => typeof n === "string" && n.trim().length > 0)
+      .map((content) => ({
+        id: crypto.randomUUID(),
+        content: content.trim(),
+        created_at: nowIso,
+      }));
     dispatch({
       type: "task/add",
       payload: {
@@ -236,7 +244,7 @@ const Tasks = () => {
         domain_id: "",
         estimated_minutes: t.estimated_minutes ?? 30,
         category: (t.category as Task["category"]) ?? "goal_direct",
-        created_at: new Date().toISOString(),
+        created_at: nowIso,
         completed_at: "",
         due_date: "",
         created_by: "ai",
@@ -244,6 +252,7 @@ const Tasks = () => {
         proof_of_completion: t.proof_of_completion ?? "",
         resource_url: t.resource_url ?? "",
         resource_label: t.resource_label ?? "",
+        notes: seededNotes,
       } as Task,
     });
   };
