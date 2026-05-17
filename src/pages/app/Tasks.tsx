@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, Plus, Sparkles, User as UserIcon, Zap, Loader2 } from "lucide-react";
+import { Check, Plus, Sparkles, Trash2, User as UserIcon, Zap, Loader2 } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { FeedbackChips } from "@/components/app/FeedbackChips";
 import { AIInsight } from "@/components/app/AIInsight";
@@ -94,6 +94,52 @@ const Tasks = () => {
     }
   };
 
+  const removeTask = (id: string) => {
+    if (!confirm("Remove this task?")) return;
+    dispatch({ type: "task/delete", payload: { id } });
+  };
+
+  // Pick the first 30+ min open slot tomorrow between 16:00 and 21:30.
+  const scheduleIntoWeek = (title: string, mins: number) => {
+    if (!state) return;
+    const JS_TO_IDX = [6, 0, 1, 2, 3, 4, 5]; // Sun..Sat -> Mon..Sun index
+    const today = JS_TO_IDX[new Date().getDay()];
+    const tomorrow = (today + 1) % 7;
+    const dayBlocks = (state.schedule_state.week_plan ?? [])
+      .filter((b) => b.day_index === tomorrow)
+      .map((b) => {
+        const [sh, sm] = b.start_time.split(":").map(Number);
+        const [eh, em] = b.end_time.split(":").map(Number);
+        return { start: sh * 60 + sm, end: eh * 60 + em };
+      })
+      .sort((a, b) => a.start - b.start);
+    const duration = Math.max(15, Math.min(120, mins));
+    let startMin = 16 * 60;
+    const latestStart = 21 * 60 + 30 - duration;
+    for (let probe = startMin; probe <= latestStart; probe += 15) {
+      const end = probe + duration;
+      const overlaps = dayBlocks.some((b) => probe < b.end && end > b.start);
+      if (!overlaps) { startMin = probe; break; }
+      startMin = probe + 15;
+    }
+    if (startMin > latestStart) startMin = 21 * 60 + 30 - duration;
+    const endMin = startMin + duration;
+    const fmt = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+    dispatch({
+      type: "week/addBlock",
+      payload: {
+        id: `wb_${Math.random().toString(36).slice(2, 10)}`,
+        day_index: tomorrow,
+        start_time: fmt(startMin),
+        end_time: fmt(endMin),
+        title,
+        category: "goal",
+        notes: "",
+        is_locked: false,
+      },
+    });
+  };
+
   const refineUserTask = async (id: string, rawTitle: string, mins: number) => {
     setRefiningIds((s) => new Set(s).add(id));
     try {
@@ -119,6 +165,9 @@ const Tasks = () => {
             },
           },
         });
+        scheduleIntoWeek(result.refined_title, result.estimated_minutes ?? mins);
+      } else {
+        scheduleIntoWeek(rawTitle, mins);
       }
     } finally {
       setRefiningIds((s) => {
@@ -344,6 +393,14 @@ const Tasks = () => {
                   {t.estimated_minutes}m
                 </span>
                 <FeedbackChips source="task" targetId={t.id} taskId={t.id} taskTitle={t.title} compact />
+                <button
+                  onClick={() => removeTask(t.id)}
+                  className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-destructive"
+                  aria-label="Remove task"
+                  title="Remove task"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
               </div>
               {t.why_now && !done && (
                 <p className="mt-1 pl-8 text-[11px] text-muted-foreground">{t.why_now}</p>

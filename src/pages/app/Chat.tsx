@@ -269,6 +269,85 @@ const Chat = () => {
       });
     }
 
+    // ── Omnipotent: tasks, week, profile, tone ────────────────────────────
+    for (const p of patches) {
+      if (p.tool === "add_task") {
+        const id = crypto.randomUUID();
+        dispatch({
+          type: "task/add",
+          payload: {
+            id,
+            title: p.args.title ?? "New task",
+            description: "",
+            status: "pending",
+            priority: (p.args.priority ?? "medium") as "high" | "medium" | "low",
+            goal_id: state.active_goal?.id ?? "",
+            domain_id: "",
+            estimated_minutes: p.args.estimated_minutes ?? 30,
+            category: (p.args.category ?? "goal_direct") as any,
+            created_at: new Date().toISOString(),
+            completed_at: "",
+            due_date: "",
+            created_by: "ai",
+            why_now: p.args.why_now ?? "",
+            proof_of_completion: p.args.proof_of_completion ?? "",
+          } as any,
+        });
+        if (p.args.schedule_for?.day_index !== undefined && p.args.schedule_for?.start_time) {
+          const start: string = p.args.schedule_for.start_time;
+          const [h, m] = start.split(":").map(Number);
+          const totalEnd = h * 60 + m + Math.min(120, p.args.estimated_minutes ?? 30);
+          const eh = Math.min(22, Math.floor(totalEnd / 60));
+          const em = totalEnd % 60;
+          dispatch({
+            type: "week/addBlock",
+            payload: {
+              id: `wb_${Math.random().toString(36).slice(2, 10)}`,
+              day_index: p.args.schedule_for.day_index,
+              start_time: start,
+              end_time: `${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`,
+              title: p.args.title ?? "Task",
+              category: "goal",
+              notes: "",
+              is_locked: false,
+            },
+          });
+        }
+      } else if (p.tool === "update_task" && p.args.id) {
+        const { id, ...changes } = p.args;
+        dispatch({ type: "task/update", payload: { id, changes } });
+      } else if (p.tool === "complete_task" && p.args.id) {
+        dispatch({ type: "task/complete", payload: { id: p.args.id, completed_at: new Date().toISOString() } });
+      } else if (p.tool === "delete_task" && p.args.id) {
+        dispatch({ type: "task/delete", payload: { id: p.args.id } });
+      } else if (p.tool === "add_week_block") {
+        dispatch({
+          type: "week/addBlock",
+          payload: {
+            id: `wb_${Math.random().toString(36).slice(2, 10)}`,
+            day_index: p.args.day_index,
+            start_time: p.args.start_time,
+            end_time: p.args.end_time,
+            title: p.args.title,
+            category: p.args.category,
+            notes: "",
+            is_locked: Boolean(p.args.is_locked),
+          },
+        });
+      } else if (p.tool === "update_week_block" && p.args.id) {
+        const { id, ...changes } = p.args;
+        dispatch({ type: "week/updateBlock", payload: { id, changes } });
+      } else if (p.tool === "delete_week_block" && p.args.id) {
+        dispatch({ type: "week/deleteBlock", payload: { id: p.args.id } });
+      } else if (p.tool === "regenerate_week") {
+        dispatch({ type: "week/reform" });
+      } else if (p.tool === "update_profile") {
+        applyPatch({ profile: { ...state.profile, ...p.args } });
+      } else if (p.tool === "set_tone" && p.args.tone) {
+        dispatch({ type: "chat/setPreferences", payload: { tone: p.args.tone } });
+      }
+    }
+
     const significantPatches = patches.filter(
       (p) => !["patch_goal_model", "complete_specialisation"].includes(p.tool),
     );
@@ -278,10 +357,20 @@ const Chat = () => {
           if (p.tool === "update_constraints") return Object.keys(p.args).join(", ");
           if (p.tool === "add_fixed_commitment") return `commitment: ${p.args.title}`;
           if (p.tool === "set_goal") return "goal";
+          if (p.tool === "add_task") return `task: ${p.args.title}`;
+          if (p.tool === "update_task") return "task updated";
+          if (p.tool === "complete_task") return "task completed";
+          if (p.tool === "delete_task") return "task removed";
+          if (p.tool === "add_week_block") return `block: ${p.args.title}`;
+          if (p.tool === "update_week_block") return "block updated";
+          if (p.tool === "delete_week_block") return "block removed";
+          if (p.tool === "regenerate_week") return "week regenerated";
+          if (p.tool === "update_profile") return "profile";
+          if (p.tool === "set_tone") return `tone: ${p.args.tone}`;
           return p.tool;
         })
         .join(" · ");
-      toast.success(`Saved across the app: ${summary}`);
+      toast.success(`Saved: ${summary}`);
     }
   };
 

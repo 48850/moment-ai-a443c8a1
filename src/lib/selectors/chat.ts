@@ -49,6 +49,9 @@ export interface ChatSnapshot {
   recent_chat: Array<{ role: "user" | "assistant"; content: string }>;
   country: string;
   education_system: string;
+  // ─── Omnipotent chat: lets the model target real entities ─────────────────
+  pending_tasks: Array<{ id: string; title: string; minutes: number; priority: string }>;
+  week_blocks: Array<{ id: string; day_index: number; start_time: string; end_time: string; title: string; category: string; is_locked: boolean }>;
 }
 
 const SCHEDULE_FIELD_MAP: Array<[keyof MomentState["constraints"], string]> = [
@@ -190,5 +193,23 @@ export function selectChatSnapshot(state: MomentState): ChatSnapshot {
       .map((m) => ({ role: m.role, content: m.content })),
     country: state.profile.country ?? "",
     education_system: state.profile.education_system ?? "unknown",
+    pending_tasks: (state.tasks ?? [])
+      .filter((t) => t.status !== "done" && t.status !== "skipped")
+      .slice(0, 30)
+      .map((t) => ({
+        id: t.id,
+        title: t.title,
+        minutes: t.estimated_minutes ?? 30,
+        priority: t.priority ?? "medium",
+      })),
+    week_blocks: (state.schedule_state?.week_plan ?? []).map((b) => ({
+      id: b.id,
+      day_index: b.day_index,
+      start_time: b.start_time,
+      end_time: b.end_time,
+      title: b.title,
+      category: b.category,
+      is_locked: !!b.is_locked,
+    })),
   };
 }
