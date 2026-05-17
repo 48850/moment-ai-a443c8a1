@@ -211,33 +211,114 @@ function tools(intent: string) {
     },
     forge_guidebook: {
       name: "answer",
-      description: "Generate a rich, build-ready guidebook spec for a Forge feature.",
+      description: "Generate a complete, build-ready, goal-specific Forge guidebook.",
       parameters: {
         type: "object",
         properties: {
-          title: { type: "string" },
-          purpose: { type: "string" },
-          feature_type: { type: "string", enum: ["practice_system", "planner", "tracker", "rescue_protocol", "evidence_log"] },
-          required_inputs: { type: "array", items: { type: "string" } },
-          ai_functions: { type: "array", items: { type: "string" } },
-          sections: {
+          title: {
+            type: "string",
+            description: "Short specific title for this tool. NEVER use 'Custom Feature', 'Analyser', or 'AI Analysis'.",
+          },
+          subtitle: { type: "string" },
+          purpose: {
+            type: "string",
+            description: "One sentence naming the user's goal domain and what this tool helps them do.",
+          },
+          feature_type: {
+            type: "string",
+            enum: ["tracker", "protocol", "control_room", "drill_lab", "proof_builder",
+                   "decision_engine", "planner", "simulator", "coach_lens", "research_helper", "custom"],
+          },
+          bottleneck_addressed: { type: "string" },
+          required_inputs: {
             type: "array",
+            minItems: 2,
             items: {
               type: "object",
               properties: {
-                heading: { type: "string" },
-                content_type: { type: "string", enum: ["text", "checklist", "number_input", "rating", "timer", "ai_response"] },
-                prompt_hint: { type: "string" },
+                id: { type: "string" },
+                label: { type: "string" },
+                type: { type: "string", enum: ["text", "textarea", "number", "select", "scale"] },
+                placeholder: { type: "string" },
+                required: { type: "boolean" },
               },
-              required: ["heading", "content_type"],
+              required: ["id", "label", "type"],
               additionalProperties: false,
             },
           },
-          state_writes: { type: "array", items: { type: "string" } },
-          route_slug: { type: "string" },
+          ai_functions: {
+            type: "array",
+            minItems: 2,
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                name: { type: "string", description: "Human-readable mode name, e.g. 'Explain simply', 'Quiz me'" },
+                function_type: {
+                  type: "string",
+                  enum: ["analyze", "generate_plan", "split_tasks", "score_quality", "rank_options",
+                         "simulate", "challenge", "summarize", "extract_signals", "create_next_move"],
+                },
+                prompt_contract: {
+                  type: "string",
+                  description: "Exact output schema description, ≥60 chars, goal-domain specific.",
+                },
+                input_sources: { type: "array", items: { type: "string" } },
+                writes_to_state: { type: "boolean" },
+                allowed_state_actions: {
+                  type: "array",
+                  items: { type: "string", enum: ["task/create", "forge/log_signal", "feedback/add"] },
+                },
+              },
+              required: ["id", "name", "function_type", "prompt_contract", "input_sources"],
+              additionalProperties: false,
+            },
+          },
+          sections: {
+            type: "array",
+            minItems: 3,
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                heading: { type: "string" },
+                section_type: {
+                  type: "string",
+                  enum: ["input_panel", "ai_output", "saved_entries", "task_list",
+                         "scorecard", "protocol_steps", "reflection_box"],
+                },
+                linked_ai_function_id: { type: "string" },
+              },
+              required: ["id", "heading", "section_type"],
+              additionalProperties: false,
+            },
+          },
+          state_writes: {
+            type: "array",
+            minItems: 1,
+            items: {
+              type: "object",
+              properties: {
+                trigger: { type: "string" },
+                action_type: { type: "string" },
+                description: { type: "string" },
+              },
+              additionalProperties: false,
+            },
+          },
           safety_rules: { type: "array", items: { type: "string" } },
+          suggested_next_task: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              why_now: { type: "string" },
+              proof_of_completion: { type: "string" },
+              estimated_minutes: { type: "number" },
+            },
+            additionalProperties: false,
+          },
         },
-        required: ["title", "purpose", "feature_type", "sections", "route_slug"],
+        required: ["title", "purpose", "feature_type", "required_inputs", "ai_functions", "sections", "state_writes"],
         additionalProperties: false,
       },
     },
