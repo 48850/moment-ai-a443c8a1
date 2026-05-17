@@ -836,15 +836,112 @@ const Plan = () => {
         <section className="rounded-2xl border border-border bg-card p-4">
           <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">Unscheduled</div>
           <ul className="space-y-2">
-            {vm.unscheduledTasks.map((t) => (
-              <li key={t.id} className="flex items-center justify-between text-sm">
-                <span>{t.title}</span>
-                <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">{t.estimated_minutes}m</span>
+            {vm.unscheduledTasks.map((tVm) => {
+              const t = getTaskById(tVm.id) ?? (tVm as any);
+              const noteCount = t?.notes?.length ?? 0;
+              return (
+              <li key={tVm.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span className="flex-1 min-w-[8rem]">{tVm.title}</span>
+                <div className="flex items-center gap-2">
+                  {t?.resource_url && (
+                    <a
+                      href={t.resource_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] text-primary hover:bg-primary/20"
+                    >
+                      <ExternalLink className="h-2.5 w-2.5" />
+                      {t.resource_label || "Open link"}
+                    </a>
+                  )}
+                  <button
+                    onClick={() => setNotesTaskId(tVm.id)}
+                    className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-0.5 text-[10px] text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  >
+                    <NotebookPen className="h-2.5 w-2.5" />
+                    Notes{noteCount > 0 ? ` (${noteCount})` : ""}
+                  </button>
+                  <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">{tVm.estimated_minutes}m</span>
+                </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </section>
       )}
+
+      <Sheet
+        open={!!notesTaskId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setNotesTaskId(null);
+            setNoteDraft("");
+          }
+        }}
+      >
+        <SheetContent side="right" className="flex w-full flex-col gap-4 sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle className="text-base">Notes</SheetTitle>
+            <SheetDescription className="line-clamp-2 text-xs">
+              {notesTask?.title ?? "Task notes"}
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="flex-1 space-y-2 overflow-y-auto pr-1">
+            {(notesTask?.notes ?? []).length === 0 ? (
+              <p className="rounded-md border border-dashed border-border bg-background/40 p-4 text-center text-xs text-muted-foreground">
+                No notes yet. Capture what you learned, what got in the way, or what to try next.
+              </p>
+            ) : (
+              [...(notesTask?.notes ?? [])]
+                .sort((a, b) => b.created_at.localeCompare(a.created_at))
+                .map((n) => (
+                  <div
+                    key={n.id}
+                    className="group relative rounded-md border border-border bg-card p-3 text-sm"
+                  >
+                    <p className="whitespace-pre-wrap pr-6 leading-relaxed">{n.content}</p>
+                    <div className="mt-1 text-[10px] text-muted-foreground">
+                      {new Date(n.created_at).toLocaleString()}
+                    </div>
+                    <button
+                      onClick={() => notesTask && removeNoteFromTask(notesTask.id, n.id)}
+                      className="absolute right-1.5 top-1.5 rounded-md p-1 text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:bg-secondary hover:text-destructive"
+                      aria-label="Delete note"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))
+            )}
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (notesTask) addNoteToTask(notesTask.id, noteDraft);
+            }}
+            className="space-y-2 border-t border-border pt-3"
+          >
+            <textarea
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              placeholder="Write a note for this task…"
+              rows={3}
+              className="w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+            />
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={!noteDraft.trim()}
+                className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+              >
+                <Plus className="h-3 w-3" /> Add note
+              </button>
+            </div>
+          </form>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
