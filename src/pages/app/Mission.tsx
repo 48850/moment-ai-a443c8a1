@@ -263,7 +263,17 @@ const Mission = () => {
   const dispatch = useStateStore((s) => s.dispatch);
   const navigate = useNavigate();
   const [openWs, setOpenWs] = useState<string | null>(null);
-  const insight = useAI<{ observation: string; suggestion?: string }>("mission_insight");
+  const insight = useAI<{
+    observation: string;
+    suggestion?: string;
+    notices?: Array<{
+      kind: "momentum" | "bottleneck" | "drift" | "imbalance" | "feedback_pattern" | "stage_progress" | "blind_spot" | "risk" | "celebrate";
+      tone: "good" | "warn" | "bad" | "neutral";
+      title: string;
+      detail: string;
+      next_step?: string;
+    }>;
+  }>("mission_insight");
 
   const m = useMemo(() => (state ? selectMissionViewModel(state) : null), [state]);
   const analytics = useMemo(() => (state ? analyzeMission(state) : null), [state]);
