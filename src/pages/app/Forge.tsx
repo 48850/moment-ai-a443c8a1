@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Hammer, Sparkles, Loader2, Plus, Archive, Pencil, Play,
   X, ChevronRight, Zap, Target, Clock, BarChart2, Activity,
@@ -585,11 +585,23 @@ function ModuleContainer({ mod: m }: { mod: GeneratedModuleManifest }) {
 const Forge = () => {
   const state = useStateStore((s) => s.state);
   const dispatch = useStateStore((s) => s.dispatch);
+  const [searchParams] = useSearchParams();
   const [building, setBuilding] = useState(false);
   const [preselectedType, setPreselectedType] = useState<ForgeFeatureType | undefined>(undefined);
   const [systemQuestion, setSystemQuestion] = useState<string | undefined>(undefined);
   const [prefilledDescription, setPrefilledDescription] = useState<string | undefined>(undefined);
   const [showArchived, setShowArchived] = useState(false);
+
+  // Auto-open builder when ?rebuild= param is present (from ForgeFeature recovery screen)
+  useEffect(() => {
+    const rebuild = searchParams.get("rebuild");
+    if (rebuild && !building) {
+      setPreselectedType("custom");
+      setPrefilledDescription(decodeURIComponent(rebuild));
+      setSystemQuestion(undefined);
+      setBuilding(true);
+    }
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!state) return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
 
