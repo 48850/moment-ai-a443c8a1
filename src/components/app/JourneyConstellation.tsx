@@ -1,7 +1,7 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
-import { Star, CheckCircle2, Circle, Lock, Zap, AlertTriangle, X, Sparkles, Target } from "lucide-react";
+import { Star, CheckCircle2, Circle, Lock, Zap, AlertTriangle, X, Sparkles, Target, Calendar } from "lucide-react";
 import type { MomentState } from "@/lib/types";
 import { computeConstellationNodes, type ConstellationNode, type ConstellationNodeType } from "@/lib/selectors/constellation";
 
@@ -28,6 +28,7 @@ const NODE_VISUAL: Record<ConstellationNodeType, {
   PROOF_STAR:      { color: "#34d399", glowColor: "52,211,153",  icon: CheckCircle2, size: "sm", pulseSpeed: 4.5 },
   GATE_STAR:       { color: "#6b7280", glowColor: "107,114,128", icon: Lock,         size: "sm", pulseSpeed: 6.0 },
   FRICTION_STAR:   { color: "#f59e0b", glowColor: "245,158,11",  icon: AlertTriangle, size: "sm", pulseSpeed: 2.0 },
+  SCHEDULE_STAR:   { color: "#60a5fa", glowColor: "96,165,250",  icon: Calendar,     size: "sm", pulseSpeed: 3.8 },
 };
 
 const SIZE_PX: Record<"lg" | "md" | "sm", number> = { lg: 22, md: 15, sm: 10 };
@@ -226,6 +227,16 @@ function DrawerContent({ node }: { node: ConstellationNode }) {
           <p className="text-xs text-white/30">Consider shrinking or clarifying this area.</p>
         </div>
       );
+    case "SCHEDULE_STAR":
+      return (
+        <div className="space-y-2 text-xs text-white/60">
+          {node.subtitle && <div>When · <span className="text-white/80">{node.subtitle}</span></div>}
+          <p className="text-sm text-white/70">{node.why_it_matters}</p>
+          {node.status === "locked" && (
+            <div className="text-[11px] text-white/40">Locked block — protected from reform.</div>
+          )}
+        </div>
+      );
     default:
       return <p className="text-sm text-white/60">{node.why_it_matters}</p>;
   }
@@ -241,6 +252,7 @@ export const JourneyConstellation = ({ state }: Props) => {
   const nodes = useMemo(() => computeConstellationNodes(state), [
     state.active_goal, state.tasks, state.pursuit_model,
     state.execution_feedback, state.today_state,
+    state.schedule_state?.week_plan, state.schedule_state?.week_plan_generated_at,
   ]);
 
   const { positioned, canvasWidth, canvasHeight } = useMemo(() => {
