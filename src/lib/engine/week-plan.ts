@@ -21,7 +21,9 @@ function hm(h: number, m = 0) {
  * Weekdays carry school + goal work + hobby; weekends invert toward goal + hobby + rest.
  */
 export function seedWeekPlan(state: MomentState, opts?: { variation?: number }): WeekBlock[] {
-  const variation = opts?.variation ?? Math.floor(Math.random() * 3);
+  // Variation 0-9 produces visibly different layouts every reseed.
+  const variation = opts?.variation ?? Math.floor(Math.random() * 10);
+  const rand = mulberry32(variation * 9301 + 49297);
   const c = state.constraints;
   const goalLabel = state.active_goal?.statement
     ? truncate(state.active_goal.statement, 32)
@@ -49,30 +51,35 @@ export function seedWeekPlan(state: MomentState, opts?: { variation?: number }):
       notes: "",
       is_locked: true,
     });
-    // After-school goal work with slight variation per day
-    const startGoal = bumpTime(schoolEnd, 30 + (day + variation) * 5);
-    const endGoal = bumpTime(startGoal, studyMin);
+    // After-school goal work: start window shifts dramatically per reseed
+    const baseDelay = 20 + Math.floor(rand() * 90); // 20..110 min after school
+    const startGoal = bumpTime(schoolEnd, baseDelay + day * 5);
+    const dynamicStudy = studyMin + Math.floor(rand() * 30) - 10; // ±10–20 min
+    const endGoal = bumpTime(startGoal, Math.max(30, dynamicStudy));
     blocks.push({
       id: uid(),
       day_index: day,
       start_time: startGoal,
       end_time: endGoal,
       title: pendingGoalTasks.length
-        ? truncate(pendingGoalTasks[day % pendingGoalTasks.length].title, 40)
+        ? truncate(pendingGoalTasks[(day + variation) % pendingGoalTasks.length].title, 40)
         : goalLabel,
       category: "goal",
       notes: "",
       is_locked: false,
     });
-    // Hobby / movement window
-    const startHobby = bumpTime(endGoal, 20);
-    const endHobby = bumpTime(startHobby, exerciseMin);
+    // Hobby / movement window — sometimes before goal, sometimes after, length varies
+    const hobbyGap = 15 + Math.floor(rand() * 30);
+    const startHobby = bumpTime(endGoal, hobbyGap);
+    const dynamicEx = exerciseMin + Math.floor(rand() * 20) - 5;
+    const endHobby = bumpTime(startHobby, Math.max(15, dynamicEx));
+    const hobbyNames = ["Run", "Hobby time", "Strength", "Walk + read", "Creative time"];
     blocks.push({
       id: uid(),
       day_index: day,
       start_time: startHobby,
       end_time: endHobby,
-      title: day % 2 === variation % 2 ? "Run" : "Hobby time",
+      title: hobbyNames[(day + variation) % hobbyNames.length],
       category: "hobby",
       notes: "",
       is_locked: false,
@@ -165,7 +172,7 @@ function parseDayName(s: string): number | null {
  */
 export function reformWeekPlan(state: MomentState, current: WeekBlock[]): WeekBlock[] {
   const locked = current.filter((b) => b.is_locked);
-  const fresh = seedWeekPlan(state, { variation: Math.floor(Math.random() * 5) });
+  const fresh = seedWeekPlan(state, { variation: 1 + Math.floor(Math.random() * 999) });
   // Drop fresh blocks that conflict with a locked block on the same day
   const kept = fresh.filter((nb) => {
     return !locked.some(
@@ -177,4 +184,16 @@ export function reformWeekPlan(state: MomentState, current: WeekBlock[]): WeekBl
 
 function overlap(a: WeekBlock, b: WeekBlock) {
   return a.start_time < b.end_time && b.start_time < a.end_time;
+}
+
+// Tiny seeded PRNG so reseed variations are deterministic per seed but visibly different across seeds.
+function mulberry32(seed: number) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }

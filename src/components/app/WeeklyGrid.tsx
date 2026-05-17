@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Plus, Trash2, Lock, RefreshCw, Sparkles, X, GraduationCap, Target, CalendarClock, Music, Moon } from "lucide-react";
+import { toast } from "sonner";
 import { useStateStore } from "@/stores/state-store";
 import { sortBlocks } from "@/lib/engine/week-plan";
 import type { WeekBlock, WeekCategory } from "@/lib/types";
@@ -127,13 +128,19 @@ export function WeeklyGrid() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => dispatch({ type: "week/reform" })}
+            onClick={() => {
+              dispatch({ type: "week/reform" });
+              toast.success("Week reformed", { description: "Locked blocks kept; the rest reshuffled." });
+            }}
             className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium hover:border-primary/50 hover:bg-card/80"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Reform
           </button>
           <button
-            onClick={() => dispatch({ type: "week/seed" })}
+            onClick={() => {
+              dispatch({ type: "week/seed" });
+              toast.success("Week reseeded", { description: "Fresh layout generated from your constraints." });
+            }}
             className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
           >
             <Sparkles className="h-3.5 w-3.5" /> Reseed
