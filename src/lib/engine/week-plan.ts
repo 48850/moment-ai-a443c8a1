@@ -185,3 +185,15 @@ export function reformWeekPlan(state: MomentState, current: WeekBlock[]): WeekBl
 function overlap(a: WeekBlock, b: WeekBlock) {
   return a.start_time < b.end_time && b.start_time < a.end_time;
 }
+
+// Tiny seeded PRNG so reseed variations are deterministic per seed but visibly different across seeds.
+function mulberry32(seed: number) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
