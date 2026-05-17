@@ -77,6 +77,7 @@ const Dashboard = () => {
   const state = useStateStore((s) => s.state);
   const dispatch = useStateStore((s) => s.dispatch);
   const [justCompletedId, setJustCompletedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const rationale = useAI<{ why_now: string; next_proof?: string }>("next_move_rationale");
 
   const vm = state ? selectHomeViewModel(state) : null;
@@ -188,41 +189,79 @@ const Dashboard = () => {
         <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
           {vm.tasks.map((t) => {
             const done = t.status === "done";
+            const expanded = expandedId === t.id;
+            const showFeedback = justCompletedId === t.id;
+            const hasDetail = !!t.resource_url || (t.notes?.length ?? 0) > 0;
             return (
               <li key={t.id} className="px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => onComplete(t.id)}
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(expanded ? null : t.id)}
+                  className="flex w-full items-center gap-3 text-left"
+                >
+                  <span
                     className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
                       done ? "border-primary bg-primary text-primary-foreground" : "border-border"
                     }`}
-                    aria-label={done ? "Mark incomplete" : "Mark complete"}
+                    aria-hidden
                   >
                     {done && <Check className="h-3 w-3" strokeWidth={3} />}
-                  </button>
+                  </span>
                   <span className={`flex-1 text-sm ${done ? "text-muted-foreground line-through" : "text-foreground"}`}>
                     {t.title}
                   </span>
                   <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
                     {t.estimated_minutes}m
                   </span>
-                  <FeedbackChips source="task" targetId={t.id} taskId={t.id} taskTitle={t.title} compact />
-                </div>
-                {t.resource_url && !done && (
-                  <a
-                    href={t.resource_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-1 flex items-center gap-1 pl-8 text-[11px] text-primary underline-offset-2 hover:underline"
-                  >
-                    <ExternalLink className="h-3 w-3 shrink-0" />
-                    {t.resource_label || "Open source"}
-                  </a>
-                )}
-                {(t.notes?.length ?? 0) > 0 && !done && (
-                  <div className="mt-1 flex items-start gap-1 pl-8 text-[11px] text-muted-foreground">
-                    <NotebookPen className="mt-0.5 h-3 w-3 shrink-0" />
-                    <span className="line-clamp-2">{t.notes?.[0]?.content}</span>
+                </button>
+
+                {expanded && (
+                  <div className="mt-3 space-y-2 pl-8">
+                    {t.resource_url && (
+                      <a
+                        href={t.resource_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-primary underline-offset-2 hover:underline"
+                      >
+                        <ExternalLink className="h-3 w-3 shrink-0" />
+                        {t.resource_label || "Open source"}
+                      </a>
+                    )}
+                    {(t.notes?.length ?? 0) > 0 && (
+                      <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                        <NotebookPen className="mt-0.5 h-3 w-3 shrink-0" />
+                        <div className="space-y-1.5 whitespace-pre-wrap leading-relaxed">
+                          {t.notes!.map((n) => (
+                            <p key={n.id}>{n.content}</p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {!hasDetail && (
+                      <div className="text-[11px] italic text-muted-foreground">No notes attached.</div>
+                    )}
+
+                    {showFeedback ? (
+                      <DmDoneFeedback
+                        taskId={t.id}
+                        taskTitle={t.title}
+                        onDone={() => setJustCompletedId(null)}
+                      />
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onComplete(t.id);
+                          }}
+                          className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                        >
+                          {done ? "Mark incomplete" : "Done ✓"}
+                        </button>
+                        <FeedbackChips source="task" targetId={t.id} taskId={t.id} taskTitle={t.title} compact />
+                      </div>
+                    )}
                   </div>
                 )}
               </li>
