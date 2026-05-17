@@ -742,14 +742,14 @@ Deno.serve(async (req) => {
     const systemContent = baseSystem + noRepeatBlock +
       `\n\nHARD RULE: Never ask a question you have already asked, even rephrased. If the user gave a vague answer like "idk", do NOT repeat your question — instead offer 2–4 concrete options or pivot to a different angle.`;
 
-    const buildBody = (extraSystem?: string) => ({
+    const buildBody = (extraSystem?: string, textOnly = false) => ({
       model: "google/gemini-2.5-flash",
       max_tokens: 2048,
       messages: [
         { role: "system", content: extraSystem ? systemContent + "\n\n" + extraSystem : systemContent },
         ...messages.slice(-20),
       ],
-      tools: isSpecialisation ? SPECIALISATION_TOOLS : TOOLS,
+      ...(textOnly ? {} : { tools: isSpecialisation ? SPECIALISATION_TOOLS : TOOLS }),
     });
 
     let resp = await callGateway(buildBody(), LOVABLE_API_KEY);
@@ -816,6 +816,7 @@ Deno.serve(async (req) => {
           patches.length
             ? "You just called tools silently. Now write a 1–2 sentence reply to the user that acknowledges what just happened in your own words and moves the conversation forward. Do not narrate the tool call. Do not use generic filler."
             : "Write a 1–2 sentence reply to the user in your own words. Do not return empty content. Do not use generic filler.",
+          true,
         ),
         LOVABLE_API_KEY,
       );
