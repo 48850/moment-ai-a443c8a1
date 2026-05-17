@@ -228,6 +228,8 @@ const Chat = () => {
         user_stage_fit: "strong" as const,
         why_now: firstTaskArgs.why_now ?? "",
         difficulty: (firstTaskArgs.difficulty ?? "easy") as any,
+        resource_url: firstTaskArgs.resource_url ?? "",
+        resource_label: firstTaskArgs.resource_label ?? "",
       };
       dispatch({ type: "task/add", payload: firstTask });
     }
