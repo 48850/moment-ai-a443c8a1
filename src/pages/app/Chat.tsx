@@ -36,9 +36,11 @@ const Chat = () => {
   const applyPatch = useStateStore((s) => s.applyPatch);
   const [searchParams] = useSearchParams();
 
+  const specialisationComplete = state?.chat_state?.specialisation_phase === "complete";
   const isSpecialisation =
-    searchParams.get("mode") === "goal_specialisation" ||
-    state?.chat_state?.post_onboarding_specialisation_required === true;
+    !specialisationComplete &&
+    (searchParams.get("mode") === "goal_specialisation" ||
+      state?.chat_state?.post_onboarding_specialisation_required === true);
 
   const specialisationGreeting = useMemo<ChatMessage>(
     () => ({
