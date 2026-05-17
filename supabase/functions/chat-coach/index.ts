@@ -728,7 +728,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, snapshot, mode } = await req.json();
+    const { messages, snapshot, context_packet, mode } = await req.json();
     if (!Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: "messages required" }), {
         status: 400,
@@ -737,6 +737,7 @@ Deno.serve(async (req) => {
     }
 
     const isSpecialisation = mode === "goal_specialisation";
+    const latestUser = latestUserMessage(messages as Array<{ role: string; content: string }>);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
@@ -755,8 +756,16 @@ Deno.serve(async (req) => {
       ? `\n\nALREADY ASKED — DO NOT REPEAT OR PARAPHRASE ANY OF THESE QUESTIONS. Ask something genuinely different:\n${priorAssistant.slice(-12).map((q, i) => `${i + 1}. ${q}`).join("\n")}`
       : "";
 
-    const systemContent = baseSystem + noRepeatBlock +
-      `\n\nHARD RULE: Never ask a question you have already asked, even rephrased. If the user gave a vague answer like "idk", do NOT repeat your question — instead offer 2–4 concrete options or pivot to a different angle.`;
+    const contextBlock = context_packet
+      ? `\n\nFULL CONTEXT PACKET — authoritative app state. Use it to answer the latest message, not generic memory:\n${JSON.stringify(context_packet).slice(0, 9000)}`
+      : "";
+
+    const latestBlock = latestUser
+      ? `\n\nLATEST USER MESSAGE — answer this directly first: "${latestUser}"${isGreetingOnly(latestUser) ? "\nThis is a greeting/check-in; respond like a live companion, not a task-status bot." : ""}`
+      : "";
+
+    const systemContent = baseSystem + contextBlock + latestBlock + noRepeatBlock +
+      `\n\nHARD RULE: Never ask a question you have already asked, even rephrased. If the user gave a vague answer like "idk", do NOT repeat your question — instead offer 2–4 concrete options or pivot to a different angle. Never ignore the latest user message.`;
 
     const buildBody = (extraSystem?: string, textOnly = false) => ({
       model: "google/gemini-2.5-flash",
