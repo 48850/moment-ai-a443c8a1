@@ -77,6 +77,7 @@ const Dashboard = () => {
   const state = useStateStore((s) => s.state);
   const dispatch = useStateStore((s) => s.dispatch);
   const [justCompletedId, setJustCompletedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const rationale = useAI<{ why_now: string; next_proof?: string }>("next_move_rationale");
 
   const vm = state ? selectHomeViewModel(state) : null;
