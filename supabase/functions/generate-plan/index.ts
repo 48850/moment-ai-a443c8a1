@@ -16,7 +16,8 @@ const PLAN_TOOL = {
       properties: {
         days: {
           type: "array",
-          description: "Concrete actions for the next 7 days (3-6 items).",
+          maxItems: 3,
+          description: "Concrete actions for today only. Hard cap: 3 items.",
           items: {
             type: "object",
             properties: {
@@ -110,7 +111,7 @@ Deno.serve(async (req) => {
 - Preferences: tone=${prefs.tone ?? "?"} · strictness=${prefs.strictness ?? "?"} · schedule_style=${prefs.schedule_style ?? "?"} · support_style=${prefs.support_style ?? "?"}
 - Onboarding ${ob.completed ? "complete" : "incomplete"} · unknowns: ${(ob.understanding?.unknowns ?? []).join(", ") || "(none)"}`;
 
-    const system = `You are an elite life-design coach for ambitious teenagers. You translate a single goal into a phased plan across four horizons: days, weeks, months, years. Be concrete, specific, age-appropriate, energising, never preachy. Every item should be doable and unmistakably move the goal forward. Avoid generic productivity fluff. ALWAYS calibrate to the user profile provided — never propose actions that conflict with their age, schedule, or onboarding-confirmed reality.`;
+    const system = `You are an elite life-design coach for ambitious teenagers. You translate a single goal into a phased plan across four horizons: days, weeks, months, years. Be concrete, specific, age-appropriate, energising, never preachy. Every item should be doable and unmistakably move the goal forward. Avoid generic productivity fluff. ALWAYS calibrate to the user profile provided — never propose actions that conflict with their age, schedule, or onboarding-confirmed reality. HARD CAP: the days array is today's work and must contain no more than 3 tasks.`;
 
     const user = `${userBlock}
 
