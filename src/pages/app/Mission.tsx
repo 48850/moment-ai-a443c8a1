@@ -680,12 +680,9 @@ const Mission = () => {
                               </button>
                             </div>
                           ) : (
-                            <button
-                              onClick={() => createTaskFromProof(ws.id, `First proof for ${ws.name}`)}
-                              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary"
-                            >
-                              <PlusCircle className="h-3 w-3" /> Create first proof
-                            </button>
+                            <p className="text-[11px] text-muted-foreground">
+                              No next proof defined for this lane yet — name one in Chat.
+                            </p>
                           )}
                           {a.feedback.total > 0 && (
                             <div className="text-[11px] text-muted-foreground">
