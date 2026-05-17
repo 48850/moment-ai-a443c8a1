@@ -226,6 +226,37 @@ function tools(intent: string) {
         additionalProperties: false,
       },
     },
+    week_regenerate: {
+      name: "answer",
+      description: "Regenerate the user's weekly liquid calendar based on their reform note. Return a complete 7-day plan as concrete blocks.",
+      parameters: {
+        type: "object",
+        properties: {
+          explanation: { type: "string", description: "One to two sentences explaining what changed and why, based on the user's note." },
+          blocks: {
+            type: "array",
+            minItems: 5,
+            description: "Full week plan. Include all kept blocks (especially locked ones) and any new/moved blocks. Times use 24h HH:MM. Days: 0=Mon..6=Sun.",
+            items: {
+              type: "object",
+              properties: {
+                day_index: { type: "number", minimum: 0, maximum: 6 },
+                start_time: { type: "string", description: "HH:MM, 24-hour, between 07:00 and 22:00" },
+                end_time: { type: "string", description: "HH:MM, 24-hour, after start_time, no later than 22:00" },
+                title: { type: "string", description: "Specific block name (e.g. 'Bio recall drill', not 'Study')." },
+                category: { type: "string", enum: ["school", "goal", "commitment", "hobby", "rest"] },
+                notes: { type: "string" },
+                is_locked: { type: "boolean" },
+              },
+              required: ["day_index", "start_time", "end_time", "title", "category"],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ["explanation", "blocks"],
+        additionalProperties: false,
+      },
+    },
     forge_guidebook_candidates: {
       name: "answer",
       description: "Generate exactly 3 distinct, specific, runnable Forge tool candidates.",
