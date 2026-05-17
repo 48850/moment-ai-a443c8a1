@@ -168,11 +168,12 @@ export function WeeklyGrid() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => {
-              dispatch({ type: "week/reform" });
-              toast.success("Week reformed", { description: "Locked blocks kept; the rest reshuffled." });
-            }}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium hover:border-primary/50 hover:bg-card/80"
+            onClick={() => setReformOpen((v) => !v)}
+            className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium ${
+              reformOpen
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-card hover:border-primary/50 hover:bg-card/80"
+            }`}
           >
             <RefreshCw className="h-3.5 w-3.5" /> Reform
           </button>
@@ -187,6 +188,53 @@ export function WeeklyGrid() {
           </button>
         </div>
       </div>
+
+      {/* AI Reform panel */}
+      <AnimatePresence initial={false}>
+        {reformOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden rounded-xl border border-primary/30 bg-primary/5"
+          >
+            <div className="space-y-3 p-4">
+              <div>
+                <div className="text-[10px] font-medium uppercase tracking-[0.22em] text-primary">Reform with AI</div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Tell Moment what to change. It rebuilds the week around your locked blocks.
+                </p>
+              </div>
+              <textarea
+                value={reformNote}
+                onChange={(e) => setReformNote(e.target.value)}
+                placeholder="e.g. Less evening study, add two morning runs, lighter Sundays, more biology recall on Tue/Thu."
+                rows={3}
+                className="w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none"
+                disabled={regenerating}
+              />
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  onClick={() => { setReformOpen(false); setReformNote(""); }}
+                  className="rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  disabled={regenerating}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={onAiReform}
+                  disabled={regenerating || !reformNote.trim()}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                >
+                  {regenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                  {regenerating ? "Regenerating…" : "Regenerate week"}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
 
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px]">
