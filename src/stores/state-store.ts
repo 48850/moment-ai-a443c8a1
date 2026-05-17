@@ -244,6 +244,18 @@ export const useStateStore = create<StateStore>((set, get) => ({
             t.id === action.payload.id ? { ...t, status: "done", completed_at: action.payload.completed_at } : t,
           ),
         };
+        // Fire global celebration (flame burst + compliment toast).
+        if (typeof window !== "undefined") {
+          try {
+            window.dispatchEvent(new CustomEvent("streak:burst"));
+            import("@/components/app/StreakFlame").then(({ COMPLIMENTS }) => {
+              import("sonner").then(({ toast }) => {
+                const msg = COMPLIMENTS[Math.floor(Math.random() * COMPLIMENTS.length)];
+                toast.success(msg, { duration: 2400, icon: "🔥" });
+              });
+            });
+          } catch { /* noop */ }
+        }
         break;
       case "task/delete":
         next = { ...s, tasks: s.tasks.filter((t) => t.id !== action.payload.id) };
