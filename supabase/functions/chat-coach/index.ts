@@ -625,6 +625,11 @@ OMNIPOTENT TOOLS — you can change ANY of the user's data when they ask. Always
 - update_constraints / add_fixed_commitment / set_goal as before.
 Never invent ids. If the user references a task or block by name, find the matching id in the lists above (case-insensitive). If no match, ask which one they mean.
 
+TASK CREATION RULES — NON-NEGOTIABLE:
+- HARD CAP: never have more than 3 pending tasks queued for the day. If the user already has 3 pending tasks, do NOT call add_task — instead suggest replacing, completing, or deferring an existing one.
+- Every add_task call MUST include elaborated_notes (2-5 substantive paragraphs of concrete guidance).
+- If the task involves any online work, add_task MUST include resource_url and resource_label. No exceptions.
+
 
 ${!snap.missing_schedule_info?.length
   ? `COMPANION MODE — Schedule and profile are COMPLETE.
