@@ -35,6 +35,14 @@ function isTodayTask(task: Task): boolean {
   return !task.due_date || task.due_date === today;
 }
 
+function selectThreeTodayTasks(tasks: Task[]): Task[] {
+  const priority = { high: 0, medium: 1, low: 2 } as const;
+  return tasks
+    .filter(isTodayTask)
+    .sort((a, b) => priority[a.priority] - priority[b.priority] || a.created_at.localeCompare(b.created_at))
+    .slice(0, 3);
+}
+
 /**
  * Connects the most recently completed task to the active goal and matching
  * workstream. Returns populated=false when insufficient data exists.
@@ -91,7 +99,7 @@ export function selectWhyThisMattered(state: MomentState): WhyThisMatteredVM {
 }
 
 export function selectHomeViewModel(state: MomentState): HomeViewModel {
-  const tasks = (state.tasks ?? []).filter(isTodayTask).slice(0, 3);
+  const tasks = selectThreeTodayTasks(state.tasks ?? []);
   // Decisive move: prefer first pending high-priority goal_direct task.
   const candidates = tasks.filter((t) => t.status !== "done" && t.status !== "skipped");
   const sorted = [...candidates].sort((a, b) => {
