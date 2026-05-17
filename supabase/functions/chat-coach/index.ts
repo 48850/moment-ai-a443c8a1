@@ -93,7 +93,7 @@ const TOOLS = [
           estimated_minutes: { type: "number" },
           priority: { type: "string", enum: ["high", "medium", "low"] },
           category: { type: "string", enum: ["goal_direct", "bottleneck_removal", "discovery", "maintenance"] },
-          resource_url: { type: "string", description: "REQUIRED if task involves online work (research, course, signup, watch/read). Real specific https URL — not a homepage. Use reputable sources or a Google search URL." },
+          resource_url: { type: "string", description: "REQUIRED if task involves online work (course, signup, watch/read). Real specific https URL to one consumable source — not a homepage, category page, or search results URL." },
           resource_label: { type: "string", description: "Short label for the URL. Required if resource_url is set." },
           elaborated_notes: {
             type: "array",
@@ -310,7 +310,7 @@ const SPECIALISATION_TOOLS = [
           },
           why_now: { type: "string", description: "Why is this the right first move given where the user is?" },
           difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
-          resource_url: { type: "string", description: "REQUIRED if the first task involves any internet work (research, course, signup, watch/read online). Real, specific https URL. Use reputable sources or a Google search URL." },
+          resource_url: { type: "string", description: "REQUIRED if the first task involves any internet work (course, signup, watch/read online). Real, specific https URL to one consumable source — not a homepage, category page, or search results URL." },
           resource_label: { type: "string", description: "Short label for the URL. Required if resource_url is set." },
           elaborated_notes: {
             type: "array",
@@ -815,7 +815,7 @@ Deno.serve(async (req) => {
       const followup = await callGateway(
         buildBody(
           patches.length
-            ? "You just called tools silently. Now write a 1–2 sentence reply to the user that acknowledges what just happened in your own words and moves the conversation forward. Do not narrate the tool call. Do not use generic filler."
+            ? "You just called tools silently. Now write a 1–2 sentence reply to the user that acknowledges the user-facing result in your own words and moves the conversation forward. Do not narrate the tool call. Do not say you cannot do it. Do not use generic filler."
             : "Write a 1–2 sentence reply to the user in your own words. Do not return empty content. Do not use generic filler.",
           true,
         ),
