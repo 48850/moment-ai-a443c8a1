@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Check, Clock, ExternalLink, NotebookPen, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Check, Clock, ExternalLink, NotebookPen, Plus, Sparkles, X } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { selectHomeViewModel } from "@/lib/selectors/home";
 import { JourneyConstellation } from "@/components/app/JourneyConstellation";
@@ -7,101 +7,27 @@ import { FeedbackChips } from "@/components/app/FeedbackChips";
 import { PatternBanner } from "@/components/app/PatternBanner";
 import { AIInsight } from "@/components/app/AIInsight";
 import { useAI } from "@/lib/ai/useAI";
-import type { ExecutionFeedbackItem } from "@/lib/types";
-
-const DONE_FEEDBACK = [
-  { key: "easy" as const, label: "Easy" },
-  { key: "hard" as const, label: "Tough" },
-  { key: "valuable" as const, label: "Moved my goal" },
-  { key: "not_relevant" as const, label: "Not sure it helped" },
-];
-
-function DmDoneFeedback({
-  taskId,
-  taskTitle,
-  onDone,
-}: {
-  taskId: string;
-  taskTitle: string;
-  onDone: () => void;
-}) {
-  const dispatch = useStateStore((s) => s.dispatch);
-
-  useEffect(() => {
-    const t = setTimeout(onDone, 8000);
-    return () => clearTimeout(t);
-  }, [onDone]);
-
-  const pick = (fb: ExecutionFeedbackItem["feedback"]) => {
-    dispatch({
-      type: "feedback/add",
-      payload: {
-        id: crypto.randomUUID(),
-        task_id: taskId,
-        task_title: taskTitle,
-        completed_at: new Date().toISOString(),
-        feedback: fb,
-        note: "",
-        created_at: new Date().toISOString(),
-        source: "task",
-        target_id: taskId,
-      },
-    });
-    onDone();
-  };
-
-  return (
-    <div className="mt-3 flex flex-wrap items-center gap-1.5">
-      <span className="text-[10px] text-muted-foreground mr-1">How was it?</span>
-      {DONE_FEEDBACK.map(({ key, label }) => (
-        <button
-          key={key}
-          onClick={() => pick(key)}
-          className="rounded-full border border-border bg-secondary px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
-        >
-          {label}
-        </button>
-      ))}
-      <button
-        onClick={onDone}
-        className="ml-auto text-[10px] text-muted-foreground hover:text-foreground"
-        aria-label="Skip feedback"
-      >
-        skip
-      </button>
-    </div>
-  );
-}
+import { DoneCheckIn } from "@/components/app/DoneCheckIn";
+import { COMPLIMENTS } from "@/components/app/StreakFlame";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { toast } from "sonner";
+import type { Task } from "@/lib/types";
 
 const Dashboard = () => {
   const state = useStateStore((s) => s.state);
   const dispatch = useStateStore((s) => s.dispatch);
-  const [justCompletedId, setJustCompletedId] = useState<string | null>(null);
-  const [notesOpenId, setNotesOpenId] = useState<string | null>(null);
+  const [checkInTask, setCheckInTask] = useState<Task | null>(null);
+  const [notesTaskId, setNotesTaskId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
-  const addNote = (taskId: string, content: string) => {
-    const text = content.trim();
-    if (!text) return;
-    const target = state?.tasks.find((x) => x.id === taskId);
-    if (!target) return;
-    dispatch({
-      type: "task/update",
-      payload: {
-        id: taskId,
-        changes: {
-          notes: [
-            ...(target.notes ?? []),
-            { id: crypto.randomUUID(), content: text, created_at: new Date().toISOString() },
-          ],
-        },
-      },
-    });
-  };
-  
   const rationale = useAI<{ why_now: string; next_proof?: string }>("next_move_rationale");
 
   const vm = state ? selectHomeViewModel(state) : null;
   const dm = vm?.decisiveMove;
+
+  const notesTask = useMemo(
+    () => (notesTaskId ? state?.tasks.find((t) => t.id === notesTaskId) ?? null : null),
+    [notesTaskId, state?.tasks],
+  );
 
   useEffect(() => {
     if (dm && state?.active_goal?.statement && !rationale.loading) {
@@ -117,12 +43,49 @@ const Dashboard = () => {
     if (!t) return;
     if (t.status === "done") {
       dispatch({ type: "task/update", payload: { id, changes: { status: "pending", completed_at: "" } } });
-      setJustCompletedId(null);
     } else {
-      dispatch({ type: "task/complete", payload: { id, completed_at: new Date().toISOString() } });
-      setJustCompletedId(id);
+      const completedAt = new Date().toISOString();
+      dispatch({ type: "task/complete", payload: { id, completed_at: completedAt } });
+      setCheckInTask({ ...t, status: "done", completed_at: completedAt });
+      window.dispatchEvent(new CustomEvent("streak:burst"));
+      const msg = COMPLIMENTS[Math.floor(Math.random() * COMPLIMENTS.length)];
+      toast.success(msg, { duration: 2400, icon: "🔥" });
     }
   };
+
+  const addNoteToTask = (taskId: string, content: string) => {
+    const text = content.trim();
+    if (!text) return;
+    const target = state.tasks.find((t) => t.id === taskId);
+    if (!target) return;
+    dispatch({
+      type: "task/update",
+      payload: {
+        id: taskId,
+        changes: {
+          notes: [
+            ...(target.notes ?? []),
+            { id: crypto.randomUUID(), content: text, created_at: new Date().toISOString() },
+          ],
+        },
+      },
+    });
+    setNoteDraft("");
+  };
+
+  const removeNoteFromTask = (taskId: string, noteId: string) => {
+    const target = state.tasks.find((t) => t.id === taskId);
+    if (!target) return;
+    dispatch({
+      type: "task/update",
+      payload: {
+        id: taskId,
+        changes: { notes: (target.notes ?? []).filter((n) => n.id !== noteId) },
+      },
+    });
+  };
+
+  const dmTask = dm ? state.tasks.find((t) => t.id === dm.id) : null;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -154,35 +117,39 @@ const Dashboard = () => {
           <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
             <Clock className="h-3 w-3" /> about {dm.estimatedMinutes} min
           </div>
-          {state.tasks.find((t) => t.id === dm.id)?.resource_url && (
+          {dmTask?.resource_url && (
             <a
-              href={state.tasks.find((t) => t.id === dm.id)?.resource_url}
+              href={dmTask.resource_url}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-2 inline-flex items-center gap-1 text-xs text-primary underline-offset-2 hover:underline"
             >
               <ExternalLink className="h-3 w-3" />
-              {state.tasks.find((t) => t.id === dm.id)?.resource_label || "Open source"}
+              {dmTask.resource_label || "Open source"}
             </a>
           )}
 
-          {justCompletedId === dm.id ? (
-            <DmDoneFeedback
-              taskId={dm.id}
-              taskTitle={dm.title}
-              onDone={() => setJustCompletedId(null)}
-            />
-          ) : (
-            <div className="mt-5 flex flex-wrap items-center gap-2">
-              <button
-                onClick={() => onComplete(dm.id)}
-                className="flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                Done ✓
-              </button>
-              <FeedbackChips source="home" targetId={dm.id} taskId={dm.id} taskTitle={dm.title} />
-            </div>
-          )}
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => onComplete(dm.id)}
+              className="flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Done ✓
+            </button>
+            <button
+              onClick={() => { setNotesTaskId(dm.id); setNoteDraft(""); }}
+              className="inline-flex items-center gap-1 rounded-md border border-border bg-background/40 px-3 py-2 text-xs text-muted-foreground hover:border-primary/40 hover:text-primary"
+            >
+              <NotebookPen className="h-3 w-3" />
+              Notes
+              {(dmTask?.notes?.length ?? 0) > 0 && (
+                <span className="ml-0.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-medium text-primary">
+                  {dmTask!.notes!.length}
+                </span>
+              )}
+            </button>
+            <FeedbackChips source="home" targetId={dm.id} taskId={dm.id} taskTitle={dm.title} />
+          </div>
         </section>
       )}
 
@@ -209,7 +176,6 @@ const Dashboard = () => {
         <ul className="space-y-3">
           {vm.tasks.map((t) => {
             const done = t.status === "done";
-            const showFeedback = justCompletedId === t.id;
             return (
               <li
                 key={t.id}
@@ -248,97 +214,38 @@ const Dashboard = () => {
                       </div>
                     )}
 
-                    {t.resource_url && !done && (
-                      <a
-                        href={t.resource_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] text-primary underline-offset-2 hover:underline"
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <button
+                        onClick={() => onComplete(t.id)}
+                        className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
                       >
-                        <ExternalLink className="h-3 w-3 shrink-0" />
-                        {t.resource_label || "Open source"}
-                      </a>
-                    )}
-
-                    {notesOpenId === t.id && !done && (
-                      <div className="space-y-2 rounded-md border border-border/60 bg-background/40 p-2">
-                        <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-                          <NotebookPen className="h-3 w-3" /> Notes
-                        </div>
-                        {(t.notes?.length ?? 0) > 0 ? (
-                          <div className="space-y-1.5 whitespace-pre-wrap text-[11px] leading-relaxed text-muted-foreground">
-                            {t.notes!.map((n) => (
-                              <p key={n.id}>{n.content}</p>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-[11px] italic text-muted-foreground">No notes yet.</p>
+                        {done ? "Mark incomplete" : "Done ✓"}
+                      </button>
+                      <button
+                        onClick={() => { setNotesTaskId(t.id); setNoteDraft(""); }}
+                        className="inline-flex items-center gap-1 rounded-md border border-border bg-background/40 px-2 py-1.5 text-[11px] text-muted-foreground hover:border-primary/40 hover:text-primary"
+                      >
+                        <NotebookPen className="h-3 w-3" />
+                        Notes
+                        {(t.notes?.length ?? 0) > 0 && (
+                          <span className="ml-0.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-medium text-primary">
+                            {t.notes!.length}
+                          </span>
                         )}
-                        <div className="flex gap-2">
-                          <input
-                            value={noteDraft}
-                            onChange={(e) => setNoteDraft(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && noteDraft.trim()) {
-                                addNote(t.id, noteDraft);
-                                setNoteDraft("");
-                              }
-                            }}
-                            placeholder="Add a note…"
-                            className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] outline-none focus:border-primary"
-                          />
-                          <button
-                            onClick={() => { if (noteDraft.trim()) { addNote(t.id, noteDraft); setNoteDraft(""); } }}
-                            className="rounded-md bg-primary px-2 py-1 text-[10px] font-medium text-primary-foreground hover:bg-primary/90"
-                          >
-                            Add
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {showFeedback ? (
-                      <DmDoneFeedback
-                        taskId={t.id}
-                        taskTitle={t.title}
-                        onDone={() => setJustCompletedId(null)}
-                      />
-                    ) : (
-                      <div className="flex flex-wrap items-center gap-2 pt-1">
-                        <button
-                          onClick={() => onComplete(t.id)}
-                          className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                      </button>
+                      {t.resource_url && (
+                        <a
+                          href={t.resource_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 rounded-md border border-border bg-background/40 px-2 py-1.5 text-[11px] text-primary hover:border-primary/40"
                         >
-                          {done ? "Mark incomplete" : "Done ✓"}
-                        </button>
-                        {!done && (
-                          <button
-                            onClick={() => { setNotesOpenId(notesOpenId === t.id ? null : t.id); setNoteDraft(""); }}
-                            className="inline-flex items-center gap-1 rounded-md border border-border bg-background/40 px-2 py-1.5 text-[11px] text-muted-foreground hover:border-primary/40 hover:text-primary"
-                          >
-                            <NotebookPen className="h-3 w-3" />
-                            Notes
-                            {(t.notes?.length ?? 0) > 0 && (
-                              <span className="ml-0.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-medium text-primary">
-                                {t.notes!.length}
-                              </span>
-                            )}
-                          </button>
-                        )}
-                        {t.resource_url && !done && (
-                          <a
-                            href={t.resource_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 rounded-md border border-border bg-background/40 px-2 py-1.5 text-[11px] text-primary hover:border-primary/40"
-                          >
-                            <ExternalLink className="h-3 w-3" />
-                            {t.resource_label || "Open source"}
-                          </a>
-                        )}
-                        <FeedbackChips source="task" targetId={t.id} taskId={t.id} taskTitle={t.title} compact />
-                      </div>
-                    )}
+                          <ExternalLink className="h-3 w-3" />
+                          {t.resource_label || "Open source"}
+                        </a>
+                      )}
+                      <FeedbackChips source="task" targetId={t.id} taskId={t.id} taskTitle={t.title} compact />
+                    </div>
                   </div>
                 </div>
               </li>
@@ -346,6 +253,81 @@ const Dashboard = () => {
           })}
         </ul>
       </section>
+
+      <DoneCheckIn task={checkInTask} onClose={() => setCheckInTask(null)} />
+
+      <Sheet
+        open={!!notesTaskId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setNotesTaskId(null);
+            setNoteDraft("");
+          }
+        }}
+      >
+        <SheetContent side="right" className="flex w-full flex-col gap-4 sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle className="text-base">Notes</SheetTitle>
+            <SheetDescription className="line-clamp-2 text-xs">
+              {notesTask?.title ?? "Task notes"}
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="flex-1 space-y-2 overflow-y-auto pr-1">
+            {(notesTask?.notes ?? []).length === 0 ? (
+              <p className="rounded-md border border-dashed border-border bg-background/40 p-4 text-center text-xs text-muted-foreground">
+                No notes yet. Capture what you learned, what got in the way, or what to try next.
+              </p>
+            ) : (
+              [...(notesTask?.notes ?? [])]
+                .sort((a, b) => b.created_at.localeCompare(a.created_at))
+                .map((n) => (
+                  <div
+                    key={n.id}
+                    className="group relative rounded-md border border-border bg-card p-3 text-sm"
+                  >
+                    <p className="whitespace-pre-wrap pr-6 leading-relaxed">{n.content}</p>
+                    <div className="mt-1 text-[10px] text-muted-foreground">
+                      {new Date(n.created_at).toLocaleString()}
+                    </div>
+                    <button
+                      onClick={() => notesTask && removeNoteFromTask(notesTask.id, n.id)}
+                      className="absolute right-1.5 top-1.5 rounded-md p-1 text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:bg-secondary hover:text-destructive"
+                      aria-label="Delete note"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))
+            )}
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (notesTask) addNoteToTask(notesTask.id, noteDraft);
+            }}
+            className="space-y-2 border-t border-border pt-3"
+          >
+            <textarea
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              placeholder="Write a note for this task…"
+              rows={3}
+              className="w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+            />
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={!noteDraft.trim()}
+                className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+              >
+                <Plus className="h-3 w-3" /> Add note
+              </button>
+            </div>
+          </form>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
