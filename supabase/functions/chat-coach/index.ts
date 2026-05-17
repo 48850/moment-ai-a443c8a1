@@ -312,6 +312,13 @@ const SPECIALISATION_TOOLS = [
           difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
           resource_url: { type: "string", description: "REQUIRED if the first task involves any internet work (research, course, signup, watch/read online). Real, specific https URL. Use reputable sources or a Google search URL." },
           resource_label: { type: "string", description: "Short label for the URL. Required if resource_url is set." },
+          elaborated_notes: {
+            type: "array",
+            minItems: 2,
+            maxItems: 5,
+            description: "REQUIRED. 2-5 substantive note paragraphs (~2-4 sentences each) elaborating the task: how to approach it, sub-steps, what to look for, pitfalls, and — if resource_url is set — what to extract from that resource. Concrete guidance, not motivation.",
+            items: { type: "string" },
+          },
         },
         required: ["title", "category", "why_now"],
         additionalProperties: false,
