@@ -621,11 +621,11 @@ const Chat = () => {
               : "Message Moment…"
           }
           className="flex-1 rounded-full border border-border bg-card px-4 py-2.5 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-          disabled={isTyping || specialisationDone}
+          disabled={isTyping || (isSpecialisation && specialisationDone)}
         />
         <button
           type="submit"
-          disabled={isTyping || !input.trim() || specialisationDone}
+          disabled={isTyping || !input.trim() || (isSpecialisation && specialisationDone)}
           className="inline-flex items-center justify-center rounded-full bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
           aria-label="Send"
         >
