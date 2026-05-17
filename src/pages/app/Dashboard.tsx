@@ -240,15 +240,39 @@ const Dashboard = () => {
                       </a>
                     )}
 
-                    {(t.notes?.length ?? 0) > 0 && !done && (
-                      <div className="rounded-md border border-border/60 bg-background/40 p-2">
-                        <div className="mb-1 flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                    {notesOpenId === t.id && !done && (
+                      <div className="space-y-2 rounded-md border border-border/60 bg-background/40 p-2">
+                        <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground">
                           <NotebookPen className="h-3 w-3" /> Notes
                         </div>
-                        <div className="space-y-1.5 whitespace-pre-wrap text-[11px] leading-relaxed text-muted-foreground">
-                          {t.notes!.map((n) => (
-                            <p key={n.id}>{n.content}</p>
-                          ))}
+                        {(t.notes?.length ?? 0) > 0 ? (
+                          <div className="space-y-1.5 whitespace-pre-wrap text-[11px] leading-relaxed text-muted-foreground">
+                            {t.notes!.map((n) => (
+                              <p key={n.id}>{n.content}</p>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[11px] italic text-muted-foreground">No notes yet.</p>
+                        )}
+                        <div className="flex gap-2">
+                          <input
+                            value={noteDraft}
+                            onChange={(e) => setNoteDraft(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && noteDraft.trim()) {
+                                addNote(t.id, noteDraft);
+                                setNoteDraft("");
+                              }
+                            }}
+                            placeholder="Add a note…"
+                            className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] outline-none focus:border-primary"
+                          />
+                          <button
+                            onClick={() => { if (noteDraft.trim()) { addNote(t.id, noteDraft); setNoteDraft(""); } }}
+                            className="rounded-md bg-primary px-2 py-1 text-[10px] font-medium text-primary-foreground hover:bg-primary/90"
+                          >
+                            Add
+                          </button>
                         </div>
                       </div>
                     )}
@@ -267,6 +291,31 @@ const Dashboard = () => {
                         >
                           {done ? "Mark incomplete" : "Done ✓"}
                         </button>
+                        {!done && (
+                          <button
+                            onClick={() => { setNotesOpenId(notesOpenId === t.id ? null : t.id); setNoteDraft(""); }}
+                            className="inline-flex items-center gap-1 rounded-md border border-border bg-background/40 px-2 py-1.5 text-[11px] text-muted-foreground hover:border-primary/40 hover:text-primary"
+                          >
+                            <NotebookPen className="h-3 w-3" />
+                            Notes
+                            {(t.notes?.length ?? 0) > 0 && (
+                              <span className="ml-0.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-medium text-primary">
+                                {t.notes!.length}
+                              </span>
+                            )}
+                          </button>
+                        )}
+                        {t.resource_url && !done && (
+                          <a
+                            href={t.resource_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 rounded-md border border-border bg-background/40 px-2 py-1.5 text-[11px] text-primary hover:border-primary/40"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            {t.resource_label || "Open source"}
+                          </a>
+                        )}
                         <FeedbackChips source="task" targetId={t.id} taskId={t.id} taskTitle={t.title} compact />
                       </div>
                     )}
