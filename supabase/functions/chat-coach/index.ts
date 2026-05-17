@@ -93,6 +93,8 @@ const TOOLS = [
           estimated_minutes: { type: "number" },
           priority: { type: "string", enum: ["high", "medium", "low"] },
           category: { type: "string", enum: ["goal_direct", "bottleneck_removal", "discovery", "maintenance"] },
+          resource_url: { type: "string", description: "REQUIRED if task involves online work (research, course, signup, watch/read). Real specific https URL — not a homepage. Use reputable sources or a Google search URL." },
+          resource_label: { type: "string", description: "Short label for the URL. Required if resource_url is set." },
           schedule_for: {
             type: "object",
             description: "Optional: also place this task on the weekly calendar.",
