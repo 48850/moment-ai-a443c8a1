@@ -612,6 +612,7 @@ Refine it into a single concrete, observable action tied to their goal and curre
 - proof_of_completion: one observable artefact, score, list, draft, or signal that proves it's done.
 - estimated_minutes: adjust only if the user's number is clearly off.
 - priority + category: infer from the action.
+- resource_url + resource_label: if the task involves any internet work (research, course, signup, watch/read online), include a real specific https URL and short label. Use reputable sources or a Google search URL with the exact query. Omit only for purely offline tasks.
 
 Do not invent a different task. Do not lecture. Output only the JSON via the tool.`;
 
