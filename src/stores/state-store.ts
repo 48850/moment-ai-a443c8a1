@@ -243,7 +243,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
           });
           taskToAdd = { ...taskToAdd, ...filtered };
         }
-        next = { ...s, tasks: [...s.tasks, taskToAdd] };
+        next = { ...s, tasks: capTasksForToday([...s.tasks, taskToAdd]) };
         break;
       }
 
@@ -258,7 +258,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
         );
         const userTasks = action.payload.filter((t) => t.created_by !== "ai");
         const allNew = [...userTasks, ...filtered];
-        next = { ...s, tasks: [...s.tasks, ...allNew] };
+        next = { ...s, tasks: capTasksForToday([...s.tasks, ...allNew]) };
         break;
       }
       case "task/update":
@@ -1034,7 +1034,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
         next = {
           ...s,
           active_goal: merged,
-          tasks: [...s.tasks, first_task],
+          tasks: capTasksForToday([...s.tasks, first_task]),
           chat_state: {
             ...(s.chat_state ?? { post_onboarding_specialisation_required: false, specialisation_phase: "explain_goal" as const }),
             post_onboarding_specialisation_required: false,
