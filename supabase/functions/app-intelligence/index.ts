@@ -195,7 +195,23 @@ function tools(intent: string) {
         additionalProperties: false,
       },
     },
-    plan_reform: {
+    refine_user_task: {
+      name: "answer",
+      description: "Take a user's raw task line and refine it into a concrete, stage-appropriate proof tied to their goal.",
+      parameters: {
+        type: "object",
+        properties: {
+          refined_title: { type: "string", description: "Clear, concrete action. Verb-led. Specific. Max ~10 words." },
+          why_now: { type: "string", description: "One sentence linking this task to the user's goal/current stage." },
+          proof_of_completion: { type: "string", description: "One observable artefact or signal proving it's done." },
+          estimated_minutes: { type: "number" },
+          priority: { type: "string", enum: ["high", "medium", "low"] },
+          category: { type: "string", enum: ["goal_direct", "bottleneck_removal", "discovery", "maintenance"] },
+        },
+        required: ["refined_title", "why_now", "proof_of_completion", "estimated_minutes", "priority", "category"],
+        additionalProperties: false,
+      },
+    },
       name: "answer",
       description: "Explain why the plan needs to change and what adjustments to make.",
       parameters: {
