@@ -1,7 +1,7 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
-import { Star, CheckCircle2, Circle, Lock, Zap, AlertTriangle, X, Sparkles, Target } from "lucide-react";
+import { Star, CheckCircle2, Circle, Lock, Zap, AlertTriangle, X, Sparkles, Target, Calendar } from "lucide-react";
 import type { MomentState } from "@/lib/types";
 import { computeConstellationNodes, type ConstellationNode, type ConstellationNodeType } from "@/lib/selectors/constellation";
 
