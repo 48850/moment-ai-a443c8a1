@@ -172,6 +172,8 @@ const Tasks = () => {
               estimated_minutes: result.estimated_minutes ?? mins,
               priority: result.priority ?? "medium",
               category: result.category ?? inferCategory(rawTitle),
+              resource_url: result.resource_url ?? "",
+              resource_label: result.resource_label ?? "",
             },
           },
         });
