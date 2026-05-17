@@ -71,6 +71,14 @@ const Tasks = () => {
   const refine = useAI<RefinedTask>("refine_user_task");
 
   const tasks = state?.tasks ?? [];
+  const todaysTasks = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return tasks.filter((t) => {
+      if (t.status === "done") return t.completed_at?.slice(0, 10) === today;
+      if (t.status === "skipped") return false;
+      return !t.due_date || t.due_date === today;
+    });
+  }, [tasks]);
   const goalText = state?.active_goal?.statement ?? "";
   const currentStage = state?.active_goal?.current_stage ?? "";
   const educationSystem = state?.profile?.education_system ?? "";
@@ -80,14 +88,14 @@ const Tasks = () => {
   const sections = useMemo(() => {
     const pending: Task[] = [];
     const completed: Task[] = [];
-    for (const t of tasks) {
+    for (const t of todaysTasks) {
       if (t.status === "done") completed.push(t);
       else if (t.status === "skipped") continue;
       else pending.push(t);
     }
     completed.sort((a, b) => (b.completed_at || "").localeCompare(a.completed_at || ""));
     return { pending, completed };
-  }, [tasks]);
+  }, [todaysTasks]);
 
   if (!state)
     return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
@@ -385,7 +393,7 @@ const Tasks = () => {
             education_system: educationSystem,
             country,
             school_year: schoolYear,
-            existing_tasks: tasks.map((t) => ({ title: t.title, status: t.status })),
+            existing_tasks: todaysTasks.map((t) => ({ title: t.title, status: t.status })),
           })
         }
         cta={suggest.result ? "Refresh" : "Suggest"}
@@ -529,7 +537,7 @@ const Tasks = () => {
                       education_system: educationSystem,
                       country,
                       school_year: schoolYear,
-                      existing_tasks: tasks.map((t) => ({ title: t.title, status: t.status })),
+                      existing_tasks: todaysTasks.map((t) => ({ title: t.title, status: t.status })),
                     })
                   }
                   className="rounded-md border border-primary/40 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10"
