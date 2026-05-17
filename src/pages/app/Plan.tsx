@@ -450,7 +450,7 @@ const Plan = () => {
       const dayBlocks: ScheduleBlock[] = [];
       let addedCount = 0;
 
-      (plan.days ?? []).slice(0, 5).forEach((d, i) => {
+      (plan.days ?? []).slice(0, 3).forEach((d, i) => {
         const title = (d.title || "").trim();
         if (!title) return;
 
