@@ -357,6 +357,8 @@ interface ChatSnapshot {
   country?: string;
   education_system?: string;
   recent_chat?: Array<{ role: string; content: string }>;
+  pending_tasks?: Array<{ id: string; title: string; minutes: number; priority: string }>;
+  week_blocks?: Array<{ id: string; day_index: number; start_time: string; end_time: string; title: string; category: string; is_locked: boolean }>;
 }
 
 function fmt(v: unknown): string {
