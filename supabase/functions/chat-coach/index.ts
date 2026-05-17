@@ -56,7 +56,7 @@ const TOOLS = [
             enum: ["essential", "important", "flexible"],
           },
         },
-        required: ["title"],
+        required: ["title", "why_now", "proof_of_completion", "estimated_minutes", "priority", "category", "elaborated_notes"],
         additionalProperties: false,
       },
     },
@@ -320,7 +320,7 @@ const SPECIALISATION_TOOLS = [
             items: { type: "string" },
           },
         },
-        required: ["title", "category", "why_now"],
+        required: ["title", "estimated_minutes", "category", "why_now", "difficulty", "elaborated_notes"],
         additionalProperties: false,
       },
     },
@@ -815,7 +815,7 @@ Deno.serve(async (req) => {
       const followup = await callGateway(
         buildBody(
           patches.length
-            ? "You just called tools silently. Now write a 1–2 sentence reply to the user that acknowledges the user-facing result in your own words and moves the conversation forward. Do not narrate the tool call. Do not say you cannot do it. Do not use generic filler."
+            ? `You just called tools silently. Tool results this turn: ${JSON.stringify(patches).slice(0, 2000)}. Now write a 1–2 sentence reply that acknowledges the user-facing result in your own words and moves the conversation forward. Do not narrate the tool call. Do not say you cannot do it. Do not use generic filler.`
             : "Write a 1–2 sentence reply to the user in your own words. Do not return empty content. Do not use generic filler.",
           true,
         ),
