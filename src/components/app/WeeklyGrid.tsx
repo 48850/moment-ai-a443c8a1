@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Plus, Trash2, Lock, RefreshCw, Sparkles, X, GraduationCap, Target, CalendarClock, Music, Moon } from "lucide-react";
+import { Plus, Trash2, Lock, RefreshCw, Sparkles, X, GraduationCap, Target, CalendarClock, Music, Moon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useStateStore } from "@/stores/state-store";
 import { sortBlocks } from "@/lib/engine/week-plan";
+import { useAI } from "@/lib/ai/useAI";
 import type { WeekBlock, WeekCategory } from "@/lib/types";
 
 const HOUR_START = 7;
@@ -71,7 +72,46 @@ export function WeeklyGrid() {
   const [editing, setEditing] = useState<WeekBlock | null>(null);
   const [hoverDay, setHoverDay] = useState<number | null>(null);
   const [selectedDay, setSelectedDay] = useState<number>(todayIdx);
+  const [reformOpen, setReformOpen] = useState(false);
+  const [reformNote, setReformNote] = useState("");
+  const { run: runRegenerate, loading: regenerating } = useAI<{ explanation: string; blocks: Omit<WeekBlock, "id" | "notes" | "is_locked"> & { notes?: string; is_locked?: boolean }[] | any }>("week_regenerate");
   const hourPx = useHourPx();
+
+  const onAiReform = async () => {
+    if (!reformNote.trim()) return;
+    const res: any = await runRegenerate({
+      reform_note: reformNote.trim(),
+      current_blocks: blocks.map((b) => ({
+        id: b.id, day_index: b.day_index, start_time: b.start_time,
+        end_time: b.end_time, title: b.title, category: b.category, is_locked: b.is_locked,
+      })),
+    });
+    if (!res || !Array.isArray(res.blocks) || res.blocks.length === 0) {
+      toast.error("Couldn't regenerate", { description: "Try a more specific note (e.g. 'less evening study, add morning runs')." });
+      return;
+    }
+    const rebuilt: WeekBlock[] = res.blocks
+      .filter((b: any) => b && typeof b.day_index === "number" && b.start_time && b.end_time && b.title && b.category)
+      .map((b: any) => ({
+        id: uid(),
+        day_index: Math.max(0, Math.min(6, Number(b.day_index))),
+        start_time: String(b.start_time),
+        end_time: String(b.end_time),
+        title: String(b.title),
+        category: (["school","goal","commitment","hobby","rest"].includes(b.category) ? b.category : "goal") as WeekCategory,
+        notes: typeof b.notes === "string" ? b.notes : "",
+        is_locked: Boolean(b.is_locked),
+      }));
+    if (rebuilt.length === 0) {
+      toast.error("Regeneration returned no usable blocks");
+      return;
+    }
+    dispatch({ type: "week/set", payload: rebuilt });
+    toast.success("Week regenerated", { description: res.explanation || "Updated based on your note." });
+    setReformOpen(false);
+    setReformNote("");
+  };
+
 
   const blocksByDay = useMemo(() => {
     const out: WeekBlock[][] = [[], [], [], [], [], [], []];
@@ -128,11 +168,12 @@ export function WeeklyGrid() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => {
-              dispatch({ type: "week/reform" });
-              toast.success("Week reformed", { description: "Locked blocks kept; the rest reshuffled." });
-            }}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium hover:border-primary/50 hover:bg-card/80"
+            onClick={() => setReformOpen((v) => !v)}
+            className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium ${
+              reformOpen
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-card hover:border-primary/50 hover:bg-card/80"
+            }`}
           >
             <RefreshCw className="h-3.5 w-3.5" /> Reform
           </button>
@@ -147,6 +188,53 @@ export function WeeklyGrid() {
           </button>
         </div>
       </div>
+
+      {/* AI Reform panel */}
+      <AnimatePresence initial={false}>
+        {reformOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden rounded-xl border border-primary/30 bg-primary/5"
+          >
+            <div className="space-y-3 p-4">
+              <div>
+                <div className="text-[10px] font-medium uppercase tracking-[0.22em] text-primary">Reform with AI</div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Tell Moment what to change. It rebuilds the week around your locked blocks.
+                </p>
+              </div>
+              <textarea
+                value={reformNote}
+                onChange={(e) => setReformNote(e.target.value)}
+                placeholder="e.g. Less evening study, add two morning runs, lighter Sundays, more biology recall on Tue/Thu."
+                rows={3}
+                className="w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none"
+                disabled={regenerating}
+              />
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  onClick={() => { setReformOpen(false); setReformNote(""); }}
+                  className="rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  disabled={regenerating}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={onAiReform}
+                  disabled={regenerating || !reformNote.trim()}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                >
+                  {regenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                  {regenerating ? "Regenerating…" : "Regenerate week"}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
 
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px]">

@@ -16,7 +16,8 @@ export type AIIntent =
   | "reflect_summary"
   | "mission_insight"
   | "plan_reform"
-  | "refine_user_task";
+  | "refine_user_task"
+  | "week_regenerate";
 
 export function useAI<T = any>(intent: AIIntent) {
   const state = useStateStore((s) => s.state);
