@@ -93,7 +93,7 @@ const TOOLS = [
           estimated_minutes: { type: "number" },
           priority: { type: "string", enum: ["high", "medium", "low"] },
           category: { type: "string", enum: ["goal_direct", "bottleneck_removal", "discovery", "maintenance"] },
-          resource_url: { type: "string", description: "REQUIRED if task involves online work (research, course, signup, watch/read). Real specific https URL — not a homepage. Use reputable sources or a Google search URL." },
+          resource_url: { type: "string", description: "REQUIRED if task involves online work (course, signup, watch/read). Real specific https URL to one consumable source — not a homepage, category page, or search results URL." },
           resource_label: { type: "string", description: "Short label for the URL. Required if resource_url is set." },
           elaborated_notes: {
             type: "array",
@@ -310,7 +310,7 @@ const SPECIALISATION_TOOLS = [
           },
           why_now: { type: "string", description: "Why is this the right first move given where the user is?" },
           difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
-          resource_url: { type: "string", description: "REQUIRED if the first task involves any internet work (research, course, signup, watch/read online). Real, specific https URL. Use reputable sources or a Google search URL." },
+          resource_url: { type: "string", description: "REQUIRED if the first task involves any internet work (course, signup, watch/read online). Real, specific https URL to one consumable source — not a homepage, category page, or search results URL." },
           resource_label: { type: "string", description: "Short label for the URL. Required if resource_url is set." },
           elaborated_notes: {
             type: "array",
@@ -464,6 +464,7 @@ YOUR PROCESS — follow this strictly:
 1. Call patch_goal_model as soon as you can honestly assess current_stage, target_stage, reality_gap, or knowns/unknowns. Call it multiple times as you learn more.
 2. Once you have a clear picture of where ${name} actually is right now, call create_first_task with the single most stagewise-appropriate first move.
 3. Once you have called both patch_goal_model at least once AND create_first_task, call complete_specialisation.
+4. If the user directly asks you to add, update, complete, delete, or schedule something, use the ordinary task/week tools immediately. Specialisation mode does not remove your omnipotent app-control role.
 
 FIRST TASK RULES — NON-NEGOTIABLE:
 - ZERO-RESEARCH-BURDEN: YOU do the research, not ${name}. Never create a first task that says "research", "look up", "find resources", "explore options", or "search for". Instead, name the specific resource yourself (a specific YouTube video, book, chapter, paper, Wikipedia article, course lesson, or article) and put its real deep-link https URL in resource_url with a precise resource_label naming the source. The first task should be a single concrete consume-and-act step.
@@ -631,10 +632,10 @@ OMNIPOTENT TOOLS — you can change ANY of the user's data when they ask. Always
 Never invent ids. If the user references a task or block by name, find the matching id in the lists above (case-insensitive). If no match, ask which one they mean.
 
 TASK CREATION RULES — NON-NEGOTIABLE:
-- HARD CAP: never have more than 3 pending tasks queued for the day. If the user already has 3 pending tasks, do NOT call add_task — instead suggest replacing, completing, or deferring an existing one.
+- HARD CAP: never present more than 3 pending tasks as today's work. If the user asks to add a task when today already has 3, you may still call add_task, but frame it as queued/deferred unless it replaces a current item.
 - Every add_task call MUST include elaborated_notes (2-5 substantive paragraphs of concrete guidance — what to do, what to extract, what to produce).
 - ZERO-RESEARCH-BURDEN RULE: YOU do the research, never the user. NEVER create tasks like "research X", "look up Y", "find resources on Z", "explore options", "search for tutorials". Those are admin and are banned. Instead, name the specific resource yourself — a specific YouTube video, a specific book/chapter, a specific Wikipedia article, a specific paper, a specific course lesson, a specific article — and put its real deep-link https URL in resource_url with a precise resource_label naming the source (e.g. "Marcus Aurelius — Meditations, Book II (Project Gutenberg)", "3Blue1Brown — Essence of Calculus, Ch.1"). The user only consumes and acts; they never go hunting.
-- resource_url MUST deep-link to ONE specific consumable item. Never a homepage, never a search results page, never a category index. Use a Google search URL only as an absolute last resort, and even then never phrase the title as "research".
+- resource_url MUST deep-link to ONE specific consumable item. Never a homepage, never a search results page, never a category index, never a Google search URL.
 - If the task is purely offline (writing on paper, going outside, speaking to a person), omit resource_url. Otherwise it is required.
 
 
@@ -742,14 +743,14 @@ Deno.serve(async (req) => {
     const systemContent = baseSystem + noRepeatBlock +
       `\n\nHARD RULE: Never ask a question you have already asked, even rephrased. If the user gave a vague answer like "idk", do NOT repeat your question — instead offer 2–4 concrete options or pivot to a different angle.`;
 
-    const buildBody = (extraSystem?: string) => ({
+    const buildBody = (extraSystem?: string, textOnly = false) => ({
       model: "google/gemini-2.5-flash",
       max_tokens: 2048,
       messages: [
         { role: "system", content: extraSystem ? systemContent + "\n\n" + extraSystem : systemContent },
         ...messages.slice(-20),
       ],
-      tools: isSpecialisation ? SPECIALISATION_TOOLS : TOOLS,
+      ...(textOnly ? {} : { tools: isSpecialisation ? [...SPECIALISATION_TOOLS, ...TOOLS] : TOOLS }),
     });
 
     let resp = await callGateway(buildBody(), LOVABLE_API_KEY);
@@ -814,8 +815,9 @@ Deno.serve(async (req) => {
       const followup = await callGateway(
         buildBody(
           patches.length
-            ? "You just called tools silently. Now write a 1–2 sentence reply to the user that acknowledges what just happened in your own words and moves the conversation forward. Do not narrate the tool call. Do not use generic filler."
+            ? `You just called tools silently. Tool results this turn: ${JSON.stringify(patches).slice(0, 2000)}. Now write a 1–2 sentence reply that acknowledges the user-facing result in your own words and moves the conversation forward. Do not narrate the tool call. Do not say you cannot do it. Do not use generic filler.`
             : "Write a 1–2 sentence reply to the user in your own words. Do not return empty content. Do not use generic filler.",
+          true,
         ),
         LOVABLE_API_KEY,
       );

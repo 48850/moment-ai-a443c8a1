@@ -29,6 +29,38 @@ interface StateStore {
 
 const now = () => new Date().toISOString();
 const tz = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+const dateKey = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const todayKey = () => dateKey();
+
+function capTasksForToday(tasks: MomentState["tasks"]): MomentState["tasks"] {
+  const today = todayKey();
+  const activeToday = tasks.filter((t) =>
+    t.status !== "done" &&
+    t.status !== "skipped" &&
+    (!t.due_date || t.due_date === today)
+  );
+  if (activeToday.length <= 3) return tasks;
+
+  const keep = new Set(
+    [...activeToday]
+      .sort((a, b) => {
+        const pri = { high: 0, medium: 1, low: 2 } as const;
+        const p = pri[a.priority] - pri[b.priority];
+        return p || a.created_at.localeCompare(b.created_at);
+      })
+      .slice(0, 3)
+      .map((t) => t.id),
+  );
+
+  let deferIndex = 1;
+  return tasks.map((t) => {
+    if (!activeToday.some((candidate) => candidate.id === t.id) || keep.has(t.id)) return t;
+    const due = new Date();
+    due.setDate(due.getDate() + deferIndex++);
+    return { ...t, due_date: dateKey(due) };
+  });
+}
 
 function persist(state: MomentState) {
   storage.saveState(state.user_id, state);
@@ -93,6 +125,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
 
       const hydrated: MomentState = {
         ...saved,
+        tasks: capTasksForToday(saved.tasks ?? []),
         profile: profileBackfill,
         active_goal: goalBackfill,
         execution_feedback: saved.execution_feedback ?? [],
@@ -213,7 +246,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
           });
           taskToAdd = { ...taskToAdd, ...filtered };
         }
-        next = { ...s, tasks: [...s.tasks, taskToAdd] };
+        next = { ...s, tasks: capTasksForToday([...s.tasks, taskToAdd]) };
         break;
       }
 
@@ -228,7 +261,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
         );
         const userTasks = action.payload.filter((t) => t.created_by !== "ai");
         const allNew = [...userTasks, ...filtered];
-        next = { ...s, tasks: [...s.tasks, ...allNew] };
+        next = { ...s, tasks: capTasksForToday([...s.tasks, ...allNew]) };
         break;
       }
       case "task/update":
@@ -1004,7 +1037,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
         next = {
           ...s,
           active_goal: merged,
-          tasks: [...s.tasks, first_task],
+          tasks: capTasksForToday([...s.tasks, first_task]),
           chat_state: {
             ...(s.chat_state ?? { post_onboarding_specialisation_required: false, specialisation_phase: "explain_goal" as const }),
             post_onboarding_specialisation_required: false,

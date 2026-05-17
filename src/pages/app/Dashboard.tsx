@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, Clock, Sparkles } from "lucide-react";
+import { Check, Clock, ExternalLink, NotebookPen, Sparkles } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { selectHomeViewModel } from "@/lib/selectors/home";
 import { JourneyConstellation } from "@/components/app/JourneyConstellation";
@@ -133,6 +133,17 @@ const Dashboard = () => {
           <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
             <Clock className="h-3 w-3" /> about {dm.estimatedMinutes} min
           </div>
+          {state.tasks.find((t) => t.id === dm.id)?.resource_url && (
+            <a
+              href={state.tasks.find((t) => t.id === dm.id)?.resource_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-flex items-center gap-1 text-xs text-primary underline-offset-2 hover:underline"
+            >
+              <ExternalLink className="h-3 w-3" />
+              {state.tasks.find((t) => t.id === dm.id)?.resource_label || "Open source"}
+            </a>
+          )}
 
           {justCompletedId === dm.id ? (
             <DmDoneFeedback
@@ -197,6 +208,23 @@ const Dashboard = () => {
                   </span>
                   <FeedbackChips source="task" targetId={t.id} taskId={t.id} taskTitle={t.title} compact />
                 </div>
+                {t.resource_url && !done && (
+                  <a
+                    href={t.resource_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1 flex items-center gap-1 pl-8 text-[11px] text-primary underline-offset-2 hover:underline"
+                  >
+                    <ExternalLink className="h-3 w-3 shrink-0" />
+                    {t.resource_label || "Open source"}
+                  </a>
+                )}
+                {(t.notes?.length ?? 0) > 0 && !done && (
+                  <div className="mt-1 flex items-start gap-1 pl-8 text-[11px] text-muted-foreground">
+                    <NotebookPen className="mt-0.5 h-3 w-3 shrink-0" />
+                    <span className="line-clamp-2">{t.notes?.[0]?.content}</span>
+                  </div>
+                )}
               </li>
             );
           })}

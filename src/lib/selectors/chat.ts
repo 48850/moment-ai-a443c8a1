@@ -73,6 +73,8 @@ function isAnswered(value: unknown): boolean {
 
 export function selectChatSnapshot(state: MomentState): ChatSnapshot {
   const c = state.constraints;
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const known: Record<string, string | number | boolean> = {};
   const missing: string[] = [];
 
@@ -96,7 +98,10 @@ export function selectChatSnapshot(state: MomentState): ChatSnapshot {
     .slice(0, 5)
     .map((t) => ({ title: t.title, at: t.completed_at }));
 
-  const pending = (state.tasks ?? []).filter((t) => t.status !== "done" && t.status !== "skipped").length;
+  const pendingTodayTasks = (state.tasks ?? []).filter(
+    (t) => t.status !== "done" && t.status !== "skipped" && (!t.due_date || t.due_date === today),
+  );
+  const pending = pendingTodayTasks.length;
 
   const fb = (state.execution_feedback ?? [])
     .slice(-10)
@@ -105,7 +110,7 @@ export function selectChatSnapshot(state: MomentState): ChatSnapshot {
   const lastRescue = (state.rescue_signals ?? []).slice(-1)[0];
   const latestRefl = [...(state.reflections ?? [])].sort((a, b) => b.date.localeCompare(a.date))[0];
 
-  const todays = (state.schedule_state?.day_plan ?? []).slice(0, 8).map((b) => ({
+  const todays = (state.schedule_state?.day_plan ?? []).slice(0, 3).map((b) => ({
     time: `${b.start_time}–${b.end_time}`,
     title: b.title,
     status: b.status ?? "upcoming",
@@ -193,8 +198,7 @@ export function selectChatSnapshot(state: MomentState): ChatSnapshot {
       .map((m) => ({ role: m.role, content: m.content })),
     country: state.profile.country ?? "",
     education_system: state.profile.education_system ?? "unknown",
-    pending_tasks: (state.tasks ?? [])
-      .filter((t) => t.status !== "done" && t.status !== "skipped")
+    pending_tasks: pendingTodayTasks
       .slice(0, 30)
       .map((t) => ({
         id: t.id,
