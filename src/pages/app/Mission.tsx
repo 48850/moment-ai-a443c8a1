@@ -562,9 +562,32 @@ const Mission = () => {
         cta={insight.result ? "Re-read" : "Read mission"}
       >
         {insight.result && (
-          <div className="space-y-1.5">
-            <p className="text-sm">{insight.result.observation}</p>
-            {insight.result.suggestion && <p className="text-xs text-muted-foreground">→ {insight.result.suggestion}</p>}
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <p className="text-sm">{insight.result.observation}</p>
+              {insight.result.suggestion && <p className="text-xs text-muted-foreground">→ {insight.result.suggestion}</p>}
+            </div>
+            {insight.result.notices && insight.result.notices.length > 0 && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {insight.result.notices.map((n, i) => {
+                  const dot = n.tone === "good" ? "bg-emerald-400"
+                    : n.tone === "warn" ? "bg-amber-400"
+                    : n.tone === "bad" ? "bg-red-400"
+                    : "bg-muted-foreground/50";
+                  return (
+                    <div key={i} className="rounded-lg border border-border bg-background/40 p-3">
+                      <div className="flex items-center gap-2">
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
+                        <span className="text-[11px] uppercase tracking-wide text-muted-foreground">{n.kind.replace(/_/g, " ")}</span>
+                      </div>
+                      <p className="mt-1.5 text-sm font-medium text-foreground">{n.title}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{n.detail}</p>
+                      {n.next_step && <p className="mt-1.5 text-xs text-foreground/80">→ {n.next_step}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </AIInsight>
