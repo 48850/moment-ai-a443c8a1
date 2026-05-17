@@ -77,6 +77,26 @@ const Dashboard = () => {
   const state = useStateStore((s) => s.state);
   const dispatch = useStateStore((s) => s.dispatch);
   const [justCompletedId, setJustCompletedId] = useState<string | null>(null);
+  const [notesOpenId, setNotesOpenId] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
+  const addNote = (taskId: string, content: string) => {
+    const text = content.trim();
+    if (!text) return;
+    const target = state?.tasks.find((x) => x.id === taskId);
+    if (!target) return;
+    dispatch({
+      type: "task/update",
+      payload: {
+        id: taskId,
+        changes: {
+          notes: [
+            ...(target.notes ?? []),
+            { id: crypto.randomUUID(), content: text, created_at: new Date().toISOString() },
+          ],
+        },
+      },
+    });
+  };
   
   const rationale = useAI<{ why_now: string; next_proof?: string }>("next_move_rationale");
 
