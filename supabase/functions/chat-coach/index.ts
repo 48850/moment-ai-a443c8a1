@@ -589,6 +589,25 @@ LATEST REFLECTION: ${refl}
 ACTIVE FORGE MODULES:
 ${modules}
 
+OPEN TASKS (id · title · minutes · priority) — use these ids for update_task/complete_task/delete_task:
+${(snap.pending_tasks ?? []).length
+  ? snap.pending_tasks!.map((t) => `- ${t.id} · ${t.title} · ${t.minutes}m · ${t.priority}`).join("\n")
+  : "- (none)"}
+
+WEEK CALENDAR BLOCKS (id · day · time · title · category) — use these ids for update_week_block/delete_week_block. Days: 0=Mon..6=Sun:
+${(snap.week_blocks ?? []).length
+  ? snap.week_blocks!.slice(0, 60).map((b) => `- ${b.id} · d${b.day_index} ${b.start_time}-${b.end_time} · ${b.title} · ${b.category}${b.is_locked ? " · locked" : ""}`).join("\n")
+  : "- (empty week)"}
+
+OMNIPOTENT TOOLS — you can change ANY of the user's data when they ask. Always call tools silently then reply briefly:
+- add_task / update_task / complete_task / delete_task (use ids from OPEN TASKS).
+- add_week_block / update_week_block / delete_week_block (use ids from WEEK CALENDAR BLOCKS). For NEW blocks, pick reasonable day_index and HH:MM 24h times between 07:00 and 22:00.
+- regenerate_week when the user wants the whole week rebuilt; pass their note.
+- update_profile / set_tone for personal preferences.
+- update_constraints / add_fixed_commitment / set_goal as before.
+Never invent ids. If the user references a task or block by name, find the matching id in the lists above (case-insensitive). If no match, ask which one they mean.
+
+
 ${!snap.missing_schedule_info?.length
   ? `COMPANION MODE — Schedule and profile are COMPLETE.
 DO NOT ask about schedule or onboarding. The user's setup is done.
