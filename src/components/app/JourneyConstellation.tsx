@@ -28,6 +28,7 @@ const NODE_VISUAL: Record<ConstellationNodeType, {
   PROOF_STAR:      { color: "#34d399", glowColor: "52,211,153",  icon: CheckCircle2, size: "sm", pulseSpeed: 4.5 },
   GATE_STAR:       { color: "#6b7280", glowColor: "107,114,128", icon: Lock,         size: "sm", pulseSpeed: 6.0 },
   FRICTION_STAR:   { color: "#f59e0b", glowColor: "245,158,11",  icon: AlertTriangle, size: "sm", pulseSpeed: 2.0 },
+  SCHEDULE_STAR:   { color: "#60a5fa", glowColor: "96,165,250",  icon: Calendar,     size: "sm", pulseSpeed: 3.8 },
 };
 
 const SIZE_PX: Record<"lg" | "md" | "sm", number> = { lg: 22, md: 15, sm: 10 };
