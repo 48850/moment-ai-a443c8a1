@@ -964,23 +964,24 @@ function OutputWorkspace({
 
   const createTask = () => {
     const rawTitle = output.next_action ?? output.task_title ?? output.first_move ?? output.next_step;
-    const title = rawTitle ? String(rawTitle).trim() : `${fn.name} — next step`;
+    const title = (flattenToString(rawTitle).trim().split(/[.\n]/)[0] || "").slice(0, 120)
+      || `${fn.name} — next step`;
     const task: Task = {
       id: crypto.randomUUID(),
-      title: title || "Forge task",
-      description: `From ${guidebook.title} — ${fn.name}`,
+      title,
+      description: `From ${guidebook.title} — ${fn.name}\n\n${flattenToString(output).slice(0, 800)}`,
       status: "pending",
       priority: "medium",
       goal_id: state?.active_goal?.id ?? "",
       domain_id: "",
-      estimated_minutes: (output.estimated_minutes as number) ?? 20,
+      estimated_minutes: (typeof output.estimated_minutes === "number" ? output.estimated_minutes : 20),
       category: "goal_direct" as const,
       created_at: new Date().toISOString(),
       completed_at: "",
       due_date: "",
       created_by: "ai",
-      why_now: String(output.why_now ?? `Generated from ${guidebook.title} — ${fn.name}`),
-      proof_of_completion: String(output.proof_of_completion ?? output.proof ?? ""),
+      why_now: flattenToString(output.why_now).slice(0, 240) || `Generated from ${guidebook.title} — ${fn.name}`,
+      proof_of_completion: flattenToString(output.proof_of_completion ?? output.proof).slice(0, 240),
       forge_feature_id: guidebook.id,
       workstream_id: state?.pursuit_model?.workstreams?.[0]?.id,
     };
