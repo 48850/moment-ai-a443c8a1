@@ -398,8 +398,11 @@ const Mission = () => {
         <div className="relative space-y-6">
           {/* Identity */}
           <div>
-            <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-              <Flag className="h-3.5 w-3.5" /> mission brief
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+                <Flag className="h-3.5 w-3.5" /> mission brief
+              </div>
+              <StreakFlame tasks={allTasks} />
             </div>
             <h1 className="mt-3 text-3xl font-bold leading-tight tracking-tight md:text-4xl">
               {name ? `${name}'s path` : "Your path"}
