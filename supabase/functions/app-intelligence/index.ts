@@ -592,16 +592,17 @@ RULES:
 3. Do NOT suggest tasks the user already has (check existing_tasks list).
 4. Prefer foundational, exploratory, and pathway-clarity tasks for school-age users.
 5. For students, tasks should produce something tangible: a note, a list, a draft, a score, a question set.
-6. ZERO-RESEARCH-BURDEN RULE: You — the AI — do the research, not the user. NEVER produce tasks like "research X", "find resources on Y", "look up Z", "explore options for...", "search for tutorials on...". Those are admin tasks and are banned. Instead, you must name the specific resource yourself (a specific YouTube video, a specific book, a specific Wikipedia page, a specific paper, a specific course, a specific article) and put its real https URL in resource_url. The user's job is to CONSUME and ACT on what you found, not to go hunting for it.
-7. RESOURCE QUALITY: resource_url must deep-link to ONE specific consumable item — not a homepage, not a search results page, not a category index. Examples:
-   GOOD: a specific YouTube video URL, a specific Wikipedia article, a specific arXiv paper, a specific Khan Academy lesson, a specific MDN reference page, a specific government info page.
+6. ZERO-RESEARCH-BURDEN RULE (HARD): You — the AI — do the research, not the user. It is FORBIDDEN to output tasks phrased as "research X", "find resources on Y", "look up Z", "explore options for...", "search for tutorials on...", "find a course on...", "identify materials for...", "gather information about...". These are admin tasks and are banned outright. You must name the specific resource yourself and put its real https URL in resource_url. The user's job is to CONSUME and ACT on what you found, never to go hunting.
+7. HYPERLINK MAJORITY RULE: At least 2 of every 3 proposed tasks MUST carry a real, specific resource_url. A task with no hyperlink is allowed ONLY when the action is genuinely offline and self-contained (e.g. "Write a 1-page reflection on X", "Call the school admissions office about Y", "Sit a past paper you already printed"). If you can imagine a useful linked resource, you MUST attach it rather than omit it. Do not skip resource_url out of laziness.
+8. RESOURCE QUALITY: resource_url must deep-link to ONE specific consumable item — not a homepage, not a search results page, not a category index. Examples:
+   GOOD: a specific YouTube video URL, a specific Wikipedia article, a specific arXiv paper, a specific Khan Academy lesson, a specific MDN reference page, a specific government info page, a specific official syllabus PDF.
    BAD: youtube.com, wikipedia.org, "google.com/search?q=...", a course catalog, a homepage.
-    Never use Google search URLs. Prefer naming a known specific source you are confident exists.
-8. resource_label must name the specific resource (e.g. "3Blue1Brown — Essence of Calculus, Ch.1", "Marcus Aurelius, Meditations Book II (Penguin Classics, free Project Gutenberg ed.)", "Khan Academy: Intro to Limits"), not a vague label like "video" or "article".
-9. HARD CAP: Propose at most 3 tasks for the day. Never more. Pick the highest-leverage 3.
-10. Every task MUST include elaborated_notes — 2 to 5 paragraphs of substantive, specific guidance the user can read before starting. Include: what the resource covers, the exact sections/timestamps/chapters to focus on, what to extract, common pitfalls, and the specific output to produce. No motivation, no filler, no "do your own research".
+   Never use Google search URLs. Prefer naming a known specific source you are confident exists.
+9. resource_label must name the specific resource (e.g. "3Blue1Brown — Essence of Calculus, Ch.1", "Khan Academy: Intro to Limits"), not a vague label like "video" or "article".
+10. HARD CAP: Propose at most 3 tasks for the day. Never more. Pick the highest-leverage 3.
+11. Every task MUST include elaborated_notes — 2 to 5 paragraphs of substantive, specific guidance the user can read before starting. Include: what the resource covers, the exact sections/timestamps/chapters to focus on, what to extract, common pitfalls, and the specific output to produce. No motivation, no filler, no "do your own research".
 
-Propose AT MOST 3 tasks. Quality over quantity.`;
+Propose AT MOST 3 tasks. Quality over quantity. Remember: ≥2 of 3 must include a real specific resource_url.`;
     }
 
     case "reflect_summary":
@@ -622,12 +623,12 @@ Current stage: ${current_stage}
 The user just typed this task themselves: "${payload?.raw_title}" (${payload?.estimated_minutes ?? 30} min, priority "${payload?.priority ?? "medium"}").
 
 Refine it into a single concrete, observable action tied to their goal and current stage:
-- refined_title: keep the user's intent; tighten the wording; make it a verb-led action; no fluff.
+- refined_title: keep the user's intent; tighten the wording; make it a verb-led action; no fluff. NEVER rephrase as "research X" / "find resources on Y" / "look up Z" — if the user typed that, convert it into consuming a specific named resource you provide.
 - why_now: one sentence that links it to the goal at this stage (no generic motivation).
 - proof_of_completion: one observable artefact, score, list, draft, or signal that proves it's done.
 - estimated_minutes: adjust only if the user's number is clearly off.
 - priority + category: infer from the action.
-- resource_url + resource_label: if the task involves any internet work (course, signup, watch/read online), include one real specific https URL and short label. Never use a homepage, category page, or search results URL. Omit only for purely offline tasks.
+- resource_url + resource_label: STRONGLY PREFERRED — attach a real, specific https URL (deep-linked to one consumable item: a specific video, article, lesson, paper, official page) whenever the task could plausibly involve any online consumption. Omit ONLY when the action is genuinely offline and self-contained. Never use a homepage, category page, or search results URL. Never use Google search links.
 
 Do not invent a different task. Do not lecture. Output only the JSON via the tool.`;
 
