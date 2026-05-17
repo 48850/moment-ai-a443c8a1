@@ -271,37 +271,68 @@ function InputField({
 function AIOutputDisplay({ output }: { output: Record<string, unknown> }) {
   if (!output || Object.keys(output).length === 0) return null;
 
-  const renderValue = (val: unknown): React.ReactNode => {
+  const keyLabel = (k: string) =>
+    k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+  const renderValue = (val: unknown, depth = 0): React.ReactNode => {
+    if (val === null || val === undefined || val === "") {
+      return <p className="text-sm italic text-muted-foreground">—</p>;
+    }
     if (Array.isArray(val)) {
+      if (val.length === 0) {
+        return <p className="text-sm italic text-muted-foreground">(none)</p>;
+      }
       return (
-        <ul className="mt-1 space-y-1">
+        <ul className="mt-1 space-y-1.5">
           {val.map((item, i) => (
             <li key={i} className="flex items-start gap-2 text-sm">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-              <span>{String(item)}</span>
+              <div className="min-w-0 flex-1">{renderValue(item, depth + 1)}</div>
             </li>
           ))}
         </ul>
       );
     }
-    if (typeof val === "number") {
+    if (typeof val === "object") {
+      const entries = Object.entries(val as Record<string, unknown>);
+      if (entries.length === 0) {
+        return <p className="text-sm italic text-muted-foreground">(empty)</p>;
+      }
       return (
-        <div className="flex items-center gap-2">
-          <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-secondary">
-            <div
-              className="absolute inset-y-0 left-0 rounded-full bg-primary"
-              style={{ width: `${Math.min(100, (val / 10) * 100)}%` }}
-            />
-          </div>
-          <span className="text-sm font-medium tabular-nums">{val}/10</span>
+        <div className={depth === 0 ? "space-y-3" : "mt-1 space-y-2 rounded-md border border-border/60 bg-background/60 p-3"}>
+          {entries.map(([k, v]) => (
+            <div key={k}>
+              <div className="mb-1 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                {keyLabel(k)}
+              </div>
+              {renderValue(v, depth + 1)}
+            </div>
+          ))}
         </div>
       );
     }
-    return <p className="text-sm text-foreground">{String(val)}</p>;
+    if (typeof val === "number") {
+      const looksLikeScore = val >= 0 && val <= 10 && Number.isFinite(val);
+      if (looksLikeScore) {
+        return (
+          <div className="flex items-center gap-2">
+            <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-secondary">
+              <div
+                className="absolute inset-y-0 left-0 rounded-full bg-primary"
+                style={{ width: `${Math.min(100, (val / 10) * 100)}%` }}
+              />
+            </div>
+            <span className="text-sm font-medium tabular-nums">{val}/10</span>
+          </div>
+        );
+      }
+      return <p className="text-sm tabular-nums text-foreground">{val}</p>;
+    }
+    if (typeof val === "boolean") {
+      return <p className="text-sm text-foreground">{val ? "Yes" : "No"}</p>;
+    }
+    return <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{String(val)}</p>;
   };
-
-  const keyLabel = (k: string) =>
-    k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
   return (
     <div className="space-y-4">
@@ -310,11 +341,24 @@ function AIOutputDisplay({ output }: { output: Record<string, unknown> }) {
           <div className="mb-1 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
             {keyLabel(key)}
           </div>
-          {renderValue(val)}
+          {renderValue(val, 1)}
         </div>
       ))}
     </div>
   );
+}
+
+function flattenToString(val: unknown): string {
+  if (val === null || val === undefined) return "";
+  if (typeof val === "string") return val;
+  if (typeof val === "number" || typeof val === "boolean") return String(val);
+  if (Array.isArray(val)) return val.map(flattenToString).filter(Boolean).join(" • ");
+  if (typeof val === "object") {
+    return Object.entries(val as Record<string, unknown>)
+      .map(([k, v]) => `${k.replace(/_/g, " ")}: ${flattenToString(v)}`)
+      .join(" | ");
+  }
+  return String(val);
 }
 
 // ─── Section renderer ─────────────────────────────────────────────────────────
