@@ -97,49 +97,61 @@ function saveCachedPlan(goal: string, plan: AiPlan) {
   } catch { /* ignore */ }
 }
 
-/* ─── Week constellation — 7-day completion bars ──────────────────────────── */
+/* ─── Week constellation — mirrors the live week_plan ────────────────────── */
 function WeekConstellation({ state }: { state: MomentState }) {
+  const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+  const todayIdx = (() => {
+    const js = new Date().getDay();
+    return [1, 2, 3, 4, 5, 6, 0].indexOf(js);
+  })();
+
   const days = useMemo(() => {
-    return Array.from({ length: 7 }, (_, i) => {
+    const week = (state.schedule_state?.week_plan ?? []) as Array<{
+      day_index: number;
+      category: string;
+      is_locked?: boolean;
+    }>;
+    const tasks = state.tasks ?? [];
+    return DAY_LABELS.map((label, i) => {
+      const blocks = week.filter((b) => b.day_index === i);
       const d = new Date();
-      d.setDate(d.getDate() - (6 - i));
+      d.setDate(d.getDate() + (i - todayIdx));
       const dateStr = d.toISOString().slice(0, 10);
-      const completed = (state.tasks ?? []).filter(
+      const completed = tasks.filter(
         (t) => t.status === "done" && t.completed_at?.startsWith(dateStr),
       ).length;
-      return {
-        dateStr,
-        label: d.toLocaleDateString("en-AU", { weekday: "short" }),
-        completed,
-        isToday: i === 6,
-      };
+      return { label, blocks: blocks.length, completed, isToday: i === todayIdx };
     });
-  }, [state.tasks]);
+  }, [state.schedule_state?.week_plan, state.tasks]);
 
-  const total = days.reduce((s, d) => s + d.completed, 0);
+  const totalBlocks = days.reduce((s, d) => s + d.blocks, 0);
+  const totalDone = days.reduce((s, d) => s + d.completed, 0);
 
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <div className="mb-3 flex items-center justify-between">
-        <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Last 7 days</div>
-        {total > 0 && <div className="text-xs text-muted-foreground">{total} tasks completed</div>}
+        <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">This week's shape</div>
+        <div className="text-xs text-muted-foreground">
+          {totalBlocks} block{totalBlocks === 1 ? "" : "s"} · {totalDone} done
+        </div>
       </div>
-      {total === 0 ? (
+      {totalBlocks === 0 ? (
         <p className="text-xs text-muted-foreground">
-          Not enough progress data yet. Complete tasks and give feedback to build your week view.
+          No week plan yet. Use the grid below to seed one.
         </p>
       ) : (
         <div className="flex items-end gap-2 h-16">
           {days.map((d) => (
-            <div key={d.dateStr} className="flex flex-1 flex-col items-center gap-1">
+            <div key={d.label} className="flex flex-1 flex-col items-center gap-1">
               <div
                 className={`w-full rounded-sm transition-all ${
-                  d.completed > 0 ? "bg-emerald-500/70" : "bg-border"
+                  d.blocks > 0 ? "bg-primary/40" : "bg-border"
                 } ${d.isToday ? "ring-1 ring-primary" : ""}`}
-                style={{ height: `${Math.max(8, Math.min(56, d.completed * 16))}px` }}
+                style={{ height: `${Math.max(8, Math.min(56, d.blocks * 10))}px` }}
+                title={`${d.blocks} block${d.blocks === 1 ? "" : "s"}`}
               />
               <div className="text-[9px] text-muted-foreground">{d.label}</div>
-              {d.completed > 0 && <div className="text-[9px] font-medium text-emerald-400">{d.completed}</div>}
+              {d.completed > 0 && <div className="text-[9px] font-medium text-emerald-400">✓{d.completed}</div>}
             </div>
           ))}
         </div>

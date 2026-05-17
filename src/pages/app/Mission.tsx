@@ -27,8 +27,8 @@ const STAGE_MAP: Array<[RegExp, string]> = [
   [/advanc|final|polish|near|almost/i, "Advanced Preparation"],
 ];
 
-function readableStage(raw: string): string {
-  if (!raw) return "Foundation";
+function readableStage(raw: string): string | null {
+  if (!raw || !raw.trim()) return null;
   for (const [re, label] of STAGE_MAP) if (re.test(raw)) return label;
   return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
@@ -191,7 +191,8 @@ function MattersCard({
   const ws = a.workstream;
   const Trend = trendIcon(a.trend);
   const doneThisWs = allTasks.filter((t) => t.workstream_id === ws.id && t.status === "done").length;
-  const nextAction = ws.next_proof?.trim() || (ws.bottleneck ? `Address bottleneck: ${ws.bottleneck}` : `Complete one proof task in ${ws.name}`);
+  const realNextProof = ws.next_proof?.trim() || "";
+  const realBottleneck = ws.bottleneck?.trim() || "";
   const evidenceText = doneThisWs > 0
     ? `${doneThisWs} completed proof task${doneThisWs === 1 ? "" : "s"}.`
     : "No completed proof tasks yet.";
@@ -208,10 +209,10 @@ function MattersCard({
         </span>
       </div>
 
-      {ws.bottleneck && (
+      {realBottleneck && (
         <div className="flex items-start gap-1.5 rounded-lg border border-amber-500/20 bg-amber-500/5 px-2.5 py-2 text-[12px] text-amber-300">
           <AlertTriangle className="mt-px h-3 w-3 shrink-0" />
-          {ws.bottleneck}
+          {realBottleneck}
         </div>
       )}
 
@@ -219,17 +220,24 @@ function MattersCard({
         <div><span className="text-foreground/60">Signal:</span> {evidenceText}</div>
       </div>
 
-      <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 space-y-1">
-        <div className="text-[10px] uppercase tracking-wider text-primary/50 font-mono">next action</div>
-        <p className="text-[13px] text-foreground">{nextAction}</p>
-      </div>
-
-      <button
-        onClick={() => onCreateTask(ws.id, nextAction)}
-        className="flex w-fit items-center gap-1.5 rounded-md border border-border bg-background/60 px-3 py-1.5 text-[11px] text-muted-foreground hover:border-primary/40 hover:text-primary"
-      >
-        <PlusCircle className="h-3 w-3" /> Create task
-      </button>
+      {realNextProof ? (
+        <>
+          <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 space-y-1">
+            <div className="text-[10px] uppercase tracking-wider text-primary/50 font-mono">next action</div>
+            <p className="text-[13px] text-foreground">{realNextProof}</p>
+          </div>
+          <button
+            onClick={() => onCreateTask(ws.id, realNextProof)}
+            className="flex w-fit items-center gap-1.5 rounded-md border border-border bg-background/60 px-3 py-1.5 text-[11px] text-muted-foreground hover:border-primary/40 hover:text-primary"
+          >
+            <PlusCircle className="h-3 w-3" /> Create task
+          </button>
+        </>
+      ) : (
+        <div className="rounded-lg border border-dashed border-border bg-background/30 px-3 py-2 text-[12px] text-muted-foreground">
+          No next proof defined for this lane yet. Talk to Moment in Chat to name one.
+        </div>
+      )}
     </div>
   );
 }
@@ -259,10 +267,11 @@ const Mission = () => {
   const m = useMemo(() => (state ? selectMissionViewModel(state) : null), [state]);
   const analytics = useMemo(() => (state ? analyzeMission(state) : null), [state]);
 
-  /* Daily snapshot */
+  /* Daily snapshot — only when we have real data to snapshot */
   const snapshotDateRef = useRef<string | null>(null);
   useEffect(() => {
     if (!state || !analytics || analytics.perWorkstream.length === 0) return;
+    if (analytics.totalTasks === 0) return; // don't pollute history with zero-state snapshots
     const today = new Date().toISOString().slice(0, 10);
     const history = ((state as Record<string, unknown>).mission_history ?? []) as Array<{ date: string }>;
     if (history.slice(-1)[0]?.date === today || snapshotDateRef.current === today) return;
@@ -356,7 +365,7 @@ const Mission = () => {
   const goalStatement = m.goal.statement;
   const rawStage = state.active_goal?.current_stage ?? "";
   const stage = readableStage(rawStage);
-  const stageBrief = STAGE_BRIEF[stage] ?? STAGE_BRIEF["Foundation"];
+  const stageBrief = stage ? STAGE_BRIEF[stage] ?? null : null;
 
   /* Top workstream by priority */
   const sev: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
@@ -397,20 +406,24 @@ const Mission = () => {
             {goalStatement && (
               <p className="mt-1.5 text-lg text-muted-foreground leading-snug">{goalStatement}</p>
             )}
-            <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/8 px-3.5 py-1 text-sm font-medium text-primary">
-              <Layers className="h-3.5 w-3.5" />
-              {stage} stage
-            </div>
+            {stage && (
+              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/8 px-3.5 py-1 text-sm font-medium text-primary">
+                <Layers className="h-3.5 w-3.5" />
+                {stage} stage
+              </div>
+            )}
           </div>
 
-          {/* Stage explanation */}
-          <div className="rounded-xl border border-border/60 bg-background/30 p-5 space-y-2.5">
-            <p className="text-[15px] leading-relaxed text-muted-foreground">{stageBrief.description}</p>
-            <div className="flex items-start gap-2 pt-1">
-              <BookOpen className="mt-0.5 h-4 w-4 shrink-0 text-primary/60" />
-              <p className="text-sm text-foreground font-medium">{stageBrief.focus}</p>
+          {/* Stage explanation — only render when we actually know the stage */}
+          {stageBrief && (
+            <div className="rounded-xl border border-border/60 bg-background/30 p-5 space-y-2.5">
+              <p className="text-[15px] leading-relaxed text-muted-foreground">{stageBrief.description}</p>
+              <div className="flex items-start gap-2 pt-1">
+                <BookOpen className="mt-0.5 h-4 w-4 shrink-0 text-primary/60" />
+                <p className="text-sm text-foreground font-medium">{stageBrief.focus}</p>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Action row */}
           {nextProof && (
@@ -667,12 +680,9 @@ const Mission = () => {
                               </button>
                             </div>
                           ) : (
-                            <button
-                              onClick={() => createTaskFromProof(ws.id, `First proof for ${ws.name}`)}
-                              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary"
-                            >
-                              <PlusCircle className="h-3 w-3" /> Create first proof
-                            </button>
+                            <p className="text-[11px] text-muted-foreground">
+                              No next proof defined for this lane yet — name one in Chat.
+                            </p>
                           )}
                           {a.feedback.total > 0 && (
                             <div className="text-[11px] text-muted-foreground">

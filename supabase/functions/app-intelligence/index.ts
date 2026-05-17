@@ -195,6 +195,23 @@ function tools(intent: string) {
         additionalProperties: false,
       },
     },
+    refine_user_task: {
+      name: "answer",
+      description: "Take a user's raw task line and refine it into a concrete, stage-appropriate proof tied to their goal.",
+      parameters: {
+        type: "object",
+        properties: {
+          refined_title: { type: "string", description: "Clear, concrete action. Verb-led. Specific. Max ~10 words." },
+          why_now: { type: "string", description: "One sentence linking this task to the user's goal/current stage." },
+          proof_of_completion: { type: "string", description: "One observable artefact or signal proving it's done." },
+          estimated_minutes: { type: "number" },
+          priority: { type: "string", enum: ["high", "medium", "low"] },
+          category: { type: "string", enum: ["goal_direct", "bottleneck_removal", "discovery", "maintenance"] },
+        },
+        required: ["refined_title", "why_now", "proof_of_completion", "estimated_minutes", "priority", "category"],
+        additionalProperties: false,
+      },
+    },
     plan_reform: {
       name: "answer",
       description: "Explain why the plan needs to change and what adjustments to make.",
@@ -544,6 +561,23 @@ Propose up to 5 tasks. Quality over quantity.`;
 
     case "refine_task":
       return `Goal: ${payload?.goal || goal}\n\nTask after first-pass shrink: ${JSON.stringify(payload?.task ?? {})}\nUser's Tune feedback: "${payload?.feedback}".\n\nRefine ONLY the fields that need it. Lead with the first physical step. Be specific to THIS goal.`;
+
+    case "refine_user_task":
+      return `${ctx}
+
+Goal: ${goal}
+Current stage: ${current_stage}
+
+The user just typed this task themselves: "${payload?.raw_title}" (${payload?.estimated_minutes ?? 30} min, priority "${payload?.priority ?? "medium"}").
+
+Refine it into a single concrete, observable action tied to their goal and current stage:
+- refined_title: keep the user's intent; tighten the wording; make it a verb-led action; no fluff.
+- why_now: one sentence that links it to the goal at this stage (no generic motivation).
+- proof_of_completion: one observable artefact, score, list, draft, or signal that proves it's done.
+- estimated_minutes: adjust only if the user's number is clearly off.
+- priority + category: infer from the action.
+
+Do not invent a different task. Do not lecture. Output only the JSON via the tool.`;
 
     case "plan_reform": {
       const completedTasks = (payload?.completed_tasks ?? []) as Array<{ title: string; feedback?: string }>;

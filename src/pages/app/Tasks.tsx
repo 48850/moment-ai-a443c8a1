@@ -1,14 +1,13 @@
 import { useMemo, useState } from "react";
-import { Check, Plus, Sparkles, User as UserIcon, AlertCircle, Zap } from "lucide-react";
+import { Check, Plus, Sparkles, User as UserIcon, Zap, Loader2 } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { FeedbackChips } from "@/components/app/FeedbackChips";
 import { AIInsight } from "@/components/app/AIInsight";
 import { useAI } from "@/lib/ai/useAI";
 import { DoneCheckIn } from "@/components/app/DoneCheckIn";
-import { GitHubBranchStatus } from "@/components/app/GitHubBranchStatus";
 import type { Task } from "@/lib/types";
 
-type Filter = "all" | "pending" | "completed" | "missed";
+type Filter = "all" | "pending" | "completed";
 
 type SuggestedTask = {
   title: string;
@@ -18,6 +17,15 @@ type SuggestedTask = {
   why_now?: string;
   proof_of_completion?: string;
   user_stage_fit?: string;
+};
+
+type RefinedTask = {
+  refined_title: string;
+  why_now: string;
+  proof_of_completion: string;
+  estimated_minutes: number;
+  priority: "high" | "medium" | "low";
+  category: Task["category"];
 };
 
 function normaliseTaskTitle(title: unknown): string {
@@ -48,7 +56,9 @@ const Tasks = () => {
   const [composer, setComposer] = useState("");
   const [composerMins, setComposerMins] = useState(30);
   const [checkInTask, setCheckInTask] = useState<Task | null>(null);
+  const [refiningIds, setRefiningIds] = useState<Set<string>>(new Set());
   const suggest = useAI<{ tasks: SuggestedTask[] }>("suggest_tasks");
+  const refine = useAI<RefinedTask>("refine_user_task");
 
   const tasks = state?.tasks ?? [];
   const goalText = state?.active_goal?.statement ?? "";
@@ -57,23 +67,17 @@ const Tasks = () => {
   const country = state?.profile?.country ?? "";
   const schoolYear = state?.profile?.school_year ?? "";
 
-  // Pending = not done & not skipped & not past due
-  // Missed = past due_date and still pending
-  // Completed = done
-  const today = new Date().toISOString().slice(0, 10);
   const sections = useMemo(() => {
     const pending: Task[] = [];
     const completed: Task[] = [];
-    const missed: Task[] = [];
     for (const t of tasks) {
       if (t.status === "done") completed.push(t);
       else if (t.status === "skipped") continue;
-      else if (t.due_date && t.due_date < today) missed.push(t);
       else pending.push(t);
     }
     completed.sort((a, b) => (b.completed_at || "").localeCompare(a.completed_at || ""));
-    return { pending, completed, missed };
-  }, [tasks, today]);
+    return { pending, completed };
+  }, [tasks]);
 
   if (!state)
     return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
@@ -86,18 +90,53 @@ const Tasks = () => {
     } else {
       const completedAt = new Date().toISOString();
       dispatch({ type: "task/complete", payload: { id, completed_at: completedAt } });
-      // Open the check-in immediately with the freshly completed task.
       setCheckInTask({ ...t, status: "done", completed_at: completedAt });
+    }
+  };
+
+  const refineUserTask = async (id: string, rawTitle: string, mins: number) => {
+    setRefiningIds((s) => new Set(s).add(id));
+    try {
+      const result = await refine.run({
+        raw_title: rawTitle,
+        estimated_minutes: mins,
+        priority: "medium",
+        goal: goalText,
+        current_stage: currentStage,
+      });
+      if (result && result.refined_title) {
+        dispatch({
+          type: "task/update",
+          payload: {
+            id,
+            changes: {
+              title: result.refined_title,
+              why_now: result.why_now ?? "",
+              proof_of_completion: result.proof_of_completion ?? "",
+              estimated_minutes: result.estimated_minutes ?? mins,
+              priority: result.priority ?? "medium",
+              category: result.category ?? inferCategory(rawTitle),
+            },
+          },
+        });
+      }
+    } finally {
+      setRefiningIds((s) => {
+        const next = new Set(s);
+        next.delete(id);
+        return next;
+      });
     }
   };
 
   const addManual = () => {
     const title = composer.trim();
     if (!title) return;
+    const id = crypto.randomUUID();
     dispatch({
       type: "task/add",
       payload: {
-        id: crypto.randomUUID(),
+        id,
         title,
         description: "",
         status: "pending",
@@ -110,11 +149,13 @@ const Tasks = () => {
         completed_at: "",
         due_date: "",
         created_by: "user",
-        why_now: goalText ? `User-added; tied to: ${goalText}` : "",
+        why_now: "",
       } as Task,
     });
     setComposer("");
     setComposerMins(30);
+    // Fire-and-forget AI refinement so the task syncs with the goal and plan.
+    if (goalText) void refineUserTask(id, title, composerMins);
   };
 
   const addSuggested = (t: SuggestedTask) => {
@@ -142,12 +183,10 @@ const Tasks = () => {
 
   const visible: Task[] =
     filter === "all"
-      ? [...sections.pending, ...sections.missed, ...sections.completed]
+      ? [...sections.pending, ...sections.completed]
       : filter === "pending"
         ? sections.pending
-        : filter === "completed"
-          ? sections.completed
-          : sections.missed;
+        : sections.completed;
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
@@ -160,8 +199,6 @@ const Tasks = () => {
           </p>
         )}
       </div>
-
-      {import.meta.env.DEV && <GitHubBranchStatus />}
 
       {/* Manual composer */}
       <div className="rounded-xl border border-border bg-card p-3">
@@ -192,21 +229,21 @@ const Tasks = () => {
           </button>
         </div>
         <p className="mt-1.5 text-[10px] text-muted-foreground">
-          Yours stay tagged as “you” and feed Chat, Plan and Mission.
+          {goalText
+            ? "We'll refine the wording, tie it to your goal, and sync it into your plan."
+            : "Set a goal in Chat to unlock auto-refinement and plan sync."}
         </p>
       </div>
 
       {/* Section counts / filter */}
       <div className="sticky top-0 z-10 -mx-1 flex items-center gap-3 bg-background/95 px-1 py-2 text-[11px] backdrop-blur">
-        {(["all", "pending", "completed", "missed"] as Filter[]).map((f) => {
+        {(["all", "pending", "completed"] as Filter[]).map((f) => {
           const count =
             f === "all"
-              ? sections.pending.length + sections.missed.length + sections.completed.length
+              ? sections.pending.length + sections.completed.length
               : f === "pending"
                 ? sections.pending.length
-                : f === "completed"
-                  ? sections.completed.length
-                  : sections.missed.length;
+                : sections.completed.length;
           return (
             <button
               key={f}
@@ -272,9 +309,8 @@ const Tasks = () => {
       <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
         {visible.map((t) => {
           const done = t.status === "done";
-          const isMissed = !done && t.due_date && t.due_date < today;
           const byUser = (t.created_by ?? "user") === "user";
-          const byForge = !!(t as Task & { forge_feature_id?: string }).forge_feature_id;
+          const isRefining = refiningIds.has(t.id);
           return (
             <li key={t.id} className="px-4 py-3">
               <div className="flex items-center gap-3">
@@ -291,19 +327,18 @@ const Tasks = () => {
                   <span className={`text-sm ${done ? "text-muted-foreground line-through" : "text-foreground"}`}>
                     {t.title}
                   </span>
-                  {isMissed && (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-amber-400">
-                      <AlertCircle className="h-2.5 w-2.5" />
-                      missed
+                  {isRefining && (
+                    <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" /> refining
                     </span>
                   )}
                 </div>
                 <span
                   className="inline-flex items-center gap-1 rounded-full border border-border bg-background/40 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-muted-foreground"
-                  title={byUser ? "Added by you" : byForge ? "Generated by Forge" : "Added by AI"}
+                  title={byUser ? "Added by you" : "Added by AI"}
                 >
-                  {byUser ? <UserIcon className="h-2.5 w-2.5" /> : byForge ? <Zap className="h-2.5 w-2.5" /> : <Sparkles className="h-2.5 w-2.5" />}
-                  {byUser ? "you" : byForge ? "forge" : "ai"}
+                  {byUser ? <UserIcon className="h-2.5 w-2.5" /> : <Sparkles className="h-2.5 w-2.5" />}
+                  {byUser ? "you" : "ai"}
                 </span>
                 <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
                   {t.estimated_minutes}m

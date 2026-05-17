@@ -56,11 +56,18 @@ export function Constellation({
           nodes.find((n) => n.id === l.target),
       );
 
-    for (let i = 0; i < nodes.length - 1; i++) {
-      const from = nodes[i].id;
-      const to = nodes[i + 1].id;
-      if (!links.find((l) => l.source === from && l.target === to)) {
-        links.push({ source: from, target: to, type: "sequential" });
+    // Auto-link blocks that genuinely belong together:
+    //  - they share at least one linked task id (real plan dependency), or
+    //  - they're back-to-back in time (a real sequence in the day).
+    for (let i = 0; i < blocks.length - 1; i++) {
+      const a = blocks[i];
+      const b = blocks[i + 1];
+      const aIds = new Set(a.linked_task_ids ?? []);
+      const sharesTask = (b.linked_task_ids ?? []).some((id) => aIds.has(id));
+      const isAdjacent = a.end_time === b.start_time;
+      if (!sharesTask && !isAdjacent) continue;
+      if (!links.find((l) => l.source === a.id && l.target === b.id)) {
+        links.push({ source: a.id, target: b.id, type: sharesTask ? "support" : "sequential" });
       }
     }
     return { nodes, links };
