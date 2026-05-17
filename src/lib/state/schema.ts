@@ -195,6 +195,17 @@ export const taskSchema = z.object({
   /** Optional URL to use when the task involves online work (research, course, signup, doc). */
   resource_url: z.string().url().optional().or(z.literal("")),
   resource_label: z.string().optional(),
+  /** User-authored notes attached to this task. */
+  notes: z
+    .array(
+      z.object({
+        id: z.string(),
+        content: z.string(),
+        created_at: z.string(),
+      }),
+    )
+    .default([])
+    .optional(),
 });
 
 export const frictionTagSchema = z.enum([

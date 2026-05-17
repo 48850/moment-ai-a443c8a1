@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, Plus, Sparkles, Trash2, User as UserIcon, Zap, Loader2, ExternalLink } from "lucide-react";
+import { Check, Plus, Sparkles, Trash2, User as UserIcon, Zap, Loader2, ExternalLink, NotebookPen, X } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { FeedbackChips } from "@/components/app/FeedbackChips";
 import { AIInsight } from "@/components/app/AIInsight";
@@ -8,6 +8,7 @@ import { DoneCheckIn } from "@/components/app/DoneCheckIn";
 import type { Task } from "@/lib/types";
 import { COMPLIMENTS } from "@/components/app/StreakFlame";
 import { toast } from "sonner";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
 type Filter = "all" | "pending" | "completed";
 
@@ -63,6 +64,8 @@ const Tasks = () => {
   const [composerMins, setComposerMins] = useState(30);
   const [checkInTask, setCheckInTask] = useState<Task | null>(null);
   const [refiningIds, setRefiningIds] = useState<Set<string>>(new Set());
+  const [notesTaskId, setNotesTaskId] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
   const suggest = useAI<{ tasks: SuggestedTask[] }>("suggest_tasks");
   const refine = useAI<RefinedTask>("refine_user_task");
 
@@ -241,6 +244,44 @@ const Tasks = () => {
         resource_url: t.resource_url ?? "",
         resource_label: t.resource_label ?? "",
       } as Task,
+    });
+  };
+
+  const notesTask = useMemo(
+    () => (notesTaskId ? tasks.find((t) => t.id === notesTaskId) ?? null : null),
+    [notesTaskId, tasks],
+  );
+
+  const addNoteToTask = (taskId: string, content: string) => {
+    const text = content.trim();
+    if (!text) return;
+    const target = tasks.find((t) => t.id === taskId);
+    if (!target) return;
+    const existing = target.notes ?? [];
+    dispatch({
+      type: "task/update",
+      payload: {
+        id: taskId,
+        changes: {
+          notes: [
+            ...existing,
+            { id: crypto.randomUUID(), content: text, created_at: new Date().toISOString() },
+          ],
+        },
+      },
+    });
+    setNoteDraft("");
+  };
+
+  const removeNoteFromTask = (taskId: string, noteId: string) => {
+    const target = tasks.find((t) => t.id === taskId);
+    if (!target) return;
+    dispatch({
+      type: "task/update",
+      payload: {
+        id: taskId,
+        changes: { notes: (target.notes ?? []).filter((n) => n.id !== noteId) },
+      },
     });
   };
 
@@ -448,6 +489,20 @@ const Tasks = () => {
                   {t.resource_label || t.resource_url}
                 </a>
               )}
+              <div className="mt-2 pl-8">
+                <button
+                  onClick={() => setNotesTaskId(t.id)}
+                  className="inline-flex items-center gap-1 rounded-md border border-border bg-background/40 px-2 py-1 text-[11px] text-muted-foreground hover:border-primary/40 hover:text-primary"
+                >
+                  <NotebookPen className="h-3 w-3" />
+                  Notes
+                  {(t.notes?.length ?? 0) > 0 && (
+                    <span className="ml-0.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-medium text-primary">
+                      {t.notes!.length}
+                    </span>
+                  )}
+                </button>
+              </div>
             </li>
           );
         })}
@@ -483,6 +538,79 @@ const Tasks = () => {
       </ul>
 
       <DoneCheckIn task={checkInTask} onClose={() => setCheckInTask(null)} />
+
+      <Sheet
+        open={!!notesTaskId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setNotesTaskId(null);
+            setNoteDraft("");
+          }
+        }}
+      >
+        <SheetContent side="right" className="flex w-full flex-col gap-4 sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle className="text-base">Notes</SheetTitle>
+            <SheetDescription className="line-clamp-2 text-xs">
+              {notesTask?.title ?? "Task notes"}
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="flex-1 space-y-2 overflow-y-auto pr-1">
+            {(notesTask?.notes ?? []).length === 0 ? (
+              <p className="rounded-md border border-dashed border-border bg-background/40 p-4 text-center text-xs text-muted-foreground">
+                No notes yet. Capture what you learned, what got in the way, or what to try next.
+              </p>
+            ) : (
+              [...(notesTask?.notes ?? [])]
+                .sort((a, b) => b.created_at.localeCompare(a.created_at))
+                .map((n) => (
+                  <div
+                    key={n.id}
+                    className="group relative rounded-md border border-border bg-card p-3 text-sm"
+                  >
+                    <p className="whitespace-pre-wrap pr-6 leading-relaxed">{n.content}</p>
+                    <div className="mt-1 text-[10px] text-muted-foreground">
+                      {new Date(n.created_at).toLocaleString()}
+                    </div>
+                    <button
+                      onClick={() => notesTask && removeNoteFromTask(notesTask.id, n.id)}
+                      className="absolute right-1.5 top-1.5 rounded-md p-1 text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:bg-secondary hover:text-destructive"
+                      aria-label="Delete note"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))
+            )}
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (notesTask) addNoteToTask(notesTask.id, noteDraft);
+            }}
+            className="space-y-2 border-t border-border pt-3"
+          >
+            <textarea
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              placeholder="Write a note for this task…"
+              rows={3}
+              className="w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+            />
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={!noteDraft.trim()}
+                className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+              >
+                <Plus className="h-3 w-3" /> Add note
+              </button>
+            </div>
+          </form>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
