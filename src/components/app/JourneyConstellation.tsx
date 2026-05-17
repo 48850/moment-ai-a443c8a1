@@ -242,6 +242,7 @@ export const JourneyConstellation = ({ state }: Props) => {
   const nodes = useMemo(() => computeConstellationNodes(state), [
     state.active_goal, state.tasks, state.pursuit_model,
     state.execution_feedback, state.today_state,
+    state.schedule_state?.week_plan, state.schedule_state?.week_plan_generated_at,
   ]);
 
   const { positioned, canvasWidth, canvasHeight } = useMemo(() => {
