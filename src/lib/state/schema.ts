@@ -192,6 +192,9 @@ export const taskSchema = z.object({
   blocked_reason: z.string().default("").optional(),
   created_by: z.enum(["user", "ai"]).default("user").optional(),
   forge_feature_id: z.string().optional(),
+  /** Optional URL to use when the task involves online work (research, course, signup, doc). */
+  resource_url: z.string().url().optional().or(z.literal("")),
+  resource_label: z.string().optional(),
 });
 
 export const frictionTagSchema = z.enum([
