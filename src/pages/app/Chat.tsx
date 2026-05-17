@@ -228,6 +228,8 @@ const Chat = () => {
         user_stage_fit: "strong" as const,
         why_now: firstTaskArgs.why_now ?? "",
         difficulty: (firstTaskArgs.difficulty ?? "easy") as any,
+        resource_url: firstTaskArgs.resource_url ?? "",
+        resource_label: firstTaskArgs.resource_label ?? "",
       };
       dispatch({ type: "task/add", payload: firstTask });
     }
@@ -291,6 +293,8 @@ const Chat = () => {
             created_by: "ai",
             why_now: p.args.why_now ?? "",
             proof_of_completion: p.args.proof_of_completion ?? "",
+            resource_url: p.args.resource_url ?? "",
+            resource_label: p.args.resource_label ?? "",
           } as any,
         });
         if (p.args.schedule_for?.day_index !== undefined && p.args.schedule_for?.start_time) {

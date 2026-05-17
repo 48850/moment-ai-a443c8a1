@@ -139,6 +139,8 @@ function tools(intent: string) {
                 why_now: { type: "string", description: "Why this task fits the user's current stage — not generic motivation." },
                 proof_of_completion: { type: "string", description: "One concrete, observable thing the user produces or does that proves this task is done. Must be specific to this task." },
                 user_stage_fit: { type: "string", enum: ["strong", "okay", "weak", "premature"] },
+                resource_url: { type: "string", description: "REQUIRED if the task involves any online work (research, course, signup, doc, watch a video, read an article, use a tool). Provide a real, working https URL — a specific page, not just a homepage. Omit only for purely offline tasks (writing on paper, going outside, talking to someone in person)." },
+                resource_label: { type: "string", description: "Short label for the URL, e.g. 'Khan Academy intro', 'Coursera course page', 'sign-up form'. Required whenever resource_url is set." },
               },
               required: ["title", "estimated_minutes", "category", "priority", "why_now", "proof_of_completion"],
               additionalProperties: false,
@@ -207,6 +209,8 @@ function tools(intent: string) {
           estimated_minutes: { type: "number" },
           priority: { type: "string", enum: ["high", "medium", "low"] },
           category: { type: "string", enum: ["goal_direct", "bottleneck_removal", "discovery", "maintenance"] },
+          resource_url: { type: "string", description: "REQUIRED if the refined task involves online work (research, course, signup, watch/read online). Real, specific https URL." },
+          resource_label: { type: "string", description: "Short label for the URL. Required if resource_url is set." },
         },
         required: ["refined_title", "why_now", "proof_of_completion", "estimated_minutes", "priority", "category"],
         additionalProperties: false,
@@ -580,6 +584,7 @@ RULES:
 3. Do NOT suggest tasks the user already has (check existing_tasks list).
 4. Prefer foundational, exploratory, and pathway-clarity tasks for school-age users.
 5. For students, tasks should produce something tangible: a note, a list, a draft, a score, a question set.
+6. If a task involves ANY internet work — reading an article, watching a video, taking a course, signing up for something, looking up info, using an online tool — you MUST include resource_url with a real, specific https URL (deep-link to the actual page, not a homepage) and a short resource_label. Prefer well-known, free, reputable sources (Khan Academy, Coursera, MDN, Wikipedia, official docs, government sites, established YouTube channels). Do NOT invent fake URLs. If you're not sure of a specific page, link to a reputable search like "https://www.google.com/search?q=..." with the exact query.
 
 Propose up to 5 tasks. Quality over quantity.`;
     }
@@ -607,6 +612,7 @@ Refine it into a single concrete, observable action tied to their goal and curre
 - proof_of_completion: one observable artefact, score, list, draft, or signal that proves it's done.
 - estimated_minutes: adjust only if the user's number is clearly off.
 - priority + category: infer from the action.
+- resource_url + resource_label: if the task involves any internet work (research, course, signup, watch/read online), include a real specific https URL and short label. Use reputable sources or a Google search URL with the exact query. Omit only for purely offline tasks.
 
 Do not invent a different task. Do not lecture. Output only the JSON via the tool.`;
 

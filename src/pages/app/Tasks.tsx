@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, Plus, Sparkles, Trash2, User as UserIcon, Zap, Loader2 } from "lucide-react";
+import { Check, Plus, Sparkles, Trash2, User as UserIcon, Zap, Loader2, ExternalLink } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { FeedbackChips } from "@/components/app/FeedbackChips";
 import { AIInsight } from "@/components/app/AIInsight";
@@ -19,6 +19,8 @@ type SuggestedTask = {
   why_now?: string;
   proof_of_completion?: string;
   user_stage_fit?: string;
+  resource_url?: string;
+  resource_label?: string;
 };
 
 type RefinedTask = {
@@ -28,6 +30,8 @@ type RefinedTask = {
   estimated_minutes: number;
   priority: "high" | "medium" | "low";
   category: Task["category"];
+  resource_url?: string;
+  resource_label?: string;
 };
 
 function normaliseTaskTitle(title: unknown): string {
@@ -168,6 +172,8 @@ const Tasks = () => {
               estimated_minutes: result.estimated_minutes ?? mins,
               priority: result.priority ?? "medium",
               category: result.category ?? inferCategory(rawTitle),
+              resource_url: result.resource_url ?? "",
+              resource_label: result.resource_label ?? "",
             },
           },
         });
@@ -232,6 +238,8 @@ const Tasks = () => {
         created_by: "ai",
         why_now: t.why_now ?? "",
         proof_of_completion: t.proof_of_completion ?? "",
+        resource_url: t.resource_url ?? "",
+        resource_label: t.resource_label ?? "",
       } as Task,
     });
   };
@@ -344,6 +352,18 @@ const Tasks = () => {
                       {t.proof_of_completion}
                     </div>
                   )}
+                  {t.resource_url && (
+                    <a
+                      href={t.resource_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-1 inline-flex items-center gap-1 text-[10px] text-primary underline-offset-2 hover:underline"
+                    >
+                      <ExternalLink className="h-2.5 w-2.5" />
+                      {t.resource_label || "Open link"}
+                    </a>
+                  )}
                   <div className="mt-1 flex gap-1.5 text-[10px] text-muted-foreground">
                     <span>{t.estimated_minutes}m</span>·<span>{t.priority}</span>·<span>{t.category}</span>
                   </div>
@@ -416,6 +436,17 @@ const Tasks = () => {
                   <Zap className="h-2.5 w-2.5 shrink-0" />
                   {t.proof_of_completion}
                 </p>
+              )}
+              {t.resource_url && !done && (
+                <a
+                  href={t.resource_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-0.5 pl-8 flex items-center gap-1 text-[11px] text-primary underline-offset-2 hover:underline"
+                >
+                  <ExternalLink className="h-3 w-3 shrink-0" />
+                  {t.resource_label || t.resource_url}
+                </a>
               )}
             </li>
           );
