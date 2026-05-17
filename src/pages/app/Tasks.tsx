@@ -489,6 +489,20 @@ const Tasks = () => {
                   {t.resource_label || t.resource_url}
                 </a>
               )}
+              <div className="mt-2 pl-8">
+                <button
+                  onClick={() => setNotesTaskId(t.id)}
+                  className="inline-flex items-center gap-1 rounded-md border border-border bg-background/40 px-2 py-1 text-[11px] text-muted-foreground hover:border-primary/40 hover:text-primary"
+                >
+                  <NotebookPen className="h-3 w-3" />
+                  Notes
+                  {(t.notes?.length ?? 0) > 0 && (
+                    <span className="ml-0.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-medium text-primary">
+                      {t.notes!.length}
+                    </span>
+                  )}
+                </button>
+              </div>
             </li>
           );
         })}
