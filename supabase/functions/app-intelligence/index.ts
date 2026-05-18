@@ -171,6 +171,40 @@ function tools(intent: string) {
         additionalProperties: false,
       },
     },
+    notes_quick_review: {
+      name: "answer",
+      description: "Review the user's task notes and teach them something specific based on what they wrote.",
+      parameters: {
+        type: "object",
+        properties: {
+          headline: { type: "string", description: "One tight sentence naming the through-line across these notes." },
+          key_insights: {
+            type: "array",
+            minItems: 1,
+            maxItems: 4,
+            items: { type: "string", description: "A specific observation grounded in something the user actually wrote. Quote phrases when useful." },
+          },
+          gaps: {
+            type: "array",
+            maxItems: 3,
+            items: { type: "string", description: "Something missing, vague, or worth probing further. Be concrete." },
+          },
+          mini_lesson: {
+            type: "object",
+            description: "A short teaching moment tied to the most useful concept in the notes.",
+            properties: {
+              title: { type: "string", description: "3-6 word lesson title." },
+              body: { type: "string", description: "2-4 sentences. Teach the concept clearly with a concrete example tied to the user's goal and the notes. No motivational filler." },
+            },
+            required: ["title", "body"],
+            additionalProperties: false,
+          },
+          next_step: { type: "string", description: "One concrete next move the user could take in <10 min based on this review." },
+        },
+        required: ["headline", "key_insights", "mini_lesson", "next_step"],
+        additionalProperties: false,
+      },
+    },
     mission_insight: {
       name: "answer",
       parameters: {
@@ -625,6 +659,22 @@ Propose AT MOST 3 tasks. Quality over quantity. Remember: ≥2 of 3 must include
 
     case "reflect_summary":
       return `${ctx}\n\nReflections: ${JSON.stringify(payload?.reflections ?? [])}\nName one true pattern (energy, friction, timing). One line of honest encouragement.`;
+
+    case "notes_quick_review":
+      return `${ctx}
+
+The user wants a quick review + mini-lesson on the notes they wrote against this task.
+Task: "${payload?.task_title ?? "(untitled task)"}"
+Task context: ${payload?.task_context ?? "(none)"}
+Notes (most recent first):
+${(payload?.notes ?? []).map((n: { content: string; created_at?: string }, i: number) => `${i + 1}. ${n.content}`).join("\n") || "(no notes)"}
+
+Rules:
+- Ground every insight in something the user actually wrote. Quote short phrases when useful.
+- The mini_lesson must teach a real concept, framework, or technique that helps THIS task and goal — not generic productivity advice.
+- gaps should name what's missing or vague in the notes themselves.
+- next_step must be doable in under 10 minutes.
+- No motivation-speak. No "great job". Coach, don't cheerlead.`;
 
     case "mission_insight":
       return `${ctx}
