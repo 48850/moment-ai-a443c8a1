@@ -11,9 +11,9 @@ export const Manifesto = () => (
       className="text-balance font-display text-3xl font-medium leading-[1.15] tracking-tight sm:text-5xl"
     >
       We are tired of apps that <span className="italic text-muted-foreground">simulate progress</span>.
-      Streaks that mean nothing. Notifications that mean less. Moment is for the kid who wants the
-      <span className="text-gradient-spark"> real thing</span> — to look back in a year and see a
-      different person staring back.
+      Dashboards that distract. Streaks that mean nothing. AI that forgets you between tabs.
+      Moment is for the kid who wants the <span className="text-gradient-spark">real thing</span> —
+      one goal, one honest plan, and a year-from-now self who is unmistakably different.
     </motion.blockquote>
     <div className="mt-10 flex items-center gap-3 font-mono text-xs uppercase tracking-wider text-muted-foreground">
       <span className="h-px w-10 bg-foreground/30" />
