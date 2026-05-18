@@ -278,7 +278,7 @@ export default function Onboarding() {
   const canProceed = (): boolean => {
     switch (step) {
       case 0: return true; // name is skippable
-      case 1: return data.goal_statement.trim().length >= 5;
+      case 1: return data.long_term_goal.trim().length >= 5 && data.short_term_goal.trim().length >= 3;
       case 2: return data.why_it_matters.trim().length >= 5;
       case 3: return true; // user reality is optional
       case 4: return true; // country/education optional
