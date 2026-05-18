@@ -319,7 +319,7 @@ export default function Onboarding() {
           },
         },
         goal_patch: {
-          statement: data.long_term_goal.trim() || channelledGoal,
+          statement: channelledGoal || data.long_term_goal.trim(),
           why_it_matters: data.why_it_matters,
           desired_identity: data.desired_identity,
           horizon,
