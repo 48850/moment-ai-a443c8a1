@@ -479,6 +479,15 @@ const Tasks = () => {
                   {t.resource_label || t.resource_url}
                 </a>
               )}
+              {(t.notes?.length ?? 0) > 0 && !done && (
+                <div className="mt-2 pl-8">
+                  <QuickReviewNotes
+                    taskTitle={t.title}
+                    taskContext={(t as { description?: string }).description ?? ""}
+                    notes={t.notes ?? []}
+                  />
+                </div>
+              )}
               <div className="mt-2 pl-8">
                 <button
                   onClick={() => setNotesTaskId(t.id)}
