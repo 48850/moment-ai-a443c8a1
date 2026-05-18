@@ -1,9 +1,9 @@
 import { motion } from "motion/react";
 
 const steps = [
-  { n: "01", k: "Name it", t: "Tell Moment your one big goal", d: "Stanford. A first 10k. A song on Spotify. State it once — Moment turns it into a pursuit." },
-  { n: "02", k: "Plan it", t: "We compile the path", d: "Milestones, dependencies, weekly resets — generated, not guessed. You can edit anything." },
-  { n: "03", k: "Move it", t: "One decisive move per day", d: "Open the app. Do the thing. Close the app. Repeat until the world looks different." },
+  { n: "01", k: "Name it", t: "Tell Moment your one goal", d: "Stanford. A first 10k. A song on Spotify. State it once — Moment fits it to your age, school year, and the time you actually have." },
+  { n: "02", k: "Compile it", t: "Today, this week, the whole arc", d: "Stages, workstreams, a real week of moves — generated, not guessed. Mission notices keep an honest read on drift, bottlenecks and momentum." },
+  { n: "03", k: "Move it", t: "One decisive move, on repeat", d: "Open the app. Do the move (resource attached, notes ready). Microfeedback tunes tomorrow. Forge and Rescue catch you when it gets hard." },
 ];
 
 export const HowItWorks = () => (

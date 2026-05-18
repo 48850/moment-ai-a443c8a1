@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Check, Sparkles, Target } from "lucide-react";
+import { Check, ExternalLink, NotebookPen, Sparkles, Target } from "lucide-react";
 
 export const DecisiveMoveCard = () => (
   <motion.div
@@ -39,6 +39,21 @@ export const DecisiveMoveCard = () => (
               25 min · advances goal: <span className="text-foreground">Stanford 2027</span>
             </div>
           </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <a
+            href="#"
+            onClick={(e) => e.preventDefault()}
+            className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-primary"
+          >
+            <ExternalLink className="h-3 w-3" />
+            CommonApp · prompt #1
+          </a>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            <NotebookPen className="h-3 w-3" />
+            Notes · 2
+          </span>
         </div>
 
         <div className="mt-5 flex gap-2">

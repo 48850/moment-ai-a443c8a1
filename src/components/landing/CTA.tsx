@@ -22,11 +22,11 @@ export const CTA = () => {
             <div className="mb-4 font-mono text-[11px] uppercase tracking-[0.2em] text-primary-glow">/ early access</div>
             <h2 className="text-balance font-display text-4xl leading-[1.05] tracking-tight sm:text-6xl">
               Stop drifting. <br />
-              <span className="italic text-gradient-spark">Start moving.</span>
+              <span className="italic text-gradient-spark">Claim your moment.</span>
             </h2>
             <p className="mt-5 max-w-md text-paper/70">
-              Be among the first 1,000 teens shaping Moment. Free during beta. No spam — only
-              actual progress.
+              Be among the first 1,000 teens shaping Moment. Free during beta.
+              No streak guilt, no notification spam — just the next decisive move, every day.
             </p>
           </div>
 
