@@ -196,7 +196,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
           }
         : saved.active_goal;
 
-      const hydrated: MomentState = {
+      let hydrated: MomentState = {
         ...saved,
         tasks: capTasksForToday(saved.tasks ?? []),
         profile: profileBackfill,
@@ -239,6 +239,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
         chat_messages: (saved as any).chat_messages ?? [],
         onboarding: onboardingBackfill,
       };
+      hydrated = syncActiveTasksToWeek(hydrated);
       // In demo mode, use demo state instead of saved (only for fresh demo sessions)
       if (isDemo && !saved.active_goal?.statement?.trim()) {
         const demo = createDefaultState(session.userId, session.displayName, tz());
