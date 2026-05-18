@@ -1032,7 +1032,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
 
       case "task/tune": {
         const { id, feedback, change, changes } = action.payload;
-        next = {
+        next = syncActiveTasksToWeek({
           ...s,
           tasks: s.tasks.map((t) => {
             if (t.id !== id) return t;
@@ -1047,7 +1047,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
               tune_notes: [...((t as any).tune_notes ?? []), tuneNote],
             } as typeof t;
           }),
-        };
+        });
         break;
       }
 
