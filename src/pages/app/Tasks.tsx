@@ -184,7 +184,9 @@ const Tasks = () => {
   const addManual = () => {
     const title = composer.trim();
     if (!title) return;
+    if (!confirmDailyCap("")) return;
     const id = crypto.randomUUID();
+
     dispatch({
       type: "task/add",
       payload: {
