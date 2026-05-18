@@ -396,7 +396,12 @@ function fmt(v: unknown): string {
 
 function specialisationSystemPrompt(snap: ChatSnapshot): string {
   const name = snap.display_name || "there";
-  const goal = snap.active_goal?.statement || "(no goal set yet)";
+  const _lt = snap.active_goal?.long_term_goal || "";
+  const _mt = snap.active_goal?.medium_term_goal || "";
+  const _st = snap.active_goal?.short_term_goal || "";
+  const goal = (_lt || _mt || _st)
+    ? `Long-term: ${_lt || "(not set)"} · Medium-term: ${_mt || "(not set)"} · Short-term: ${_st || "(not set)"}`
+    : (snap.active_goal?.statement || "(no goal set yet)");
   const why = snap.active_goal?.why_it_matters || "";
   const currentStage = snap.goal_current_stage || "";
   const targetStage = snap.goal_target_stage || "";
