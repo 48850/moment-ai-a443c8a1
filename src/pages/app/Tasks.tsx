@@ -385,7 +385,7 @@ const Tasks = () => {
             education_system: educationSystem,
             country,
             school_year: schoolYear,
-            existing_tasks: todaysTasks.map((t) => ({ title: t.title, status: t.status })),
+            existing_tasks: sortedTasks.map((t) => ({ title: t.title, status: t.status })),
           })
         }
         cta={suggest.result ? "Refresh" : "Suggest"}
@@ -534,7 +534,7 @@ const Tasks = () => {
                       education_system: educationSystem,
                       country,
                       school_year: schoolYear,
-                      existing_tasks: todaysTasks.map((t) => ({ title: t.title, status: t.status })),
+                      existing_tasks: sortedTasks.map((t) => ({ title: t.title, status: t.status })),
                     })
                   }
                   className="rounded-md border border-primary/40 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10"
