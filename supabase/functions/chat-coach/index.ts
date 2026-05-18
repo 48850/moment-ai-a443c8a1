@@ -342,7 +342,7 @@ const SPECIALISATION_TOOLS = [
 
 interface ChatSnapshot {
   display_name?: string;
-  active_goal?: { statement?: string; why_it_matters?: string; status?: string };
+  active_goal?: { statement?: string; long_term_goal?: string; medium_term_goal?: string; short_term_goal?: string; why_it_matters?: string; status?: string };
   constraints_known?: Record<string, unknown>;
   missing_schedule_info?: string[];
   todays_plan?: Array<{ time: string; title: string; status: string }>;
