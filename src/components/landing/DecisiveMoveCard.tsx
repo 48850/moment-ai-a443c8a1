@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Check, Sparkles, Target } from "lucide-react";
+import { Check, ExternalLink, NotebookPen, Sparkles, Target } from "lucide-react";
 
 export const DecisiveMoveCard = () => (
   <motion.div
