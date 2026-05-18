@@ -513,6 +513,32 @@ function ForgeBuilderFlow({
             <p className="text-sm text-muted-foreground">
               What kind of feature do you need? Pick the closest match — Forge will tailor it to your goal.
             </p>
+            <button
+              onClick={() => {
+                const pickable = FEATURE_TYPES.filter((f) => f.type !== "custom");
+                const pick = pickable[Math.floor(Math.random() * pickable.length)];
+                const bottleneck = state?.pursuit_model?.workstreams?.find((w) => w.bottleneck)?.bottleneck;
+                const goal = state?.active_goal?.statement;
+                const auto = `Surprise me — build the most useful ${pick.label} for my current pursuit${
+                  goal ? ` ("${goal}")` : ""
+                }${bottleneck ? `. Focus on this bottleneck: ${bottleneck}` : ""}. Pick the sharpest angle.`;
+                setSelectedType(pick.type);
+                setDescription(auto);
+                setStep("question");
+              }}
+              className="group flex w-full items-center justify-between rounded-xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-3 text-left hover:border-primary/60 hover:from-primary/20 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span>
+                  <span className="block text-sm font-medium">Surprise me</span>
+                  <span className="block text-[11px] text-muted-foreground">
+                    Let Forge pick the feature type and draft it from your goal & bottleneck.
+                  </span>
+                </span>
+              </span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+            </button>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {FEATURE_TYPES.map((ft) => (
                 <button
