@@ -632,7 +632,7 @@ export default function Onboarding() {
                     Where are you with the skills?
                   </h2>
                   <p className="text-white/50 text-sm mt-1">
-                    {getDomainPrompt(data.goal_statement)}
+                    {getDomainPrompt(data.long_term_goal || data.medium_term_goal || data.short_term_goal)}
                   </p>
                 </div>
                 <div className="flex flex-col gap-2">
