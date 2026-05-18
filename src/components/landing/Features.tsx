@@ -1,13 +1,13 @@
 import { motion } from "motion/react";
-import { Compass, Crosshair, GitBranch, LifeBuoy, Sparkles, TrendingUp } from "lucide-react";
+import { Compass, Crosshair, Hammer, LifeBuoy, MessageSquare, Radar } from "lucide-react";
 
 const features = [
-  { icon: Crosshair, title: "Decisive Move engine", body: "No to-do soup. Each morning, Moment names the single move that actually advances your goal." },
-  { icon: GitBranch, title: "Pursuit planner", body: "Your big ambition is compiled into a living plan — milestones, dependencies, and deadlines that adapt to reality." },
-  { icon: Compass, title: "Mission graph", body: "See how every micro-task ladders to identity-level outcomes. Zoom in on today, zoom out on a year." },
-  { icon: LifeBuoy, title: "Rescue mode", body: "Slipped a week? Moment rebuilds your runway in seconds — no shame spiral, no blank page." },
-  { icon: TrendingUp, title: "Honest momentum", body: "Streaks that measure depth, not vanity. Built for teens who want to ship, not perform." },
-  { icon: Sparkles, title: "Mentor in your pocket", body: "Reflect, adjust, and get unstuck with an AI that knows your goal — and remembers." },
+  { icon: Crosshair, title: "Decisive Move", body: "Every morning, Moment names the single move that actually advances your goal — with the resource pre-attached and a notes drawer for what you learn." },
+  { icon: Compass, title: "Living plan", body: "Your ambition is compiled into stages, workstreams, and a real week — milestones, dependencies and resets that adapt to your school year and reality gap." },
+  { icon: Radar, title: "Mission notices", body: "Tailored, grounded read-outs on momentum, drift, bottlenecks and blind spots — based on your actual workstreams, not generic productivity tropes." },
+  { icon: Hammer, title: "The Forge", body: "Stuck on something hard? Spin up a focused mini-app — essay opener, problem-set crusher, interview rehearsal — wired to your goal and your context." },
+  { icon: LifeBuoy, title: "Rescue mode", body: "Slipped a week? Moment rebuilds your runway in seconds and surfaces the smallest re-entry point. No shame spiral, no blank page." },
+  { icon: MessageSquare, title: "A coach that remembers", body: "Chat and Reflect share the same memory of your goal, your week, your knowns and unknowns. Microfeedback tunes the next move toward what actually works." },
 ];
 
 export const Features = () => (
