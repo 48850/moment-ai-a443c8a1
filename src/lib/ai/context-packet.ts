@@ -90,6 +90,21 @@ export interface MomentContextPacket {
   recent_chat: Array<{ role: "user" | "assistant"; content: string }>;
 }
 
+function horizonFromState(s: MomentState, key: "long" | "medium" | "short") {
+  const answers = s.onboarding?.answers ?? {};
+  const answerKey = key === "long" ? "long_term_goal" : key === "medium" ? "medium_term_goal" : "short_term_goal";
+  const direct = answers[answerKey];
+  if (typeof direct === "string" && direct.trim()) return direct.trim();
+
+  const source = [s.active_goal.statement, s.active_goal.success_definition]
+    .filter(Boolean)
+    .join("\n");
+  const label = key === "long" ? "Long-term" : key === "medium" ? "Medium-term" : "Short-term";
+  const match = source.match(new RegExp(`${label}:\\s*([^\\n]+)`, "i"));
+  if (match?.[1]?.trim()) return match[1].trim();
+  return key === "long" ? s.active_goal.statement : "";
+}
+
 export function buildContextPacket(s: MomentState | null): MomentContextPacket | Record<string, never> {
   if (!s) return {};
 
@@ -156,9 +171,9 @@ export function buildContextPacket(s: MomentState | null): MomentContextPacket |
     },
     active_goal: {
       statement: s.active_goal.statement,
-      long_term_goal: (s.onboarding?.answers?.long_term_goal as string) ?? "",
-      medium_term_goal: (s.onboarding?.answers?.medium_term_goal as string) ?? "",
-      short_term_goal: (s.onboarding?.answers?.short_term_goal as string) ?? "",
+      long_term_goal: horizonFromState(s, "long"),
+      medium_term_goal: horizonFromState(s, "medium"),
+      short_term_goal: horizonFromState(s, "short"),
       why_it_matters: s.active_goal.why_it_matters,
       horizon: s.active_goal.horizon,
       desired_identity: s.active_goal.desired_identity ?? "",
