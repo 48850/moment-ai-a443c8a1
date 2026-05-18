@@ -11,6 +11,8 @@ export interface MomentContextPacket {
     timezone: string;
     commitments: string[];
     normal_weekday?: string;
+    country?: string;
+    education_system?: string;
     preferences: {
       tone: string;
       strictness: string;
@@ -162,6 +164,8 @@ export function buildContextPacket(s: MomentState | null): MomentContextPacket |
       timezone: s.profile.timezone,
       commitments: s.profile.commitments ?? [],
       normal_weekday: s.profile.normal_weekday,
+      country: s.profile.country,
+      education_system: s.profile.education_system,
       preferences: {
         tone: s.profile.preferences?.tone ?? "calm",
         strictness: s.profile.preferences?.strictness ?? "soft",
