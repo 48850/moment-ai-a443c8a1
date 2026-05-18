@@ -205,27 +205,6 @@ const Tasks = () => {
         created_at: nowIso,
       }));
 
-    // Today is capped at 3 active tasks. If full, schedule this one for the
-    // next free day so the click isn't silently swallowed by capTasksForToday.
-    const today = new Date();
-    const todayKeyStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-    const activeToday = (state?.tasks ?? []).filter(
-      (x) =>
-        x.status !== "done" &&
-        x.status !== "skipped" &&
-        (!x.due_date || x.due_date === todayKeyStr),
-    ).length;
-    let dueDate = "";
-    let scheduledLabel = "today";
-    if (activeToday >= 3) {
-      const offset = activeToday - 2; // first overflow → tomorrow, then +1 each
-      const due = new Date();
-      due.setDate(due.getDate() + offset);
-      dueDate = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, "0")}-${String(due.getDate()).padStart(2, "0")}`;
-      scheduledLabel =
-        offset === 1 ? "tomorrow" : due.toLocaleDateString(undefined, { weekday: "long" });
-    }
-
     dispatch({
       type: "task/add",
       payload: {
@@ -240,7 +219,7 @@ const Tasks = () => {
         category: (t.category as Task["category"]) ?? "goal_direct",
         created_at: nowIso,
         completed_at: "",
-        due_date: dueDate,
+        due_date: "",
         created_by: "ai",
         why_now: t.why_now ?? "",
         proof_of_completion: t.proof_of_completion ?? "",
@@ -250,11 +229,7 @@ const Tasks = () => {
       } as Task,
     });
     setAddedSuggestionKeys((prev) => new Set(prev).add(key));
-    toast.success(
-      scheduledLabel === "today"
-        ? "Task added for today."
-        : `Today's plan is full (3/3) — scheduled for ${scheduledLabel}.`,
-    );
+    toast.success("Task added and synced into your week.");
   };
 
   const notesTask = useMemo(
