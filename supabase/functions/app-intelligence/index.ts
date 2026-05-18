@@ -660,6 +660,22 @@ Propose AT MOST 3 tasks. Quality over quantity. Remember: ≥2 of 3 must include
     case "reflect_summary":
       return `${ctx}\n\nReflections: ${JSON.stringify(payload?.reflections ?? [])}\nName one true pattern (energy, friction, timing). One line of honest encouragement.`;
 
+    case "notes_quick_review":
+      return `${ctx}
+
+The user wants a quick review + mini-lesson on the notes they wrote against this task.
+Task: "${payload?.task_title ?? "(untitled task)"}"
+Task context: ${payload?.task_context ?? "(none)"}
+Notes (most recent first):
+${(payload?.notes ?? []).map((n: { content: string; created_at?: string }, i: number) => `${i + 1}. ${n.content}`).join("\n") || "(no notes)"}
+
+Rules:
+- Ground every insight in something the user actually wrote. Quote short phrases when useful.
+- The mini_lesson must teach a real concept, framework, or technique that helps THIS task and goal — not generic productivity advice.
+- gaps should name what's missing or vague in the notes themselves.
+- next_step must be doable in under 10 minutes.
+- No motivation-speak. No "great job". Coach, don't cheerlead.`;
+
     case "mission_insight":
       return `${ctx}
 
