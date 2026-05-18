@@ -12,8 +12,10 @@ import type { MomentState } from "@/lib/types";
 interface OnboardingData {
   // Name (step 0)
   preferred_name: string;
-  // Stage 1
-  goal_statement: string;
+  // Stage 1 — channelled pursuit
+  long_term_goal: string;   // the anchor / horizon ambition
+  medium_term_goal: string; // milestone within months / this year
+  short_term_goal: string;  // the next concrete proof (weeks)
   horizon: string;
   // Stage 2
   why_it_matters: string;
@@ -33,12 +35,14 @@ interface OnboardingData {
   tone: string;
 }
 
-const HORIZON_OPTIONS = [
-  { value: "weeks", label: "This school term" },
-  { value: "months", label: "This year" },
-  { value: "years", label: "Long-term future (years)" },
-  { value: "decade", label: "Life ambition (10+ years)" },
-];
+/** Compose the three horizons into a single channelled goal statement. */
+function composeChannelledGoal(d: Pick<OnboardingData, "long_term_goal" | "medium_term_goal" | "short_term_goal">): string {
+  const parts: string[] = [];
+  if (d.long_term_goal.trim()) parts.push(`Long-term: ${d.long_term_goal.trim()}`);
+  if (d.medium_term_goal.trim()) parts.push(`Medium-term: ${d.medium_term_goal.trim()}`);
+  if (d.short_term_goal.trim()) parts.push(`Short-term: ${d.short_term_goal.trim()}`);
+  return parts.join(" → ");
+}
 
 const EMOTION_CHIPS = [
   "interest", "identity", "pressure", "curiosity",
@@ -183,7 +187,9 @@ export default function Onboarding() {
 
   const [data, setData] = useState<OnboardingData>({
     preferred_name: "",
-    goal_statement: "",
+    long_term_goal: "",
+    medium_term_goal: "",
+    short_term_goal: "",
     horizon: "years",
     why_it_matters: "",
     desired_identity: "",
@@ -200,12 +206,15 @@ export default function Onboarding() {
 
   const set = (patch: Partial<OnboardingData>) => setData((d) => ({ ...d, ...patch }));
 
+  /** Channelled goal statement (long → medium → short). */
+  const channelledGoal = useMemo(() => composeChannelledGoal(data), [data.long_term_goal, data.medium_term_goal, data.short_term_goal]);
+
   // Stage 5 feasibility — computed live from collected data
   const feasibility: GoalFeasibilityReport | null = useMemo(() => {
-    if (!data.goal_statement.trim()) return null;
+    if (!data.long_term_goal.trim()) return null;
     const age_bracket = ageBracketFromLifeStage(data.stage_of_life, data.age_str);
     return evaluateGoalFeasibility({
-      goal: data.goal_statement,
+      goal: data.long_term_goal,
       age_bracket,
       school_year: data.school_year || undefined,
       stage_of_life: data.stage_of_life || undefined,
@@ -213,7 +222,8 @@ export default function Onboarding() {
       current_level: data.current_level,
       current_stage: buildCurrentStageDescription(data),
     });
-  }, [data.goal_statement, data.stage_of_life, data.age_str, data.school_year, data.current_level]);
+  }, [data.long_term_goal, data.stage_of_life, data.age_str, data.school_year, data.current_level]);
+
 
   // Stage 7 understanding object — auto-generated from collected data
   const understanding = useMemo(() => {
@@ -221,8 +231,12 @@ export default function Onboarding() {
     const unknowns: string[] = [];
     const assumptions: string[] = [];
 
-    if (data.goal_statement.trim()) knowns.push(`goal: "${data.goal_statement.trim()}"`);
-    else unknowns.push("what their goal actually is");
+    if (data.long_term_goal.trim()) knowns.push(`long-term goal: "${data.long_term_goal.trim()}"`);
+    if (data.medium_term_goal.trim()) knowns.push(`medium-term milestone: "${data.medium_term_goal.trim()}"`);
+    if (data.short_term_goal.trim()) knowns.push(`short-term focus: "${data.short_term_goal.trim()}"`);
+    if (!data.long_term_goal.trim() && !data.medium_term_goal.trim() && !data.short_term_goal.trim()) {
+      unknowns.push("what their goal actually is");
+    }
 
     if (data.why_it_matters.trim()) knowns.push(`why it matters: "${data.why_it_matters.trim()}"`);
     else unknowns.push("why this goal matters to them personally");
@@ -264,7 +278,7 @@ export default function Onboarding() {
   const canProceed = (): boolean => {
     switch (step) {
       case 0: return true; // name is skippable
-      case 1: return data.goal_statement.trim().length >= 5;
+      case 1: return data.long_term_goal.trim().length >= 5 && data.short_term_goal.trim().length >= 3;
       case 2: return data.why_it_matters.trim().length >= 5;
       case 3: return true; // user reality is optional
       case 4: return true; // country/education optional
@@ -305,17 +319,22 @@ export default function Onboarding() {
           },
         },
         goal_patch: {
-          statement: data.goal_statement,
+          statement: data.long_term_goal.trim() || channelledGoal,
           why_it_matters: data.why_it_matters,
           desired_identity: data.desired_identity,
           horizon,
           current_stage,
+          success_definition: channelledGoal,
           status: "forming",
           phase: "clarifying",
         },
         answers: {
           stage_of_life: data.stage_of_life,
           horizon: data.horizon,
+          long_term_goal: data.long_term_goal,
+          medium_term_goal: data.medium_term_goal,
+          short_term_goal: data.short_term_goal,
+          channelled_goal: channelledGoal,
           current_level: data.current_level,
           support_preferences: data.support_preferences,
           tone: data.tone,
@@ -370,38 +389,56 @@ export default function Onboarding() {
               </div>
             )}
 
-            {/* Stage 1 — Goal Capture */}
+            {/* Stage 1 — Channelled Pursuit Capture */}
             {step === 1 && (
               <div className="space-y-5">
                 <div>
                   <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 2 of 9</p>
                   <h2 className="text-2xl font-semibold text-white leading-snug">
-                    What's the goal?
+                    What's the pursuit?
                   </h2>
                   <p className="text-white/50 text-sm mt-1">
-                    Don't overthink it. One clear sentence is enough.
+                    Three horizons, one channel. The long-term anchors it, the medium-term shapes the year, the short-term is what you start moving on now.
                   </p>
                 </div>
-                <textarea
-                  className="w-full bg-white/5 border border-white/15 rounded-xl p-4 text-white placeholder-white/30 text-base resize-none focus:outline-none focus:border-amber-400/50 min-h-[80px]"
-                  placeholder="e.g. Become a neurologist. Get into Stanford CS. Build my first app."
-                  value={data.goal_statement}
-                  onChange={(e) => set({ goal_statement: e.target.value })}
-                  autoFocus
-                />
-                <div>
-                  <p className="text-xs text-white/40 mb-2">How far out is this goal?</p>
-                  <div className="flex flex-wrap gap-2">
-                    {HORIZON_OPTIONS.map((h) => (
-                      <Chip
-                        key={h.value}
-                        label={h.label}
-                        selected={data.horizon === h.value}
-                        onClick={() => set({ horizon: h.value })}
-                      />
-                    ))}
-                  </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-widest text-white/40">Long-term — the anchor</label>
+                  <textarea
+                    className="w-full bg-white/5 border border-white/15 rounded-xl p-4 text-white placeholder-white/30 text-base resize-none focus:outline-none focus:border-amber-400/50 min-h-[64px]"
+                    placeholder="e.g. Become a neurologist. Get into Stanford CS. Run a creative studio."
+                    value={data.long_term_goal}
+                    onChange={(e) => set({ long_term_goal: e.target.value })}
+                    autoFocus
+                  />
                 </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-widest text-white/40">Medium-term — the milestone (this year)</label>
+                  <textarea
+                    className="w-full bg-white/5 border border-white/15 rounded-xl p-4 text-white placeholder-white/30 text-sm resize-none focus:outline-none focus:border-amber-400/50 min-h-[56px]"
+                    placeholder="e.g. Finish AP Bio with an A and a research project. Ship v1 of my app."
+                    value={data.medium_term_goal}
+                    onChange={(e) => set({ medium_term_goal: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-widest text-white/40">Short-term — the next proof (weeks)</label>
+                  <textarea
+                    className="w-full bg-white/5 border border-white/15 rounded-xl p-4 text-white placeholder-white/30 text-sm resize-none focus:outline-none focus:border-amber-400/50 min-h-[56px]"
+                    placeholder="e.g. Lock in a daily study block. Draft my CommonApp opener."
+                    value={data.short_term_goal}
+                    onChange={(e) => set({ short_term_goal: e.target.value })}
+                  />
+                </div>
+
+                {channelledGoal && (
+                  <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-3">
+                    <p className="text-[10px] uppercase tracking-widest text-amber-400/70 mb-1">Your channel</p>
+                    <p className="text-sm text-amber-100/80 leading-snug">{channelledGoal}</p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -595,7 +632,7 @@ export default function Onboarding() {
                     Where are you with the skills?
                   </h2>
                   <p className="text-white/50 text-sm mt-1">
-                    {getDomainPrompt(data.goal_statement)}
+                    {getDomainPrompt(data.long_term_goal || data.medium_term_goal || data.short_term_goal)}
                   </p>
                 </div>
                 <div className="flex flex-col gap-2">
