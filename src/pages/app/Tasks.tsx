@@ -9,6 +9,7 @@ import type { Task } from "@/lib/types";
 import { COMPLIMENTS } from "@/components/app/StreakFlame";
 import { toast } from "sonner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { QuickReviewNotes } from "@/components/app/QuickReviewNotes";
 
 type Filter = "all" | "pending" | "completed";
 
