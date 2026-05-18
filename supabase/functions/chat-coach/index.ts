@@ -498,7 +498,12 @@ STYLE — STRICT:
 
 function systemPrompt(snap: ChatSnapshot): string {
   const name = snap.display_name || "there";
-  const goal = snap.active_goal?.statement || "(no goal set yet)";
+  const _lt2 = snap.active_goal?.long_term_goal || "";
+  const _mt2 = snap.active_goal?.medium_term_goal || "";
+  const _st2 = snap.active_goal?.short_term_goal || "";
+  const goal = (_lt2 || _mt2 || _st2)
+    ? `Long-term: ${_lt2 || "(not set)"} · Medium-term: ${_mt2 || "(not set)"} · Short-term: ${_st2 || "(not set)"}`
+    : (snap.active_goal?.statement || "(no goal set yet)");
   const why = snap.active_goal?.why_it_matters || "";
   const known = snap.constraints_known ?? {};
   const knownLines = Object.keys(known).length
