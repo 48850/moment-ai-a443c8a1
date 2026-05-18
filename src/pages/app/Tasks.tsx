@@ -68,6 +68,7 @@ const Tasks = () => {
   const [refiningIds, setRefiningIds] = useState<Set<string>>(new Set());
   const [notesTaskId, setNotesTaskId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
+  const [addedSuggestionKeys, setAddedSuggestionKeys] = useState<Set<string>>(new Set());
   const suggest = useAI<{ tasks: SuggestedTask[] }>("suggest_tasks");
   const refine = useAI<RefinedTask>("refine_user_task");
 
@@ -237,7 +238,7 @@ const Tasks = () => {
     if (goalText) void refineUserTask(id, title, composerMins);
   };
 
-  const addSuggested = (t: SuggestedTask) => {
+  const addSuggested = (t: SuggestedTask, key: string) => {
     const nowIso = new Date().toISOString();
     const seededNotes = (t.elaborated_notes ?? [])
       .filter((n) => typeof n === "string" && n.trim().length > 0)
@@ -246,6 +247,28 @@ const Tasks = () => {
         content: content.trim(),
         created_at: nowIso,
       }));
+
+    // Today is capped at 3 active tasks. If full, schedule this one for the
+    // next free day so the click isn't silently swallowed by capTasksForToday.
+    const today = new Date();
+    const todayKeyStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const activeToday = (state?.tasks ?? []).filter(
+      (x) =>
+        x.status !== "done" &&
+        x.status !== "skipped" &&
+        (!x.due_date || x.due_date === todayKeyStr),
+    ).length;
+    let dueDate = "";
+    let scheduledLabel = "today";
+    if (activeToday >= 3) {
+      const offset = activeToday - 2; // first overflow → tomorrow, then +1 each
+      const due = new Date();
+      due.setDate(due.getDate() + offset);
+      dueDate = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, "0")}-${String(due.getDate()).padStart(2, "0")}`;
+      scheduledLabel =
+        offset === 1 ? "tomorrow" : due.toLocaleDateString(undefined, { weekday: "long" });
+    }
+
     dispatch({
       type: "task/add",
       payload: {
@@ -260,7 +283,7 @@ const Tasks = () => {
         category: (t.category as Task["category"]) ?? "goal_direct",
         created_at: nowIso,
         completed_at: "",
-        due_date: "",
+        due_date: dueDate,
         created_by: "ai",
         why_now: t.why_now ?? "",
         proof_of_completion: t.proof_of_completion ?? "",
@@ -269,6 +292,12 @@ const Tasks = () => {
         notes: seededNotes,
       } as Task,
     });
+    setAddedSuggestionKeys((prev) => new Set(prev).add(key));
+    toast.success(
+      scheduledLabel === "today"
+        ? "Task added for today."
+        : `Today's plan is full (3/3) — scheduled for ${scheduledLabel}.`,
+    );
   };
 
   const notesTask = useMemo(
@@ -406,7 +435,10 @@ const Tasks = () => {
       >
         {suggest.result?.tasks?.length ? (
           <ul className="space-y-2">
-            {suggest.result.tasks.map((t, i) => (
+            {suggest.result.tasks.map((t, i) => {
+              const key = `${i}:${t.title}`;
+              const added = addedSuggestionKeys.has(key);
+              return (
               <li key={i} className="flex items-start gap-2 rounded-lg border border-border bg-card p-2.5">
                 <div className="flex-1">
                   <div className="text-sm font-medium">{normaliseTaskTitle(t.title)}</div>
@@ -434,14 +466,16 @@ const Tasks = () => {
                   </div>
                 </div>
                 <button
-                  onClick={() => addSuggested(t)}
-                  className="rounded-md border border-border bg-background p-1 hover:border-primary"
-                  aria-label="Add"
+                  onClick={() => addSuggested(t, key)}
+                  disabled={added}
+                  className="rounded-md border border-border bg-background p-1 hover:border-primary disabled:opacity-40 disabled:hover:border-border"
+                  aria-label={added ? "Added" : "Add"}
                 >
-                  <Plus className="h-3.5 w-3.5" />
+                  {added ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Plus className="h-3.5 w-3.5" />}
                 </button>
               </li>
-            ))}
+              );
+            })}
           </ul>
         ) : null}
       </AIInsight>
