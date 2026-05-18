@@ -231,7 +231,10 @@ export default function Onboarding() {
     const unknowns: string[] = [];
     const assumptions: string[] = [];
 
-    if (data.goal_statement.trim()) knowns.push(`goal: "${data.goal_statement.trim()}"`);
+    if (data.long_term_goal.trim()) knowns.push(`long-term goal: "${data.long_term_goal.trim()}"`);
+    if (data.medium_term_goal.trim()) knowns.push(`medium-term milestone: "${data.medium_term_goal.trim()}"`);
+    if (data.short_term_goal.trim()) knowns.push(`short-term focus: "${data.short_term_goal.trim()}"`);
+    if (!data.long_term_goal.trim() && !data.medium_term_goal.trim() && !data.short_term_goal.trim())
     else unknowns.push("what their goal actually is");
 
     if (data.why_it_matters.trim()) knowns.push(`why it matters: "${data.why_it_matters.trim()}"`);
