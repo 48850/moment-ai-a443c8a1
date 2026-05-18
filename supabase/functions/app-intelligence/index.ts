@@ -571,8 +571,9 @@ ONBOARDING: ${onboarded} (confidence: ${obConfidence})
 - Unknowns: ${unknownsList || "(none)"}
 - Assumptions: ${obAssumptions || "(none)"}
 
-GOAL: ${goal}
+GOAL:${goal}
 Why: ${why}
+${hasHorizons ? `IMPORTANT: Reference all three horizons. Long-term is the WHY, medium-term is THIS YEAR's milestone, short-term is what to ship in the next 2–6 weeks. Tasks and advice should mostly ladder up from short-term → medium-term, with long-term as the anchor. Never plan as if only long-term exists.\n` : ""}
 Current stage: ${current_stage || "unknown"} → Target: ${target_stage || "not set"}
 Reality gap: ${reality_gap || "not yet assessed"}
 Available study time: ~${available_min}min | Mode: ${active_mode || "default"}
