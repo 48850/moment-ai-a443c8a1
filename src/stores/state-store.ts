@@ -13,7 +13,7 @@ import {
   instantiateModuleManifests,
 } from "@/lib/forge/compiler";
 import { seedWeekPlan, reformWeekPlan, sortBlocks as weekSort } from "@/lib/engine/week-plan";
-import { scheduleTaskInWeek, removeBlocksForTask } from "@/lib/engine/auto-schedule";
+import { scheduleTaskInWeek, dayIndexFromDueDate } from "@/lib/engine/auto-schedule";
 import { evaluateGoalFeasibility } from "@/lib/engine/goal-feasibility";
 import { filterStageAppropriateTasks } from "@/lib/engine/task-stage-filter";
 
@@ -35,32 +35,104 @@ const dateKey = (d = new Date()) =>
 const todayKey = () => dateKey();
 
 function capTasksForToday(tasks: MomentState["tasks"]): MomentState["tasks"] {
-  const today = todayKey();
-  const activeToday = tasks.filter((t) =>
+  // Kept as a compatibility shim for older call sites. The hard 3-task cap is removed.
+  return tasks;
+}
+
+function normaliseTitleForMerge(title = "") {
+  return title
+    .toLowerCase()
+    .replace(/https?:\/\/\S+/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !["the", "and", "for", "with", "into", "task", "review"].includes(w))
+    .join(" ")
+    .trim();
+}
+
+function titleSimilarity(a = "", b = "") {
+  const aw = new Set(normaliseTitleForMerge(a).split(" ").filter(Boolean));
+  const bw = new Set(normaliseTitleForMerge(b).split(" ").filter(Boolean));
+  if (!aw.size || !bw.size) return 0;
+  const overlap = [...aw].filter((w) => bw.has(w)).length;
+  return overlap / Math.max(aw.size, bw.size);
+}
+
+function mergeTask(tasks: MomentState["tasks"], incoming: MomentState["tasks"][number]) {
+  const duplicate = tasks.find((t) =>
     t.status !== "done" &&
     t.status !== "skipped" &&
-    (!t.due_date || t.due_date === today)
+    (titleSimilarity(t.title, incoming.title) >= 0.62 ||
+      (t.resource_url && incoming.resource_url && t.resource_url === incoming.resource_url))
   );
-  if (activeToday.length <= 3) return tasks;
+  if (!duplicate) return { tasks: [...tasks, incoming], task: incoming, added: true };
 
-  const keep = new Set(
-    [...activeToday]
-      .sort((a, b) => {
-        const pri = { high: 0, medium: 1, low: 2 } as const;
-        const p = pri[a.priority] - pri[b.priority];
-        return p || a.created_at.localeCompare(b.created_at);
-      })
-      .slice(0, 3)
-      .map((t) => t.id),
+  const priorityRank = { high: 0, medium: 1, low: 2 } as const;
+  const mergedNotes = [
+    ...((duplicate as any).notes ?? []),
+    ...((incoming as any).notes ?? []).filter(
+      (note: any) => !((duplicate as any).notes ?? []).some((n: any) => n.content?.trim() === note.content?.trim()),
+    ),
+  ];
+  const merged = {
+    ...duplicate,
+    title: incoming.created_by === "ai" && incoming.title.length > duplicate.title.length ? incoming.title : duplicate.title,
+    description: duplicate.description || incoming.description,
+    priority: priorityRank[incoming.priority] < priorityRank[duplicate.priority] ? incoming.priority : duplicate.priority,
+    estimated_minutes: Math.max(duplicate.estimated_minutes ?? 30, incoming.estimated_minutes ?? 30),
+    due_date: duplicate.due_date || incoming.due_date,
+    why_now: duplicate.why_now || incoming.why_now,
+    proof_of_completion: duplicate.proof_of_completion || incoming.proof_of_completion,
+    resource_url: duplicate.resource_url || incoming.resource_url,
+    resource_label: duplicate.resource_label || incoming.resource_label,
+    notes: mergedNotes,
+  } as typeof duplicate;
+  return { tasks: tasks.map((t) => (t.id === duplicate.id ? merged : t)), task: merged, added: false };
+}
+
+function syncActiveTasksToWeek(state: MomentState): MomentState {
+  const activeTaskById = new Map(
+    (state.tasks ?? [])
+      .filter((t) => t.status !== "done" && t.status !== "skipped")
+      .map((t) => [t.id, t]),
   );
+  const seen = new Set<string>();
+  let week = (state.schedule_state.week_plan ?? [])
+    .filter((b: any) => {
+      if (!b.task_id) return true;
+      if (!activeTaskById.has(b.task_id) || seen.has(b.task_id)) return false;
+      seen.add(b.task_id);
+      return true;
+    })
+    .map((b: any) => {
+      if (!b.task_id) return b;
+      const task = activeTaskById.get(b.task_id)!;
+      return {
+        ...b,
+        day_index: task.due_date ? dayIndexFromDueDate(task.due_date) : b.day_index,
+        title: task.title,
+        notes: task.why_now ?? b.notes ?? "",
+      };
+    })
+    .sort(weekSort);
 
-  let deferIndex = 1;
-  return tasks.map((t) => {
-    if (!activeToday.some((candidate) => candidate.id === t.id) || keep.has(t.id)) return t;
-    const due = new Date();
-    due.setDate(due.getDate() + deferIndex++);
-    return { ...t, due_date: dateKey(due) };
-  });
+  let tasks = state.tasks ?? [];
+  let synthState: MomentState = { ...state, tasks, schedule_state: { ...state.schedule_state, week_plan: week } };
+  for (const task of tasks) {
+    if (task.status === "done" || task.status === "skipped") continue;
+    const existing = week.find((b: any) => b.task_id === task.id);
+    if (existing) {
+      tasks = tasks.map((t) => (t.id === task.id && t.scheduled_block_id !== existing.id ? { ...t, scheduled_block_id: existing.id } : t));
+      continue;
+    }
+    const block = scheduleTaskInWeek(synthState, task);
+    if (!block) continue;
+    week = [...week, block].sort(weekSort);
+    tasks = tasks.map((t) => (t.id === task.id ? { ...t, scheduled_block_id: block.id } : t));
+    synthState = { ...synthState, tasks, schedule_state: { ...synthState.schedule_state, week_plan: week } };
+  }
+
+  return { ...state, tasks, schedule_state: { ...state.schedule_state, week_plan: week } };
 }
 
 function persist(state: MomentState) {
@@ -124,7 +196,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
           }
         : saved.active_goal;
 
-      const hydrated: MomentState = {
+      let hydrated: MomentState = {
         ...saved,
         tasks: capTasksForToday(saved.tasks ?? []),
         profile: profileBackfill,
@@ -167,6 +239,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
         chat_messages: (saved as any).chat_messages ?? [],
         onboarding: onboardingBackfill,
       };
+      hydrated = syncActiveTasksToWeek(hydrated);
       // In demo mode, use demo state instead of saved (only for fresh demo sessions)
       if (isDemo && !saved.active_goal?.statement?.trim()) {
         const demo = createDefaultState(session.userId, session.displayName, tz());
@@ -247,18 +320,8 @@ export const useStateStore = create<StateStore>((set, get) => ({
           });
           taskToAdd = { ...taskToAdd, ...filtered };
         }
-        const cappedTasks = capTasksForToday([...s.tasks, taskToAdd]);
-        // Use the post-cap task (its due_date may have shifted) so the block
-        // lands on the same day the task is now scheduled for.
-        const finalTask = cappedTasks.find((t) => t.id === taskToAdd.id) ?? taskToAdd;
-        const block = scheduleTaskInWeek(s, finalTask);
-        let tasks = cappedTasks;
-        let week = s.schedule_state.week_plan ?? [];
-        if (block) {
-          week = [...week, block].sort(weekSort);
-          tasks = tasks.map((t) => (t.id === finalTask.id ? { ...t, scheduled_block_id: block.id } : t));
-        }
-        next = { ...s, tasks, schedule_state: { ...s.schedule_state, week_plan: week } };
+        const merged = mergeTask(s.tasks, taskToAdd);
+        next = syncActiveTasksToWeek({ ...s, tasks: merged.tasks });
         break;
       }
 
@@ -273,57 +336,24 @@ export const useStateStore = create<StateStore>((set, get) => ({
         );
         const userTasks = action.payload.filter((t) => t.created_by !== "ai");
         const allNew = [...userTasks, ...filtered];
-        const cappedTasks = capTasksForToday([...s.tasks, ...allNew]);
-        let week = s.schedule_state.week_plan ?? [];
-        let tasks = cappedTasks;
-        // Accumulate blocks one-by-one so each call sees the prior insertions
-        // and picks a non-overlapping slot.
-        let synthState: typeof s = { ...s, schedule_state: { ...s.schedule_state, week_plan: week } };
-        for (const t of allNew) {
-          const finalTask = cappedTasks.find((x) => x.id === t.id) ?? t;
-          const block = scheduleTaskInWeek(synthState, finalTask);
-          if (!block) continue;
-          week = [...week, block].sort(weekSort);
-          tasks = tasks.map((x) => (x.id === finalTask.id ? { ...x, scheduled_block_id: block.id } : x));
-          synthState = { ...synthState, schedule_state: { ...synthState.schedule_state, week_plan: week } };
-        }
-        next = { ...s, tasks, schedule_state: { ...s.schedule_state, week_plan: week } };
+        const mergedTasks = allNew.reduce((acc, task) => mergeTask(acc, task).tasks, s.tasks);
+        next = syncActiveTasksToWeek({ ...s, tasks: mergedTasks });
         break;
       }
       case "task/update": {
-        const becameInactive =
-          action.payload.changes?.status === "done" || action.payload.changes?.status === "skipped";
         const updatedTasks = s.tasks.map((t) =>
           t.id === action.payload.id ? { ...t, ...action.payload.changes } : t,
         );
-        let week = s.schedule_state.week_plan ?? [];
-        if (becameInactive) {
-          week = removeBlocksForTask(week, action.payload.id);
-        } else {
-          // Keep the linked block in sync with title / notes changes.
-          const updated = updatedTasks.find((t) => t.id === action.payload.id);
-          if (updated) {
-            week = week.map((b) =>
-              b.task_id === action.payload.id
-                ? { ...b, title: updated.title, notes: updated.why_now ?? b.notes }
-                : b,
-            );
-          }
-        }
-        next = { ...s, tasks: updatedTasks, schedule_state: { ...s.schedule_state, week_plan: week } };
+        next = syncActiveTasksToWeek({ ...s, tasks: updatedTasks });
         break;
       }
       case "task/complete":
-        next = {
+        next = syncActiveTasksToWeek({
           ...s,
           tasks: s.tasks.map((t) =>
             t.id === action.payload.id ? { ...t, status: "done", completed_at: action.payload.completed_at } : t,
           ),
-          schedule_state: {
-            ...s.schedule_state,
-            week_plan: removeBlocksForTask(s.schedule_state.week_plan ?? [], action.payload.id),
-          },
-        };
+        });
         // Fire global celebration (flame burst + compliment toast).
         if (typeof window !== "undefined") {
           try {
@@ -338,14 +368,10 @@ export const useStateStore = create<StateStore>((set, get) => ({
         }
         break;
       case "task/delete":
-        next = {
+        next = syncActiveTasksToWeek({
           ...s,
           tasks: s.tasks.filter((t) => t.id !== action.payload.id),
-          schedule_state: {
-            ...s.schedule_state,
-            week_plan: removeBlocksForTask(s.schedule_state.week_plan ?? [], action.payload.id),
-          },
-        };
+        });
         break;
       case "schedule/addBlock":
         next = {
@@ -366,14 +392,14 @@ export const useStateStore = create<StateStore>((set, get) => ({
         break;
 
       case "week/set":
-        next = {
+        next = syncActiveTasksToWeek({
           ...s,
           schedule_state: {
             ...s.schedule_state,
             week_plan: action.payload,
             week_plan_generated_at: now(),
           },
-        };
+        });
         break;
       case "week/addBlock":
         next = {
@@ -406,18 +432,18 @@ export const useStateStore = create<StateStore>((set, get) => ({
         break;
       case "week/seed": {
         const seeded = seedWeekPlan(s);
-        next = {
+        next = syncActiveTasksToWeek({
           ...s,
           schedule_state: { ...s.schedule_state, week_plan: seeded, week_plan_generated_at: now() },
-        };
+        });
         break;
       }
       case "week/reform": {
         const reformed = reformWeekPlan(s, (s.schedule_state.week_plan ?? []) as any);
-        next = {
+        next = syncActiveTasksToWeek({
           ...s,
           schedule_state: { ...s.schedule_state, week_plan: reformed, week_plan_generated_at: now() },
-        };
+        });
         break;
       }
 
@@ -1006,7 +1032,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
 
       case "task/tune": {
         const { id, feedback, change, changes } = action.payload;
-        next = {
+        next = syncActiveTasksToWeek({
           ...s,
           tasks: s.tasks.map((t) => {
             if (t.id !== id) return t;
@@ -1021,7 +1047,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
               tune_notes: [...((t as any).tune_notes ?? []), tuneNote],
             } as typeof t;
           }),
-        };
+        });
         break;
       }
 
@@ -1088,10 +1114,10 @@ export const useStateStore = create<StateStore>((set, get) => ({
       case "chat/complete_specialisation": {
         const { goal_patch, first_task } = action.payload;
         const merged = { ...s.active_goal, ...goal_patch, last_updated_at: now() };
-        next = {
+        next = syncActiveTasksToWeek({
           ...s,
           active_goal: merged,
-          tasks: capTasksForToday([...s.tasks, first_task]),
+          tasks: mergeTask(s.tasks, first_task).tasks,
           chat_state: {
             ...(s.chat_state ?? { post_onboarding_specialisation_required: false, specialisation_phase: "explain_goal" as const }),
             post_onboarding_specialisation_required: false,
@@ -1100,7 +1126,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
           pursuit_model: merged.statement.trim()
             ? compilePursuitModel(merged, s.pursuit_model)
             : null,
-        };
+        });
         break;
       }
     }
