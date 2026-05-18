@@ -118,6 +118,9 @@ export function buildContextPacket(s: MomentState | null): MomentContextPacket |
     },
     active_goal: {
       statement: s.active_goal.statement,
+      long_term_goal: (s.onboarding?.answers?.long_term_goal as string) ?? "",
+      medium_term_goal: (s.onboarding?.answers?.medium_term_goal as string) ?? "",
+      short_term_goal: (s.onboarding?.answers?.short_term_goal as string) ?? "",
       why_it_matters: s.active_goal.why_it_matters,
       horizon: s.active_goal.horizon,
       desired_identity: s.active_goal.desired_identity ?? "",
@@ -129,6 +132,7 @@ export function buildContextPacket(s: MomentState | null): MomentContextPacket |
       phase: s.active_goal.phase,
       feasibility: s.active_goal.feasibility,
     },
+
     current_reality: {
       available_study_minutes: s.constraints?.study_minutes_daily ?? 60,
       school_end_time: s.constraints?.school_end_time ?? "",
