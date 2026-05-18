@@ -531,6 +531,7 @@ const Tasks = () => {
                     taskTitle={t.title}
                     taskContext={(t as { description?: string }).description ?? ""}
                     notes={t.notes ?? []}
+                    onSaveReview={(review) => saveNoteReviewToTask(t.id, review)}
                   />
                 </div>
               )}
@@ -607,6 +608,7 @@ const Tasks = () => {
                 taskTitle={notesTask.title}
                 taskContext={(notesTask as { description?: string }).description ?? ""}
                 notes={notesTask.notes ?? []}
+                onSaveReview={(review) => saveNoteReviewToTask(notesTask.id, review)}
               />
             )}
             {(notesTask?.notes ?? []).length === 0 ? (
