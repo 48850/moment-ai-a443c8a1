@@ -120,7 +120,19 @@ export function buildContextPacket(s: MomentState | null): MomentContextPacket |
       notes: (t.notes ?? [])
         .slice(-5)
         .map((n) => ({ content: n.content, created_at: n.created_at })),
-      latest_review: t.note_review,
+      latest_review: t.note_review
+        ? {
+            headline: t.note_review.headline ?? "",
+            key_insights: t.note_review.key_insights ?? [],
+            gaps: t.note_review.gaps ?? [],
+            mini_lesson: {
+              title: t.note_review.mini_lesson?.title ?? "",
+              body: t.note_review.mini_lesson?.body ?? "",
+            },
+            next_step: t.note_review.next_step ?? "",
+            created_at: t.note_review.created_at ?? "",
+          }
+        : undefined,
     }));
 
   const rescue7d = (s.rescue_signals ?? []).filter((r) => r.created_at >= sevenDaysAgo).length;
