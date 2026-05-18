@@ -13,7 +13,7 @@ import {
   instantiateModuleManifests,
 } from "@/lib/forge/compiler";
 import { seedWeekPlan, reformWeekPlan, sortBlocks as weekSort } from "@/lib/engine/week-plan";
-import { scheduleTaskInWeek, removeBlocksForTask } from "@/lib/engine/auto-schedule";
+import { scheduleTaskInWeek, removeBlocksForTask, dayIndexFromDueDate } from "@/lib/engine/auto-schedule";
 import { evaluateGoalFeasibility } from "@/lib/engine/goal-feasibility";
 import { filterStageAppropriateTasks } from "@/lib/engine/task-stage-filter";
 
@@ -35,32 +35,27 @@ const dateKey = (d = new Date()) =>
 const todayKey = () => dateKey();
 
 function capTasksForToday(tasks: MomentState["tasks"]): MomentState["tasks"] {
-  const today = todayKey();
-  const activeToday = tasks.filter((t) =>
-    t.status !== "done" &&
-    t.status !== "skipped" &&
-    (!t.due_date || t.due_date === today)
-  );
-  if (activeToday.length <= 3) return tasks;
+  // Kept as a compatibility shim for older call sites. The hard 3-task cap is removed.
+  return tasks;
+}
 
-  const keep = new Set(
-    [...activeToday]
-      .sort((a, b) => {
-        const pri = { high: 0, medium: 1, low: 2 } as const;
-        const p = pri[a.priority] - pri[b.priority];
-        return p || a.created_at.localeCompare(b.created_at);
-      })
-      .slice(0, 3)
-      .map((t) => t.id),
-  );
+function normaliseTitleForMerge(title = "") {
+  return title
+    .toLowerCase()
+    .replace(/https?:\/\/\S+/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !["the", "and", "for", "with", "into", "task", "review"].includes(w))
+    .join(" ")
+    .trim();
+}
 
-  let deferIndex = 1;
-  return tasks.map((t) => {
-    if (!activeToday.some((candidate) => candidate.id === t.id) || keep.has(t.id)) return t;
-    const due = new Date();
-    due.setDate(due.getDate() + deferIndex++);
-    return { ...t, due_date: dateKey(due) };
-  });
+function titleSimilarity(a = "", b = "") {
+  const aw = new Set(normaliseTitleForMerge(a).split(" ").filter(Boolean));
+  const bw = new Set(normaliseTitleForMerge(b).split(" ").filter(Boolean));
+  if (!aw.size || !bw.size) return 0;
+  const overlap = [...aw].filter((w) => bw.has(w)).length;
+  return overlap / Math.max(aw.size, bw.size);
 }
 
 function persist(state: MomentState) {
