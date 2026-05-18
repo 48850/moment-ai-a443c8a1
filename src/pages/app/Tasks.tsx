@@ -196,9 +196,7 @@ const Tasks = () => {
             },
           },
         });
-        scheduleIntoWeek(result.refined_title, result.estimated_minutes ?? mins);
-      } else {
-        scheduleIntoWeek(rawTitle, mins);
+        // Auto-scheduling into the weekly grid happens inside the reducer.
       }
     } finally {
       setRefiningIds((s) => {
