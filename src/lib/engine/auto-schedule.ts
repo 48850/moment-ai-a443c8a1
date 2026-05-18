@@ -2,7 +2,7 @@ import type { MomentState, Task, WeekBlock, WeekCategory } from "@/lib/types";
 
 const JS_TO_IDX = [6, 0, 1, 2, 3, 4, 5]; // JS Sun..Sat → Mon..Sun grid index
 
-function dayIndexFromDueDate(due?: string): number {
+export function dayIndexFromDueDate(due?: string): number {
   if (!due) {
     const todayJs = new Date().getDay();
     return JS_TO_IDX[todayJs];
