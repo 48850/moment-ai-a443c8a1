@@ -2,8 +2,8 @@ import { motion } from "motion/react";
 import { Link } from "react-router-dom";
 
 const links = [
-  { label: "Why Moment", href: "#why" },
-  { label: "How it works", href: "#how" },
+  { label: "The system", href: "#why" },
+  { label: "A day in Moment", href: "#how" },
   { label: "Manifesto", href: "#manifesto" },
 ];
 
