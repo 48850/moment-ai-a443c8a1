@@ -88,6 +88,21 @@ const Tasks = () => {
   }, [tasks]);
   const goalText = state?.active_goal?.statement ?? "";
   const currentStage = state?.active_goal?.current_stage ?? "";
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const SOFT_DAILY_CAP = 5;
+  const confirmDailyCap = (dueDate: string): boolean => {
+    const day = dueDate || todayIso;
+    const count = tasks.filter(
+      (t) => t.status !== "done" && t.status !== "skipped" && (t.due_date || todayIso) === day,
+    ).length;
+    if (count < SOFT_DAILY_CAP) return true;
+    const label = day === todayIso ? "today" : day;
+    return window.confirm(
+      `You already have ${count} active tasks for ${label}. Five is usually the sweet spot — add another anyway?`,
+    );
+  };
+
   const educationSystem = state?.profile?.education_system ?? "";
   const country = state?.profile?.country ?? "";
   const schoolYear = state?.profile?.school_year ?? "";
