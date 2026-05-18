@@ -41,6 +41,21 @@ export const DecisiveMoveCard = () => (
           </div>
         </div>
 
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <a
+            href="#"
+            onClick={(e) => e.preventDefault()}
+            className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-primary"
+          >
+            <ExternalLink className="h-3 w-3" />
+            CommonApp · prompt #1
+          </a>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            <NotebookPen className="h-3 w-3" />
+            Notes · 2
+          </span>
+        </div>
+
         <div className="mt-5 flex gap-2">
           <button className="flex-1 rounded-full bg-ink py-2.5 text-xs font-medium text-paper">Start now</button>
           <button className="rounded-full border border-border bg-background px-4 py-2.5 text-xs font-medium">Swap</button>
