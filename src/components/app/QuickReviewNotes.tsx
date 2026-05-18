@@ -3,9 +3,9 @@ import { Loader2, Sparkles, BookOpen, X } from "lucide-react";
 import { useAI } from "@/lib/ai/useAI";
 
 interface TaskNote {
-  id: string;
-  content: string;
-  created_at: string;
+  id?: string;
+  content?: string;
+  created_at?: string;
 }
 
 interface QuickReviewResult {
