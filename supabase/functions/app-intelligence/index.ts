@@ -587,7 +587,13 @@ Signals — Feedback: ${fb} | Reflections: ${JSON.stringify(reflections)}${chatB
 
 function userPrompt(intent: string, snapshot: any, payload: any): string {
   const ctx = buildContextHeader(snapshot);
-  const goal = snapshot?.active_goal?.statement || "(no goal set)";
+  const _lt = snapshot?.active_goal?.long_term_goal ?? "";
+  const _mt = snapshot?.active_goal?.medium_term_goal ?? "";
+  const _st = snapshot?.active_goal?.short_term_goal ?? "";
+  const _stmt = snapshot?.active_goal?.statement || "(no goal set)";
+  const goal = (_lt || _mt || _st)
+    ? `Long-term: ${_lt || "(not set)"} | Medium-term: ${_mt || "(not set)"} | Short-term: ${_st || "(not set)"}`
+    : _stmt;
   const current_stage = snapshot?.active_goal?.current_stage ?? "unknown";
   const target_stage = snapshot?.active_goal?.target_stage ?? "not defined";
   const risk = snapshot?.active_goal?.feasibility?.risk_of_bad_advice ?? "low";
