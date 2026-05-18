@@ -536,8 +536,16 @@ function buildContextHeader(snapshot: any): string {
     .map((c: any) => `${c.name}: ${c.status}`).join(", ");
   const active_mode = snapshot?.pursuit?.active_mode ?? "";
   const available_min = snapshot?.current_reality?.available_study_minutes ?? 60;
-  const goal = snapshot?.active_goal?.statement || "(no goal set)";
+  const longTerm = snapshot?.active_goal?.long_term_goal ?? "";
+  const mediumTerm = snapshot?.active_goal?.medium_term_goal ?? "";
+  const shortTerm = snapshot?.active_goal?.short_term_goal ?? "";
+  const hasHorizons = Boolean(longTerm || mediumTerm || shortTerm);
+  const goalStatement = snapshot?.active_goal?.statement || "(no goal set)";
+  const goal = hasHorizons
+    ? `\n  • Long-term (years): ${longTerm || "(not set)"}\n  • Medium-term (this year): ${mediumTerm || "(not set)"}\n  • Short-term (this month): ${shortTerm || "(not set)"}`
+    : ` ${goalStatement}`;
   const why = snapshot?.active_goal?.why_it_matters || "";
+
   const fb = (snapshot?.signals?.recent_feedback ?? []).slice(-10).join(", ") || "none";
   const reflections = (snapshot?.signals?.recent_reflections ?? []).slice(-3);
 
@@ -563,8 +571,9 @@ ONBOARDING: ${onboarded} (confidence: ${obConfidence})
 - Unknowns: ${unknownsList || "(none)"}
 - Assumptions: ${obAssumptions || "(none)"}
 
-GOAL: ${goal}
+GOAL:${goal}
 Why: ${why}
+${hasHorizons ? `IMPORTANT: Reference all three horizons. Long-term is the WHY, medium-term is THIS YEAR's milestone, short-term is what to ship in the next 2–6 weeks. Tasks and advice should mostly ladder up from short-term → medium-term, with long-term as the anchor. Never plan as if only long-term exists.\n` : ""}
 Current stage: ${current_stage || "unknown"} → Target: ${target_stage || "not set"}
 Reality gap: ${reality_gap || "not yet assessed"}
 Available study time: ~${available_min}min | Mode: ${active_mode || "default"}
@@ -578,7 +587,13 @@ Signals — Feedback: ${fb} | Reflections: ${JSON.stringify(reflections)}${chatB
 
 function userPrompt(intent: string, snapshot: any, payload: any): string {
   const ctx = buildContextHeader(snapshot);
-  const goal = snapshot?.active_goal?.statement || "(no goal set)";
+  const _lt = snapshot?.active_goal?.long_term_goal ?? "";
+  const _mt = snapshot?.active_goal?.medium_term_goal ?? "";
+  const _st = snapshot?.active_goal?.short_term_goal ?? "";
+  const _stmt = snapshot?.active_goal?.statement || "(no goal set)";
+  const goal = (_lt || _mt || _st)
+    ? `Long-term: ${_lt || "(not set)"} | Medium-term: ${_mt || "(not set)"} | Short-term: ${_st || "(not set)"}`
+    : _stmt;
   const current_stage = snapshot?.active_goal?.current_stage ?? "unknown";
   const target_stage = snapshot?.active_goal?.target_stage ?? "not defined";
   const risk = snapshot?.active_goal?.feasibility?.risk_of_bad_advice ?? "low";

@@ -342,7 +342,7 @@ const SPECIALISATION_TOOLS = [
 
 interface ChatSnapshot {
   display_name?: string;
-  active_goal?: { statement?: string; why_it_matters?: string; status?: string };
+  active_goal?: { statement?: string; long_term_goal?: string; medium_term_goal?: string; short_term_goal?: string; why_it_matters?: string; status?: string };
   constraints_known?: Record<string, unknown>;
   missing_schedule_info?: string[];
   todays_plan?: Array<{ time: string; title: string; status: string }>;
@@ -396,7 +396,12 @@ function fmt(v: unknown): string {
 
 function specialisationSystemPrompt(snap: ChatSnapshot): string {
   const name = snap.display_name || "there";
-  const goal = snap.active_goal?.statement || "(no goal set yet)";
+  const _lt = snap.active_goal?.long_term_goal || "";
+  const _mt = snap.active_goal?.medium_term_goal || "";
+  const _st = snap.active_goal?.short_term_goal || "";
+  const goal = (_lt || _mt || _st)
+    ? `Long-term: ${_lt || "(not set)"} · Medium-term: ${_mt || "(not set)"} · Short-term: ${_st || "(not set)"}`
+    : (snap.active_goal?.statement || "(no goal set yet)");
   const why = snap.active_goal?.why_it_matters || "";
   const currentStage = snap.goal_current_stage || "";
   const targetStage = snap.goal_target_stage || "";
@@ -493,7 +498,12 @@ STYLE — STRICT:
 
 function systemPrompt(snap: ChatSnapshot): string {
   const name = snap.display_name || "there";
-  const goal = snap.active_goal?.statement || "(no goal set yet)";
+  const _lt2 = snap.active_goal?.long_term_goal || "";
+  const _mt2 = snap.active_goal?.medium_term_goal || "";
+  const _st2 = snap.active_goal?.short_term_goal || "";
+  const goal = (_lt2 || _mt2 || _st2)
+    ? `Long-term: ${_lt2 || "(not set)"} · Medium-term: ${_mt2 || "(not set)"} · Short-term: ${_st2 || "(not set)"}`
+    : (snap.active_goal?.statement || "(no goal set yet)");
   const why = snap.active_goal?.why_it_matters || "";
   const known = snap.constraints_known ?? {};
   const knownLines = Object.keys(known).length
