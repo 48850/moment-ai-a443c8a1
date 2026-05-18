@@ -12,8 +12,10 @@ import type { MomentState } from "@/lib/types";
 interface OnboardingData {
   // Name (step 0)
   preferred_name: string;
-  // Stage 1
-  goal_statement: string;
+  // Stage 1 — channelled pursuit
+  long_term_goal: string;   // the anchor / horizon ambition
+  medium_term_goal: string; // milestone within months / this year
+  short_term_goal: string;  // the next concrete proof (weeks)
   horizon: string;
   // Stage 2
   why_it_matters: string;
@@ -33,12 +35,14 @@ interface OnboardingData {
   tone: string;
 }
 
-const HORIZON_OPTIONS = [
-  { value: "weeks", label: "This school term" },
-  { value: "months", label: "This year" },
-  { value: "years", label: "Long-term future (years)" },
-  { value: "decade", label: "Life ambition (10+ years)" },
-];
+/** Compose the three horizons into a single channelled goal statement. */
+function composeChannelledGoal(d: Pick<OnboardingData, "long_term_goal" | "medium_term_goal" | "short_term_goal">): string {
+  const parts: string[] = [];
+  if (d.long_term_goal.trim()) parts.push(`Long-term: ${d.long_term_goal.trim()}`);
+  if (d.medium_term_goal.trim()) parts.push(`Medium-term: ${d.medium_term_goal.trim()}`);
+  if (d.short_term_goal.trim()) parts.push(`Short-term: ${d.short_term_goal.trim()}`);
+  return parts.join(" → ");
+}
 
 const EMOTION_CHIPS = [
   "interest", "identity", "pressure", "curiosity",
