@@ -20,17 +20,19 @@ export function QuickReviewNotes({
   taskTitle,
   taskContext,
   notes,
+  onSaveReview,
 }: {
   taskTitle: string;
   taskContext?: string;
   notes: TaskNote[];
+  onSaveReview?: (review: QuickReviewResult) => void;
 }) {
   const ai = useAI<QuickReviewResult>("notes_quick_review");
   const [open, setOpen] = useState(false);
 
   const handleRun = async () => {
     setOpen(true);
-    await ai.run({
+    const review = await ai.run({
       task_title: taskTitle,
       task_context: taskContext ?? "",
       notes: [...notes]
@@ -38,6 +40,7 @@ export function QuickReviewNotes({
         .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))
         .map((n) => ({ content: n.content ?? "", created_at: n.created_at ?? "" })),
     });
+    if (review) onSaveReview?.(review);
   };
 
   if (notes.length === 0) return null;
