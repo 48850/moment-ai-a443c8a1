@@ -13,7 +13,7 @@ import {
   instantiateModuleManifests,
 } from "@/lib/forge/compiler";
 import { seedWeekPlan, reformWeekPlan, sortBlocks as weekSort } from "@/lib/engine/week-plan";
-import { scheduleTaskInWeek, removeBlocksForTask, dayIndexFromDueDate } from "@/lib/engine/auto-schedule";
+import { scheduleTaskInWeek, dayIndexFromDueDate } from "@/lib/engine/auto-schedule";
 import { evaluateGoalFeasibility } from "@/lib/engine/goal-feasibility";
 import { filterStageAppropriateTasks } from "@/lib/engine/task-stage-filter";
 
@@ -1114,10 +1114,10 @@ export const useStateStore = create<StateStore>((set, get) => ({
       case "chat/complete_specialisation": {
         const { goal_patch, first_task } = action.payload;
         const merged = { ...s.active_goal, ...goal_patch, last_updated_at: now() };
-        next = {
+        next = syncActiveTasksToWeek({
           ...s,
           active_goal: merged,
-          tasks: capTasksForToday([...s.tasks, first_task]),
+          tasks: mergeTask(s.tasks, first_task).tasks,
           chat_state: {
             ...(s.chat_state ?? { post_onboarding_specialisation_required: false, specialisation_phase: "explain_goal" as const }),
             post_onboarding_specialisation_required: false,
@@ -1126,7 +1126,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
           pursuit_model: merged.statement.trim()
             ? compilePursuitModel(merged, s.pursuit_model)
             : null,
-        };
+        });
         break;
       }
     }
