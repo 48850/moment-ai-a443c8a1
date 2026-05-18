@@ -34,8 +34,9 @@ export function QuickReviewNotes({
       task_title: taskTitle,
       task_context: taskContext ?? "",
       notes: [...notes]
-        .sort((a, b) => b.created_at.localeCompare(a.created_at))
-        .map((n) => ({ content: n.content, created_at: n.created_at })),
+        .filter((n) => n.content)
+        .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))
+        .map((n) => ({ content: n.content ?? "", created_at: n.created_at ?? "" })),
     });
   };
 
