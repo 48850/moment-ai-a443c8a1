@@ -110,6 +110,9 @@ export const weekBlockSchema = z.object({
   category: z.enum(WEEK_CATEGORIES),
   notes: z.string().default(""),
   is_locked: z.boolean().default(false), // school/commitments stay put unless edited
+  /** When this block was auto-created to back a task, link it here so the
+   *  block follows the task lifecycle (delete/complete removes the block). */
+  task_id: z.string().optional(),
 });
 
 // AUDIT FIX: day_plan_a_snapshot added to preserve original plan across reforms.
