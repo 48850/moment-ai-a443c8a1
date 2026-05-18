@@ -247,7 +247,18 @@ export const useStateStore = create<StateStore>((set, get) => ({
           });
           taskToAdd = { ...taskToAdd, ...filtered };
         }
-        next = { ...s, tasks: capTasksForToday([...s.tasks, taskToAdd]) };
+        const cappedTasks = capTasksForToday([...s.tasks, taskToAdd]);
+        // Use the post-cap task (its due_date may have shifted) so the block
+        // lands on the same day the task is now scheduled for.
+        const finalTask = cappedTasks.find((t) => t.id === taskToAdd.id) ?? taskToAdd;
+        const block = scheduleTaskInWeek(s, finalTask);
+        let tasks = cappedTasks;
+        let week = s.schedule_state.week_plan ?? [];
+        if (block) {
+          week = [...week, block].sort(weekSort);
+          tasks = tasks.map((t) => (t.id === finalTask.id ? { ...t, scheduled_block_id: block.id } : t));
+        }
+        next = { ...s, tasks, schedule_state: { ...s.schedule_state, week_plan: week } };
         break;
       }
 
@@ -262,21 +273,45 @@ export const useStateStore = create<StateStore>((set, get) => ({
         );
         const userTasks = action.payload.filter((t) => t.created_by !== "ai");
         const allNew = [...userTasks, ...filtered];
-        next = { ...s, tasks: capTasksForToday([...s.tasks, ...allNew]) };
+        const cappedTasks = capTasksForToday([...s.tasks, ...allNew]);
+        let week = s.schedule_state.week_plan ?? [];
+        let tasks = cappedTasks;
+        // Accumulate blocks one-by-one so each call sees the prior insertions
+        // and picks a non-overlapping slot.
+        let synthState: typeof s = { ...s, schedule_state: { ...s.schedule_state, week_plan: week } };
+        for (const t of allNew) {
+          const finalTask = cappedTasks.find((x) => x.id === t.id) ?? t;
+          const block = scheduleTaskInWeek(synthState, finalTask);
+          if (!block) continue;
+          week = [...week, block].sort(weekSort);
+          tasks = tasks.map((x) => (x.id === finalTask.id ? { ...x, scheduled_block_id: block.id } : x));
+          synthState = { ...synthState, schedule_state: { ...synthState.schedule_state, week_plan: week } };
+        }
+        next = { ...s, tasks, schedule_state: { ...s.schedule_state, week_plan: week } };
         break;
       }
-      case "task/update":
-        next = {
-          ...s,
-          tasks: s.tasks.map((t) => (t.id === action.payload.id ? { ...t, ...action.payload.changes } : t)),
-        };
+      case "task/update": {
+        const becameInactive =
+          action.payload.changes?.status === "done" || action.payload.changes?.status === "skipped";
+        const updatedTasks = s.tasks.map((t) =>
+          t.id === action.payload.id ? { ...t, ...action.payload.changes } : t,
+        );
+        const week = becameInactive
+          ? removeBlocksForTask(s.schedule_state.week_plan ?? [], action.payload.id)
+          : s.schedule_state.week_plan;
+        next = { ...s, tasks: updatedTasks, schedule_state: { ...s.schedule_state, week_plan: week } };
         break;
+      }
       case "task/complete":
         next = {
           ...s,
           tasks: s.tasks.map((t) =>
             t.id === action.payload.id ? { ...t, status: "done", completed_at: action.payload.completed_at } : t,
           ),
+          schedule_state: {
+            ...s.schedule_state,
+            week_plan: removeBlocksForTask(s.schedule_state.week_plan ?? [], action.payload.id),
+          },
         };
         // Fire global celebration (flame burst + compliment toast).
         if (typeof window !== "undefined") {
@@ -292,7 +327,14 @@ export const useStateStore = create<StateStore>((set, get) => ({
         }
         break;
       case "task/delete":
-        next = { ...s, tasks: s.tasks.filter((t) => t.id !== action.payload.id) };
+        next = {
+          ...s,
+          tasks: s.tasks.filter((t) => t.id !== action.payload.id),
+          schedule_state: {
+            ...s.schedule_state,
+            week_plan: removeBlocksForTask(s.schedule_state.week_plan ?? [], action.payload.id),
+          },
+        };
         break;
       case "schedule/addBlock":
         next = {
