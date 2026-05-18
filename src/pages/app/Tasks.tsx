@@ -68,6 +68,7 @@ const Tasks = () => {
   const [refiningIds, setRefiningIds] = useState<Set<string>>(new Set());
   const [notesTaskId, setNotesTaskId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
+  const [addedSuggestionKeys, setAddedSuggestionKeys] = useState<Set<string>>(new Set());
   const suggest = useAI<{ tasks: SuggestedTask[] }>("suggest_tasks");
   const refine = useAI<RefinedTask>("refine_user_task");
 
