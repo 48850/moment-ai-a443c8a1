@@ -58,6 +58,83 @@ function titleSimilarity(a = "", b = "") {
   return overlap / Math.max(aw.size, bw.size);
 }
 
+function mergeTask(tasks: MomentState["tasks"], incoming: MomentState["tasks"][number]) {
+  const duplicate = tasks.find((t) =>
+    t.status !== "done" &&
+    t.status !== "skipped" &&
+    (titleSimilarity(t.title, incoming.title) >= 0.62 ||
+      (t.resource_url && incoming.resource_url && t.resource_url === incoming.resource_url))
+  );
+  if (!duplicate) return { tasks: [...tasks, incoming], task: incoming, added: true };
+
+  const priorityRank = { high: 0, medium: 1, low: 2 } as const;
+  const mergedNotes = [
+    ...((duplicate as any).notes ?? []),
+    ...((incoming as any).notes ?? []).filter(
+      (note: any) => !((duplicate as any).notes ?? []).some((n: any) => n.content?.trim() === note.content?.trim()),
+    ),
+  ];
+  const merged = {
+    ...duplicate,
+    title: incoming.created_by === "ai" && incoming.title.length > duplicate.title.length ? incoming.title : duplicate.title,
+    description: duplicate.description || incoming.description,
+    priority: priorityRank[incoming.priority] < priorityRank[duplicate.priority] ? incoming.priority : duplicate.priority,
+    estimated_minutes: Math.max(duplicate.estimated_minutes ?? 30, incoming.estimated_minutes ?? 30),
+    due_date: duplicate.due_date || incoming.due_date,
+    why_now: duplicate.why_now || incoming.why_now,
+    proof_of_completion: duplicate.proof_of_completion || incoming.proof_of_completion,
+    resource_url: duplicate.resource_url || incoming.resource_url,
+    resource_label: duplicate.resource_label || incoming.resource_label,
+    notes: mergedNotes,
+  } as typeof duplicate;
+  return { tasks: tasks.map((t) => (t.id === duplicate.id ? merged : t)), task: merged, added: false };
+}
+
+function syncActiveTasksToWeek(state: MomentState): MomentState {
+  const activeTaskById = new Map(
+    (state.tasks ?? [])
+      .filter((t) => t.status !== "done" && t.status !== "skipped")
+      .map((t) => [t.id, t]),
+  );
+  const seen = new Set<string>();
+  let week = (state.schedule_state.week_plan ?? [])
+    .filter((b: any) => {
+      if (!b.task_id) return true;
+      if (!activeTaskById.has(b.task_id) || seen.has(b.task_id)) return false;
+      seen.add(b.task_id);
+      return true;
+    })
+    .map((b: any) => {
+      if (!b.task_id) return b;
+      const task = activeTaskById.get(b.task_id)!;
+      return {
+        ...b,
+        day_index: dayIndexFromDueDate(task.due_date),
+        title: task.title,
+        notes: task.why_now ?? b.notes ?? "",
+      };
+    })
+    .sort(weekSort);
+
+  let tasks = state.tasks ?? [];
+  let synthState: MomentState = { ...state, tasks, schedule_state: { ...state.schedule_state, week_plan: week } };
+  for (const task of tasks) {
+    if (task.status === "done" || task.status === "skipped") continue;
+    const existing = week.find((b: any) => b.task_id === task.id);
+    if (existing) {
+      tasks = tasks.map((t) => (t.id === task.id && t.scheduled_block_id !== existing.id ? { ...t, scheduled_block_id: existing.id } : t));
+      continue;
+    }
+    const block = scheduleTaskInWeek(synthState, task);
+    if (!block) continue;
+    week = [...week, block].sort(weekSort);
+    tasks = tasks.map((t) => (t.id === task.id ? { ...t, scheduled_block_id: block.id } : t));
+    synthState = { ...synthState, tasks, schedule_state: { ...synthState.schedule_state, week_plan: week } };
+  }
+
+  return { ...state, tasks, schedule_state: { ...state.schedule_state, week_plan: week } };
+}
+
 function persist(state: MomentState) {
   storage.saveState(state.user_id, state);
 }
