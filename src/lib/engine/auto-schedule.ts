@@ -43,27 +43,38 @@ function mapCategory(task: Task): WeekCategory {
  * skipping any existing week blocks (locked or otherwise).
  * Falls back to the latest viable slot when the day is fully packed.
  */
-function findSlot(state: MomentState, dayIdx: number, durationMin: number): { start: number; end: number } {
+function findSlot(
+  state: MomentState,
+  dayIdx: number,
+  durationMin: number,
+): { dayIdx: number; start: number; end: number } {
   const duration = Math.max(15, Math.min(180, durationMin));
-  const dayBlocks = (state.schedule_state.week_plan ?? [])
-    .filter((b) => b.day_index === dayIdx)
-    .map((b) => ({ start: toMin(b.start_time), end: toMin(b.end_time) }))
-    .sort((a, b) => a.start - b.start);
+  const preferredStart = 16 * 60;
+  const dayEnd = 22 * 60;
+  const earliest = 8 * 60;
 
-  const dayStart = 16 * 60;
-  const latestStart = 21 * 60 + 30 - duration;
-  let start = dayStart;
-  for (let probe = dayStart; probe <= latestStart; probe += 15) {
-    const end = probe + duration;
-    const overlaps = dayBlocks.some((b) => probe < b.end && end > b.start);
-    if (!overlaps) {
-      start = probe;
-      return { start, end };
+  for (let offset = 0; offset < 7; offset++) {
+    const day = (dayIdx + offset) % 7;
+    const dayBlocks = (state.schedule_state.week_plan ?? [])
+      .filter((b) => b.day_index === day)
+      .map((b) => ({ start: toMin(b.start_time), end: toMin(b.end_time) }))
+      .sort((a, b) => a.start - b.start);
+
+    // First pass: preferred window 16:00 → 22:00
+    // Second pass: widen to 08:00 → 22:00
+    for (const windowStart of [preferredStart, earliest]) {
+      const latestStart = dayEnd - duration;
+      for (let probe = windowStart; probe <= latestStart; probe += 15) {
+        const end = probe + duration;
+        const overlaps = dayBlocks.some((b) => probe < b.end && end > b.start);
+        if (!overlaps) return { dayIdx: day, start: probe, end };
+      }
     }
   }
-  // Nothing fit — return the latest possible slot (may overlap, the user can drag it).
-  start = Math.max(dayStart, latestStart);
-  return { start, end: start + duration };
+
+  // Week packed — stack at the end of the original day (rare).
+  const start = dayEnd - duration;
+  return { dayIdx, start, end: start + duration };
 }
 
 /**
@@ -75,8 +86,8 @@ export function scheduleTaskInWeek(state: MomentState, task: Task): WeekBlock | 
   const existing = (state.schedule_state.week_plan ?? []).find((b) => b.task_id === task.id);
   if (existing) return null;
 
-  const dayIdx = dayIndexFromDueDate(task.due_date);
-  const { start, end } = findSlot(state, dayIdx, task.estimated_minutes ?? 30);
+  const preferredDay = dayIndexFromDueDate(task.due_date);
+  const { dayIdx, start, end } = findSlot(state, preferredDay, task.estimated_minutes ?? 30);
   return {
     id: `wb_${Math.random().toString(36).slice(2, 10)}`,
     day_index: dayIdx,
@@ -89,6 +100,7 @@ export function scheduleTaskInWeek(state: MomentState, task: Task): WeekBlock | 
     task_id: task.id,
   };
 }
+
 
 /** Remove any week blocks linked to the given task id(s). */
 export function removeBlocksForTask(blocks: WeekBlock[], taskId: string): WeekBlock[] {
