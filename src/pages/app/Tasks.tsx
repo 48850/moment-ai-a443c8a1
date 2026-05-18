@@ -213,7 +213,9 @@ const Tasks = () => {
   };
 
   const addSuggested = (t: SuggestedTask, key: string) => {
+    if (!confirmDailyCap("")) return;
     const nowIso = new Date().toISOString();
+
     const seededNotes = (t.elaborated_notes ?? [])
       .filter((n) => typeof n === "string" && n.trim().length > 0)
       .map((content) => ({
