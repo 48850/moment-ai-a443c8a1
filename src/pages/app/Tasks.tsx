@@ -435,7 +435,10 @@ const Tasks = () => {
       >
         {suggest.result?.tasks?.length ? (
           <ul className="space-y-2">
-            {suggest.result.tasks.map((t, i) => (
+            {suggest.result.tasks.map((t, i) => {
+              const key = `${i}:${t.title}`;
+              const added = addedSuggestionKeys.has(key);
+              return (
               <li key={i} className="flex items-start gap-2 rounded-lg border border-border bg-card p-2.5">
                 <div className="flex-1">
                   <div className="text-sm font-medium">{normaliseTaskTitle(t.title)}</div>
@@ -463,14 +466,16 @@ const Tasks = () => {
                   </div>
                 </div>
                 <button
-                  onClick={() => addSuggested(t)}
-                  className="rounded-md border border-border bg-background p-1 hover:border-primary"
-                  aria-label="Add"
+                  onClick={() => addSuggested(t, key)}
+                  disabled={added}
+                  className="rounded-md border border-border bg-background p-1 hover:border-primary disabled:opacity-40 disabled:hover:border-border"
+                  aria-label={added ? "Added" : "Add"}
                 >
-                  <Plus className="h-3.5 w-3.5" />
+                  {added ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Plus className="h-3.5 w-3.5" />}
                 </button>
               </li>
-            ))}
+              );
+            })}
           </ul>
         ) : null}
       </AIInsight>
