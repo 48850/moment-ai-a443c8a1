@@ -410,9 +410,9 @@ function horizonFromSnap(snap: ChatSnapshot, key: "long" | "medium" | "short") {
 
 function specialisationSystemPrompt(snap: ChatSnapshot): string {
   const name = snap.display_name || "there";
-  const _lt = snap.active_goal?.long_term_goal || "";
-  const _mt = snap.active_goal?.medium_term_goal || "";
-  const _st = snap.active_goal?.short_term_goal || "";
+  const _lt = horizonFromSnap(snap, "long");
+  const _mt = horizonFromSnap(snap, "medium");
+  const _st = horizonFromSnap(snap, "short");
   const goal = (_lt || _mt || _st)
     ? `Long-term: ${_lt || "(not set)"} · Medium-term: ${_mt || "(not set)"} · Short-term: ${_st || "(not set)"}`
     : (snap.active_goal?.statement || "(no goal set yet)");
@@ -512,9 +512,9 @@ STYLE — STRICT:
 
 function systemPrompt(snap: ChatSnapshot): string {
   const name = snap.display_name || "there";
-  const _lt2 = snap.active_goal?.long_term_goal || "";
-  const _mt2 = snap.active_goal?.medium_term_goal || "";
-  const _st2 = snap.active_goal?.short_term_goal || "";
+  const _lt2 = horizonFromSnap(snap, "long");
+  const _mt2 = horizonFromSnap(snap, "medium");
+  const _st2 = horizonFromSnap(snap, "short");
   const goal = (_lt2 || _mt2 || _st2)
     ? `Long-term: ${_lt2 || "(not set)"} · Medium-term: ${_mt2 || "(not set)"} · Short-term: ${_st2 || "(not set)"}`
     : (snap.active_goal?.statement || "(no goal set yet)");
@@ -583,6 +583,9 @@ function systemPrompt(snap: ChatSnapshot): string {
     ? `${snap.top_workstream.name} (${snap.top_workstream.status}${snap.top_workstream.bottleneck ? ` — blocked: ${snap.top_workstream.bottleneck}` : ""})`
     : "(none)";
   const completedCount = snap.completed_tasks_count ?? 0;
+  const taskNotes = snap.task_notes_context?.length
+    ? JSON.stringify(snap.task_notes_context.slice(-8)).slice(0, 5000)
+    : "none";
 
   const toneLine =
     snap.tone_preference === "gentler"
@@ -641,6 +644,9 @@ ${completed}
 
 TASK FEEDBACK SIGNALS (how work is landing — use these specifically in companion mode):
 ${fb}
+
+SAVED TASK NOTES + NOTE MINI-LESSONS (durable context — use these to remember what the user learned and what gaps were identified):
+${taskNotes}
 
 LAST RESCUE SIGNAL: ${rescue}
 LATEST REFLECTION: ${refl}
