@@ -187,7 +187,9 @@ export default function Onboarding() {
 
   const [data, setData] = useState<OnboardingData>({
     preferred_name: "",
-    goal_statement: "",
+    long_term_goal: "",
+    medium_term_goal: "",
+    short_term_goal: "",
     horizon: "years",
     why_it_matters: "",
     desired_identity: "",
@@ -204,12 +206,15 @@ export default function Onboarding() {
 
   const set = (patch: Partial<OnboardingData>) => setData((d) => ({ ...d, ...patch }));
 
+  /** Channelled goal statement (long → medium → short). */
+  const channelledGoal = useMemo(() => composeChannelledGoal(data), [data.long_term_goal, data.medium_term_goal, data.short_term_goal]);
+
   // Stage 5 feasibility — computed live from collected data
   const feasibility: GoalFeasibilityReport | null = useMemo(() => {
-    if (!data.goal_statement.trim()) return null;
+    if (!data.long_term_goal.trim()) return null;
     const age_bracket = ageBracketFromLifeStage(data.stage_of_life, data.age_str);
     return evaluateGoalFeasibility({
-      goal: data.goal_statement,
+      goal: data.long_term_goal,
       age_bracket,
       school_year: data.school_year || undefined,
       stage_of_life: data.stage_of_life || undefined,
@@ -217,7 +222,8 @@ export default function Onboarding() {
       current_level: data.current_level,
       current_stage: buildCurrentStageDescription(data),
     });
-  }, [data.goal_statement, data.stage_of_life, data.age_str, data.school_year, data.current_level]);
+  }, [data.long_term_goal, data.stage_of_life, data.age_str, data.school_year, data.current_level]);
+
 
   // Stage 7 understanding object — auto-generated from collected data
   const understanding = useMemo(() => {
