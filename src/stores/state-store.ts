@@ -341,39 +341,19 @@ export const useStateStore = create<StateStore>((set, get) => ({
         break;
       }
       case "task/update": {
-        const becameInactive =
-          action.payload.changes?.status === "done" || action.payload.changes?.status === "skipped";
         const updatedTasks = s.tasks.map((t) =>
           t.id === action.payload.id ? { ...t, ...action.payload.changes } : t,
         );
-        let week = s.schedule_state.week_plan ?? [];
-        if (becameInactive) {
-          week = removeBlocksForTask(week, action.payload.id);
-        } else {
-          // Keep the linked block in sync with title / notes changes.
-          const updated = updatedTasks.find((t) => t.id === action.payload.id);
-          if (updated) {
-            week = week.map((b) =>
-              b.task_id === action.payload.id
-                ? { ...b, title: updated.title, notes: updated.why_now ?? b.notes }
-                : b,
-            );
-          }
-        }
-        next = { ...s, tasks: updatedTasks, schedule_state: { ...s.schedule_state, week_plan: week } };
+        next = syncActiveTasksToWeek({ ...s, tasks: updatedTasks });
         break;
       }
       case "task/complete":
-        next = {
+        next = syncActiveTasksToWeek({
           ...s,
           tasks: s.tasks.map((t) =>
             t.id === action.payload.id ? { ...t, status: "done", completed_at: action.payload.completed_at } : t,
           ),
-          schedule_state: {
-            ...s.schedule_state,
-            week_plan: removeBlocksForTask(s.schedule_state.week_plan ?? [], action.payload.id),
-          },
-        };
+        });
         // Fire global celebration (flame burst + compliment toast).
         if (typeof window !== "undefined") {
           try {
@@ -388,14 +368,10 @@ export const useStateStore = create<StateStore>((set, get) => ({
         }
         break;
       case "task/delete":
-        next = {
+        next = syncActiveTasksToWeek({
           ...s,
           tasks: s.tasks.filter((t) => t.id !== action.payload.id),
-          schedule_state: {
-            ...s.schedule_state,
-            week_plan: removeBlocksForTask(s.schedule_state.week_plan ?? [], action.payload.id),
-          },
-        };
+        });
         break;
       case "schedule/addBlock":
         next = {
