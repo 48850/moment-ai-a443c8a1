@@ -57,6 +57,20 @@ export interface MomentContextPacket {
   signals: {
     recent_feedback: string[];
     recent_reflections: Array<{ date: string; energy: number; win: string; struggle: string }>;
+    task_notes_context: Array<{
+      task_id: string;
+      task_title: string;
+      task_status: string;
+      notes: Array<{ content: string; created_at: string }>;
+      latest_review?: {
+        headline: string;
+        key_insights: string[];
+        gaps: string[];
+        mini_lesson: { title: string; body: string };
+        next_step: string;
+        created_at: string;
+      };
+    }>;
     rescue_signals_7d: number;
     execution_feedback_breakdown: Record<string, number>;
   };
@@ -96,6 +110,18 @@ export function buildContextPacket(s: MomentState | null): MomentContextPacket |
 
   const pendingTasks = (s.tasks ?? []).filter((t) => t.status === "pending");
   const firstHighPriority = pendingTasks.find((t) => t.priority === "high");
+  const taskNotesContext = (s.tasks ?? [])
+    .filter((t) => (t.notes?.length ?? 0) > 0 || t.note_review)
+    .slice(-12)
+    .map((t) => ({
+      task_id: t.id,
+      task_title: t.title,
+      task_status: t.status,
+      notes: (t.notes ?? [])
+        .slice(-5)
+        .map((n) => ({ content: n.content, created_at: n.created_at })),
+      latest_review: t.note_review,
+    }));
 
   const rescue7d = (s.rescue_signals ?? []).filter((r) => r.created_at >= sevenDaysAgo).length;
 
@@ -175,6 +201,7 @@ export function buildContextPacket(s: MomentState | null): MomentContextPacket |
       recent_reflections: (s.reflections ?? [])
         .slice(-3)
         .map((r) => ({ date: r.date, energy: r.energy_rating, win: r.accomplishment, struggle: r.struggle ?? "" })),
+      task_notes_context: taskNotesContext,
       rescue_signals_7d: rescue7d,
       execution_feedback_breakdown: feedbackBreakdown,
     },
