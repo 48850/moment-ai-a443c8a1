@@ -6,6 +6,19 @@
 import type { MomentState, ChatMessage } from "@/lib/types";
 import { selectNextBestTask } from "@/lib/engine/next-best-task";
 
+function horizonFromState(state: MomentState, key: "long" | "medium" | "short") {
+  const answers = state.onboarding?.answers ?? {};
+  const answerKey = key === "long" ? "long_term_goal" : key === "medium" ? "medium_term_goal" : "short_term_goal";
+  const direct = answers[answerKey];
+  if (typeof direct === "string" && direct.trim()) return direct.trim();
+
+  const source = [state.active_goal.statement, state.active_goal.success_definition].filter(Boolean).join("\n");
+  const label = key === "long" ? "Long-term" : key === "medium" ? "Medium-term" : "Short-term";
+  const match = source.match(new RegExp(`${label}:\\s*([^\\n]+)`, "i"));
+  if (match?.[1]?.trim()) return match[1].trim();
+  return key === "long" ? state.active_goal.statement : "";
+}
+
 export interface ChatSnapshot {
   display_name: string;
   profile: {
@@ -157,9 +170,9 @@ export function selectChatSnapshot(state: MomentState): ChatSnapshot {
     },
     active_goal: {
       statement: state.active_goal.statement,
-      long_term_goal: (state.onboarding?.answers?.long_term_goal as string) || state.active_goal.statement || "",
-      medium_term_goal: (state.onboarding?.answers?.medium_term_goal as string) || "",
-      short_term_goal: (state.onboarding?.answers?.short_term_goal as string) || "",
+      long_term_goal: horizonFromState(state, "long"),
+      medium_term_goal: horizonFromState(state, "medium"),
+      short_term_goal: horizonFromState(state, "short"),
       why_it_matters: state.active_goal.why_it_matters,
       status: state.active_goal.status,
     },
