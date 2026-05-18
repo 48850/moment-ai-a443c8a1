@@ -129,7 +129,7 @@ function tools(intent: string) {
           tasks: {
             type: "array",
             maxItems: 3,
-            description: "Maximum 3 tasks per day. Quality over quantity.",
+            description: "A focused set of useful next tasks. Quality over quantity.",
             items: {
               type: "object",
               properties: {
@@ -651,10 +651,10 @@ RULES:
    BAD: youtube.com, wikipedia.org, "google.com/search?q=...", a course catalog, a homepage.
    Never use Google search URLs. Prefer naming a known specific source you are confident exists.
 9. resource_label must name the specific resource (e.g. "3Blue1Brown — Essence of Calculus, Ch.1", "Khan Academy: Intro to Limits"), not a vague label like "video" or "article".
-10. HARD CAP: Propose at most 3 tasks for the day. Never more. Pick the highest-leverage 3.
+10. Keep the list focused and non-duplicative. Pick the highest-leverage next tasks, but do not assume the app enforces a 3-task day.
 11. Every task MUST include elaborated_notes — 2 to 5 paragraphs of substantive, specific guidance the user can read before starting. Include: what the resource covers, the exact sections/timestamps/chapters to focus on, what to extract, common pitfalls, and the specific output to produce. No motivation, no filler, no "do your own research".
 
-Propose AT MOST 3 tasks. Quality over quantity. Remember: ≥2 of 3 must include a real specific resource_url.`;
+Propose a focused set of next tasks. Quality over quantity. Remember: when you return 3 tasks, ≥2 of 3 must include a real specific resource_url.`;
     }
 
     case "reflect_summary":
