@@ -343,6 +343,7 @@ const SPECIALISATION_TOOLS = [
 interface ChatSnapshot {
   display_name?: string;
   active_goal?: { statement?: string; long_term_goal?: string; medium_term_goal?: string; short_term_goal?: string; why_it_matters?: string; status?: string };
+  task_notes_context?: Array<{ task_id: string; task_title: string; notes: Array<{ content: string; created_at: string }>; latest_review?: unknown }>;
   constraints_known?: Record<string, unknown>;
   missing_schedule_info?: string[];
   todays_plan?: Array<{ time: string; title: string; status: string }>;
@@ -392,6 +393,19 @@ function fmt(v: unknown): string {
   if (v === null || v === undefined || v === "") return "—";
   if (Array.isArray(v)) return v.length ? v.join(", ") : "—";
   return String(v);
+}
+
+function horizonFromSnap(snap: ChatSnapshot, key: "long" | "medium" | "short") {
+  const direct = key === "long" ? snap.active_goal?.long_term_goal : key === "medium" ? snap.active_goal?.medium_term_goal : snap.active_goal?.short_term_goal;
+  if (direct?.trim()) return direct.trim();
+  const answerKey = key === "long" ? "long_term_goal" : key === "medium" ? "medium_term_goal" : "short_term_goal";
+  const answer = snap.onboarding_answers?.[answerKey];
+  if (answer?.trim()) return answer.trim();
+  const source = snap.active_goal?.statement ?? "";
+  const label = key === "long" ? "Long-term" : key === "medium" ? "Medium-term" : "Short-term";
+  const match = source.match(new RegExp(`${label}:\\s*([^\\n]+)`, "i"));
+  if (match?.[1]?.trim()) return match[1].trim();
+  return key === "long" ? source : "";
 }
 
 function specialisationSystemPrompt(snap: ChatSnapshot): string {
