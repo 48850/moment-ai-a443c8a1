@@ -171,6 +171,40 @@ function tools(intent: string) {
         additionalProperties: false,
       },
     },
+    notes_quick_review: {
+      name: "answer",
+      description: "Review the user's task notes and teach them something specific based on what they wrote.",
+      parameters: {
+        type: "object",
+        properties: {
+          headline: { type: "string", description: "One tight sentence naming the through-line across these notes." },
+          key_insights: {
+            type: "array",
+            minItems: 1,
+            maxItems: 4,
+            items: { type: "string", description: "A specific observation grounded in something the user actually wrote. Quote phrases when useful." },
+          },
+          gaps: {
+            type: "array",
+            maxItems: 3,
+            items: { type: "string", description: "Something missing, vague, or worth probing further. Be concrete." },
+          },
+          mini_lesson: {
+            type: "object",
+            description: "A short teaching moment tied to the most useful concept in the notes.",
+            properties: {
+              title: { type: "string", description: "3-6 word lesson title." },
+              body: { type: "string", description: "2-4 sentences. Teach the concept clearly with a concrete example tied to the user's goal and the notes. No motivational filler." },
+            },
+            required: ["title", "body"],
+            additionalProperties: false,
+          },
+          next_step: { type: "string", description: "One concrete next move the user could take in <10 min based on this review." },
+        },
+        required: ["headline", "key_insights", "mini_lesson", "next_step"],
+        additionalProperties: false,
+      },
+    },
     mission_insight: {
       name: "answer",
       parameters: {
