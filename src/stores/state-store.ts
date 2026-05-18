@@ -392,14 +392,14 @@ export const useStateStore = create<StateStore>((set, get) => ({
         break;
 
       case "week/set":
-        next = {
+        next = syncActiveTasksToWeek({
           ...s,
           schedule_state: {
             ...s.schedule_state,
             week_plan: action.payload,
             week_plan_generated_at: now(),
           },
-        };
+        });
         break;
       case "week/addBlock":
         next = {
@@ -432,18 +432,18 @@ export const useStateStore = create<StateStore>((set, get) => ({
         break;
       case "week/seed": {
         const seeded = seedWeekPlan(s);
-        next = {
+        next = syncActiveTasksToWeek({
           ...s,
           schedule_state: { ...s.schedule_state, week_plan: seeded, week_plan_generated_at: now() },
-        };
+        });
         break;
       }
       case "week/reform": {
         const reformed = reformWeekPlan(s, (s.schedule_state.week_plan ?? []) as any);
-        next = {
+        next = syncActiveTasksToWeek({
           ...s,
           schedule_state: { ...s.schedule_state, week_plan: reformed, week_plan_generated_at: now() },
-        };
+        });
         break;
       }
 
