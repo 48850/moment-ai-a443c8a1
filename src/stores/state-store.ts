@@ -296,9 +296,20 @@ export const useStateStore = create<StateStore>((set, get) => ({
         const updatedTasks = s.tasks.map((t) =>
           t.id === action.payload.id ? { ...t, ...action.payload.changes } : t,
         );
-        const week = becameInactive
-          ? removeBlocksForTask(s.schedule_state.week_plan ?? [], action.payload.id)
-          : s.schedule_state.week_plan;
+        let week = s.schedule_state.week_plan ?? [];
+        if (becameInactive) {
+          week = removeBlocksForTask(week, action.payload.id);
+        } else {
+          // Keep the linked block in sync with title / notes changes.
+          const updated = updatedTasks.find((t) => t.id === action.payload.id);
+          if (updated) {
+            week = week.map((b) =>
+              b.task_id === action.payload.id
+                ? { ...b, title: updated.title, notes: updated.why_now ?? b.notes }
+                : b,
+            );
+          }
+        }
         next = { ...s, tasks: updatedTasks, schedule_state: { ...s.schedule_state, week_plan: week } };
         break;
       }
