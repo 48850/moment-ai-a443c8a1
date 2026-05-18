@@ -389,38 +389,56 @@ export default function Onboarding() {
               </div>
             )}
 
-            {/* Stage 1 — Goal Capture */}
+            {/* Stage 1 — Channelled Pursuit Capture */}
             {step === 1 && (
               <div className="space-y-5">
                 <div>
                   <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Step 2 of 9</p>
                   <h2 className="text-2xl font-semibold text-white leading-snug">
-                    What's the goal?
+                    What's the pursuit?
                   </h2>
                   <p className="text-white/50 text-sm mt-1">
-                    Don't overthink it. One clear sentence is enough.
+                    Three horizons, one channel. The long-term anchors it, the medium-term shapes the year, the short-term is what you start moving on now.
                   </p>
                 </div>
-                <textarea
-                  className="w-full bg-white/5 border border-white/15 rounded-xl p-4 text-white placeholder-white/30 text-base resize-none focus:outline-none focus:border-amber-400/50 min-h-[80px]"
-                  placeholder="e.g. Become a neurologist. Get into Stanford CS. Build my first app."
-                  value={data.goal_statement}
-                  onChange={(e) => set({ goal_statement: e.target.value })}
-                  autoFocus
-                />
-                <div>
-                  <p className="text-xs text-white/40 mb-2">How far out is this goal?</p>
-                  <div className="flex flex-wrap gap-2">
-                    {HORIZON_OPTIONS.map((h) => (
-                      <Chip
-                        key={h.value}
-                        label={h.label}
-                        selected={data.horizon === h.value}
-                        onClick={() => set({ horizon: h.value })}
-                      />
-                    ))}
-                  </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-widest text-white/40">Long-term — the anchor</label>
+                  <textarea
+                    className="w-full bg-white/5 border border-white/15 rounded-xl p-4 text-white placeholder-white/30 text-base resize-none focus:outline-none focus:border-amber-400/50 min-h-[64px]"
+                    placeholder="e.g. Become a neurologist. Get into Stanford CS. Run a creative studio."
+                    value={data.long_term_goal}
+                    onChange={(e) => set({ long_term_goal: e.target.value })}
+                    autoFocus
+                  />
                 </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-widest text-white/40">Medium-term — the milestone (this year)</label>
+                  <textarea
+                    className="w-full bg-white/5 border border-white/15 rounded-xl p-4 text-white placeholder-white/30 text-sm resize-none focus:outline-none focus:border-amber-400/50 min-h-[56px]"
+                    placeholder="e.g. Finish AP Bio with an A and a research project. Ship v1 of my app."
+                    value={data.medium_term_goal}
+                    onChange={(e) => set({ medium_term_goal: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-widest text-white/40">Short-term — the next proof (weeks)</label>
+                  <textarea
+                    className="w-full bg-white/5 border border-white/15 rounded-xl p-4 text-white placeholder-white/30 text-sm resize-none focus:outline-none focus:border-amber-400/50 min-h-[56px]"
+                    placeholder="e.g. Lock in a daily study block. Draft my CommonApp opener."
+                    value={data.short_term_goal}
+                    onChange={(e) => set({ short_term_goal: e.target.value })}
+                  />
+                </div>
+
+                {channelledGoal && (
+                  <div className="rounded-xl border border-amber-400/20 bg-amber-400/5 p-3">
+                    <p className="text-[10px] uppercase tracking-widest text-amber-400/70 mb-1">Your channel</p>
+                    <p className="text-sm text-amber-100/80 leading-snug">{channelledGoal}</p>
+                  </div>
+                )}
               </div>
             )}
 
