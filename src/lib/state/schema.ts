@@ -209,6 +209,17 @@ export const taskSchema = z.object({
     )
     .default([])
     .optional(),
+  /** Last saved AI review of task notes, including the mini-lesson. */
+  note_review: z
+    .object({
+      headline: z.string().default(""),
+      key_insights: z.array(z.string()).default([]),
+      gaps: z.array(z.string()).default([]),
+      mini_lesson: z.object({ title: z.string().default(""), body: z.string().default("") }).default({ title: "", body: "" }),
+      next_step: z.string().default(""),
+      created_at: z.string().default(""),
+    })
+    .optional(),
 });
 
 export const frictionTagSchema = z.enum([

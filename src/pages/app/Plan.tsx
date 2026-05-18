@@ -421,12 +421,14 @@ const Plan = () => {
     setAiLoading(true);
     try {
       const { buildContextPacket } = await import("@/lib/ai/context-packet");
+      const snapshot = buildContextPacket(state);
       const { data, error } = await supabase.functions.invoke("generate-plan", {
         body: {
           goal: goalText,
           why: state.active_goal?.why_it_matters ?? "",
           context: state.active_goal?.reality_gap ?? "",
-          snapshot: buildContextPacket(state),
+          goal_horizons: (snapshot as any).active_goal,
+          snapshot,
         },
       });
       if (error) throw error;

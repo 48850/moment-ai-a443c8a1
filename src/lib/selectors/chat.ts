@@ -6,6 +6,19 @@
 import type { MomentState, ChatMessage } from "@/lib/types";
 import { selectNextBestTask } from "@/lib/engine/next-best-task";
 
+function horizonFromState(state: MomentState, key: "long" | "medium" | "short") {
+  const answers = state.onboarding?.answers ?? {};
+  const answerKey = key === "long" ? "long_term_goal" : key === "medium" ? "medium_term_goal" : "short_term_goal";
+  const direct = answers[answerKey];
+  if (typeof direct === "string" && direct.trim()) return direct.trim();
+
+  const source = [state.active_goal.statement, state.active_goal.success_definition].filter(Boolean).join("\n");
+  const label = key === "long" ? "Long-term" : key === "medium" ? "Medium-term" : "Short-term";
+  const match = source.match(new RegExp(`${label}:\\s*([^\\n]+)`, "i"));
+  if (match?.[1]?.trim()) return match[1].trim();
+  return key === "long" ? state.active_goal.statement : "";
+}
+
 export interface ChatSnapshot {
   display_name: string;
   profile: {
@@ -17,6 +30,12 @@ export interface ChatSnapshot {
     onboarded: boolean;
   };
   active_goal: { statement: string; long_term_goal: string; medium_term_goal: string; short_term_goal: string; why_it_matters: string; status: string };
+  task_notes_context?: Array<{
+    task_id: string;
+    task_title: string;
+    notes: Array<{ content: string; created_at: string }>;
+    latest_review?: unknown;
+  }>;
   constraints_known: Record<string, string | number | boolean>;
   missing_schedule_info: string[];
   todays_plan: Array<{ time: string; title: string; status: string }>;
@@ -151,12 +170,21 @@ export function selectChatSnapshot(state: MomentState): ChatSnapshot {
     },
     active_goal: {
       statement: state.active_goal.statement,
-      long_term_goal: (state.onboarding?.answers?.long_term_goal as string) ?? "",
-      medium_term_goal: (state.onboarding?.answers?.medium_term_goal as string) ?? "",
-      short_term_goal: (state.onboarding?.answers?.short_term_goal as string) ?? "",
+      long_term_goal: horizonFromState(state, "long"),
+      medium_term_goal: horizonFromState(state, "medium"),
+      short_term_goal: horizonFromState(state, "short"),
       why_it_matters: state.active_goal.why_it_matters,
       status: state.active_goal.status,
     },
+    task_notes_context: (state.tasks ?? [])
+      .filter((t) => (t.notes?.length ?? 0) > 0 || t.note_review)
+      .slice(-10)
+      .map((t) => ({
+        task_id: t.id,
+        task_title: t.title,
+        notes: (t.notes ?? []).slice(-4).map((n) => ({ content: n.content, created_at: n.created_at })),
+        latest_review: t.note_review,
+      })),
     constraints_known: known,
     missing_schedule_info: missing,
     todays_plan: todays,

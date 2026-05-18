@@ -37,6 +37,14 @@ type RefinedTask = {
   resource_label?: string;
 };
 
+type SavedNoteReview = {
+  headline: string;
+  key_insights: string[];
+  gaps?: string[];
+  mini_lesson: { title: string; body: string };
+  next_step: string;
+};
+
 function normaliseTaskTitle(title: unknown): string {
   if (typeof title === "string" && title.trim()) return title.trim();
   if (title && typeof title === "object") {
@@ -289,6 +297,25 @@ const Tasks = () => {
     });
   };
 
+  const saveNoteReviewToTask = (taskId: string, review: SavedNoteReview) => {
+    dispatch({
+      type: "task/update",
+      payload: {
+        id: taskId,
+        changes: {
+          note_review: {
+            headline: review.headline ?? "",
+            key_insights: review.key_insights ?? [],
+            gaps: review.gaps ?? [],
+            mini_lesson: review.mini_lesson ?? { title: "", body: "" },
+            next_step: review.next_step ?? "",
+            created_at: new Date().toISOString(),
+          },
+        } as Partial<Task>,
+      },
+    });
+  };
+
   const visible: Task[] =
     filter === "all"
       ? [...sections.pending, ...sections.completed]
@@ -504,6 +531,7 @@ const Tasks = () => {
                     taskTitle={t.title}
                     taskContext={(t as { description?: string }).description ?? ""}
                     notes={t.notes ?? []}
+                    onSaveReview={(review) => saveNoteReviewToTask(t.id, review)}
                   />
                 </div>
               )}
@@ -580,6 +608,7 @@ const Tasks = () => {
                 taskTitle={notesTask.title}
                 taskContext={(notesTask as { description?: string }).description ?? ""}
                 notes={notesTask.notes ?? []}
+                onSaveReview={(review) => saveNoteReviewToTask(notesTask.id, review)}
               />
             )}
             {(notesTask?.notes ?? []).length === 0 ? (

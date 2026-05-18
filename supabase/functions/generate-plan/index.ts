@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { goal, why, context, snapshot } = await req.json();
+    const { goal, why, context, snapshot, goal_horizons } = await req.json();
     if (!goal || typeof goal !== "string") {
       return new Response(JSON.stringify({ error: "Missing goal" }), {
         status: 400,
@@ -101,6 +101,17 @@ Deno.serve(async (req) => {
     const ob = snapshot?.onboarding ?? {};
     const cr = snapshot?.current_reality ?? {};
     const prefs = u.preferences ?? {};
+    const horizonFallback = (label: string) => {
+      const source = `${goal ?? ""}\n${snapshot?.active_goal?.statement ?? ""}\n${snapshot?.active_goal?.success_definition ?? ""}`;
+      return source.match(new RegExp(`${label}:\\s*([^\\n]+)`, "i"))?.[1]?.trim() ?? "";
+    };
+    const longTerm = goal_horizons?.long_term_goal || snapshot?.active_goal?.long_term_goal || horizonFallback("Long-term") || goal;
+    const mediumTerm = goal_horizons?.medium_term_goal || snapshot?.active_goal?.medium_term_goal || horizonFallback("Medium-term") || "";
+    const shortTerm = goal_horizons?.short_term_goal || snapshot?.active_goal?.short_term_goal || horizonFallback("Short-term") || "";
+    const taskNotes = (snapshot?.signals?.task_notes_context ?? []).slice(-8);
+    const notesBlock = taskNotes.length
+      ? `\n\nSAVED TASK NOTES + NOTE MINI-LESSONS (durable context; use these to avoid repeating advice and to build from what the user already learned):\n${JSON.stringify(taskNotes).slice(0, 5000)}`
+      : "";
     const userBlock = `WHO THIS PLAN IS FOR (from onboarding — adapt every horizon to this):
 - Name: ${u.display_name ?? "?"} · Age: ${u.age ?? "?"} (${u.age_bracket ?? "unknown"})${u.school_year ? ` · ${u.school_year}` : ""}
 - Academic context: ${u.academic_context || "(none)"}
@@ -111,15 +122,19 @@ Deno.serve(async (req) => {
 - Preferences: tone=${prefs.tone ?? "?"} · strictness=${prefs.strictness ?? "?"} · schedule_style=${prefs.schedule_style ?? "?"} · support_style=${prefs.support_style ?? "?"}
 - Onboarding ${ob.completed ? "complete" : "incomplete"} · unknowns: ${(ob.understanding?.unknowns ?? []).join(", ") || "(none)"}`;
 
-    const system = `You are an elite life-design coach for ambitious teenagers. You translate a single goal into a phased plan across four horizons: days, weeks, months, years. Be concrete, specific, age-appropriate, energising, never preachy. Every item should be doable and unmistakably move the goal forward. Avoid generic productivity fluff. ALWAYS calibrate to the user profile provided — never propose actions that conflict with their age, schedule, or onboarding-confirmed reality. HARD CAP: the days array is today's work and must contain no more than 3 tasks.`;
+    const system = `You are an elite life-design coach for ambitious teenagers. You translate a goal trio into a phased plan across four horizons: days, weeks, months, years. Be concrete, specific, age-appropriate, energising, never preachy. Every item should be doable and unmistakably move the goal forward. Avoid generic productivity fluff. ALWAYS calibrate to the user profile provided — never propose actions that conflict with their age, schedule, or onboarding-confirmed reality. Use short-term as the main source for days/weeks, medium-term for month-level milestones, and long-term only as the anchor/why. HARD CAP: the days array is today's work and must contain no more than 3 tasks.`;
 
     const user = `${userBlock}
 
-Goal: ${goal}
+Goal horizons:
+- Long-term (years / anchor): ${longTerm || "(not set)"}
+- Medium-term (this year / milestone): ${mediumTerm || "(not set)"}
+- Short-term (next 2–6 weeks / next proof): ${shortTerm || "(not set)"}
 Why it matters: ${why || "(not provided)"}
 Context: ${context || "(not provided)"}
+${notesBlock}
 
-Produce a complete multi-horizon plan that fits the person above. Each horizon must contain DIFFERENT actions — days are tactical, weeks are outcomes, months are milestones, years are identity shifts.`;
+Produce a complete multi-horizon plan that fits the person above. Each horizon must contain DIFFERENT actions — days are tactical from the short-term goal, weeks are outcomes toward the short-term proof, months ladder into the medium-term milestone, and years stay anchored to the long-term direction.`;
 
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

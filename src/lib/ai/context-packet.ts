@@ -11,6 +11,8 @@ export interface MomentContextPacket {
     timezone: string;
     commitments: string[];
     normal_weekday?: string;
+    country?: string;
+    education_system?: string;
     preferences: {
       tone: string;
       strictness: string;
@@ -57,6 +59,20 @@ export interface MomentContextPacket {
   signals: {
     recent_feedback: string[];
     recent_reflections: Array<{ date: string; energy: number; win: string; struggle: string }>;
+    task_notes_context: Array<{
+      task_id: string;
+      task_title: string;
+      task_status: string;
+      notes: Array<{ content: string; created_at: string }>;
+      latest_review?: {
+        headline: string;
+        key_insights: string[];
+        gaps: string[];
+        mini_lesson: { title: string; body: string };
+        next_step: string;
+        created_at: string;
+      };
+    }>;
     rescue_signals_7d: number;
     execution_feedback_breakdown: Record<string, number>;
   };
@@ -74,6 +90,21 @@ export interface MomentContextPacket {
     recent_signals: Array<{ feature: string; key: string; value: string }>;
   };
   recent_chat: Array<{ role: "user" | "assistant"; content: string }>;
+}
+
+function horizonFromState(s: MomentState, key: "long" | "medium" | "short") {
+  const answers = s.onboarding?.answers ?? {};
+  const answerKey = key === "long" ? "long_term_goal" : key === "medium" ? "medium_term_goal" : "short_term_goal";
+  const direct = answers[answerKey];
+  if (typeof direct === "string" && direct.trim()) return direct.trim();
+
+  const source = [s.active_goal.statement, s.active_goal.success_definition]
+    .filter(Boolean)
+    .join("\n");
+  const label = key === "long" ? "Long-term" : key === "medium" ? "Medium-term" : "Short-term";
+  const match = source.match(new RegExp(`${label}:\\s*([^\\n]+)`, "i"));
+  if (match?.[1]?.trim()) return match[1].trim();
+  return key === "long" ? s.active_goal.statement : "";
 }
 
 export function buildContextPacket(s: MomentState | null): MomentContextPacket | Record<string, never> {
@@ -96,6 +127,30 @@ export function buildContextPacket(s: MomentState | null): MomentContextPacket |
 
   const pendingTasks = (s.tasks ?? []).filter((t) => t.status === "pending");
   const firstHighPriority = pendingTasks.find((t) => t.priority === "high");
+  const taskNotesContext = (s.tasks ?? [])
+    .filter((t) => (t.notes?.length ?? 0) > 0 || t.note_review)
+    .slice(-12)
+    .map((t) => ({
+      task_id: t.id,
+      task_title: t.title,
+      task_status: t.status,
+      notes: (t.notes ?? [])
+        .slice(-5)
+        .map((n) => ({ content: n.content, created_at: n.created_at })),
+      latest_review: t.note_review
+        ? {
+            headline: t.note_review.headline ?? "",
+            key_insights: t.note_review.key_insights ?? [],
+            gaps: t.note_review.gaps ?? [],
+            mini_lesson: {
+              title: t.note_review.mini_lesson?.title ?? "",
+              body: t.note_review.mini_lesson?.body ?? "",
+            },
+            next_step: t.note_review.next_step ?? "",
+            created_at: t.note_review.created_at ?? "",
+          }
+        : undefined,
+    }));
 
   const rescue7d = (s.rescue_signals ?? []).filter((r) => r.created_at >= sevenDaysAgo).length;
 
@@ -109,6 +164,8 @@ export function buildContextPacket(s: MomentState | null): MomentContextPacket |
       timezone: s.profile.timezone,
       commitments: s.profile.commitments ?? [],
       normal_weekday: s.profile.normal_weekday,
+      country: s.profile.country,
+      education_system: s.profile.education_system,
       preferences: {
         tone: s.profile.preferences?.tone ?? "calm",
         strictness: s.profile.preferences?.strictness ?? "soft",
@@ -118,9 +175,9 @@ export function buildContextPacket(s: MomentState | null): MomentContextPacket |
     },
     active_goal: {
       statement: s.active_goal.statement,
-      long_term_goal: (s.onboarding?.answers?.long_term_goal as string) ?? "",
-      medium_term_goal: (s.onboarding?.answers?.medium_term_goal as string) ?? "",
-      short_term_goal: (s.onboarding?.answers?.short_term_goal as string) ?? "",
+      long_term_goal: horizonFromState(s, "long"),
+      medium_term_goal: horizonFromState(s, "medium"),
+      short_term_goal: horizonFromState(s, "short"),
       why_it_matters: s.active_goal.why_it_matters,
       horizon: s.active_goal.horizon,
       desired_identity: s.active_goal.desired_identity ?? "",
@@ -175,6 +232,7 @@ export function buildContextPacket(s: MomentState | null): MomentContextPacket |
       recent_reflections: (s.reflections ?? [])
         .slice(-3)
         .map((r) => ({ date: r.date, energy: r.energy_rating, win: r.accomplishment, struggle: r.struggle ?? "" })),
+      task_notes_context: taskNotesContext,
       rescue_signals_7d: rescue7d,
       execution_feedback_breakdown: feedbackBreakdown,
     },
