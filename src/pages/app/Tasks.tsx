@@ -73,18 +73,18 @@ const Tasks = () => {
   const refine = useAI<RefinedTask>("refine_user_task");
 
   const tasks = state?.tasks ?? [];
-  const todaysTasks = useMemo(() => {
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const sortedTasks = useMemo(() => {
     const priority = { high: 0, medium: 1, low: 2 } as const;
     return tasks
       .filter((t) => {
-        if (t.status === "done") return t.completed_at?.slice(0, 10) === today;
         if (t.status === "skipped") return false;
-        return !t.due_date || t.due_date === today;
+        return true;
       })
-      .sort((a, b) => priority[a.priority] - priority[b.priority] || a.created_at.localeCompare(b.created_at))
-      .slice(0, 3);
+      .sort((a, b) => {
+        if (a.status === "done" && b.status !== "done") return 1;
+        if (a.status !== "done" && b.status === "done") return -1;
+        return priority[a.priority] - priority[b.priority] || (a.due_date || "9999").localeCompare(b.due_date || "9999") || a.created_at.localeCompare(b.created_at);
+      });
   }, [tasks]);
   const goalText = state?.active_goal?.statement ?? "";
   const currentStage = state?.active_goal?.current_stage ?? "";
@@ -95,14 +95,14 @@ const Tasks = () => {
   const sections = useMemo(() => {
     const pending: Task[] = [];
     const completed: Task[] = [];
-    for (const t of todaysTasks) {
+    for (const t of sortedTasks) {
       if (t.status === "done") completed.push(t);
       else if (t.status === "skipped") continue;
       else pending.push(t);
     }
     completed.sort((a, b) => (b.completed_at || "").localeCompare(a.completed_at || ""));
     return { pending, completed };
-  }, [todaysTasks]);
+  }, [sortedTasks]);
 
   if (!state)
     return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
@@ -126,47 +126,6 @@ const Tasks = () => {
   const removeTask = (id: string) => {
     if (!confirm("Remove this task?")) return;
     dispatch({ type: "task/delete", payload: { id } });
-  };
-
-  // Pick the first 30+ min open slot tomorrow between 16:00 and 21:30.
-  const scheduleIntoWeek = (title: string, mins: number) => {
-    if (!state) return;
-    const JS_TO_IDX = [6, 0, 1, 2, 3, 4, 5]; // Sun..Sat -> Mon..Sun index
-    const today = JS_TO_IDX[new Date().getDay()];
-    const tomorrow = (today + 1) % 7;
-    const dayBlocks = (state.schedule_state.week_plan ?? [])
-      .filter((b) => b.day_index === tomorrow)
-      .map((b) => {
-        const [sh, sm] = b.start_time.split(":").map(Number);
-        const [eh, em] = b.end_time.split(":").map(Number);
-        return { start: sh * 60 + sm, end: eh * 60 + em };
-      })
-      .sort((a, b) => a.start - b.start);
-    const duration = Math.max(15, Math.min(120, mins));
-    let startMin = 16 * 60;
-    const latestStart = 21 * 60 + 30 - duration;
-    for (let probe = startMin; probe <= latestStart; probe += 15) {
-      const end = probe + duration;
-      const overlaps = dayBlocks.some((b) => probe < b.end && end > b.start);
-      if (!overlaps) { startMin = probe; break; }
-      startMin = probe + 15;
-    }
-    if (startMin > latestStart) startMin = 21 * 60 + 30 - duration;
-    const endMin = startMin + duration;
-    const fmt = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-    dispatch({
-      type: "week/addBlock",
-      payload: {
-        id: `wb_${Math.random().toString(36).slice(2, 10)}`,
-        day_index: tomorrow,
-        start_time: fmt(startMin),
-        end_time: fmt(endMin),
-        title,
-        category: "goal",
-        notes: "",
-        is_locked: false,
-      },
-    });
   };
 
   const refineUserTask = async (id: string, rawTitle: string, mins: number) => {
