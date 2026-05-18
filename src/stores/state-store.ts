@@ -109,7 +109,7 @@ function syncActiveTasksToWeek(state: MomentState): MomentState {
       const task = activeTaskById.get(b.task_id)!;
       return {
         ...b,
-        day_index: dayIndexFromDueDate(task.due_date),
+        day_index: task.due_date ? dayIndexFromDueDate(task.due_date) : b.day_index,
         title: task.title,
         notes: task.why_now ?? b.notes ?? "",
       };
