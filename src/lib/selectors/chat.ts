@@ -151,6 +151,9 @@ export function selectChatSnapshot(state: MomentState): ChatSnapshot {
     },
     active_goal: {
       statement: state.active_goal.statement,
+      long_term_goal: (state.onboarding?.answers?.long_term_goal as string) ?? "",
+      medium_term_goal: (state.onboarding?.answers?.medium_term_goal as string) ?? "",
+      short_term_goal: (state.onboarding?.answers?.short_term_goal as string) ?? "",
       why_it_matters: state.active_goal.why_it_matters,
       status: state.active_goal.status,
     },
