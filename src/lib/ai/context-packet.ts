@@ -20,6 +20,9 @@ export interface MomentContextPacket {
   };
   active_goal: {
     statement: string;
+    long_term_goal: string;
+    medium_term_goal: string;
+    short_term_goal: string;
     why_it_matters: string;
     horizon?: string;
     desired_identity: string;
@@ -31,6 +34,7 @@ export interface MomentContextPacket {
     phase: string;
     feasibility?: GoalFeasibilityReport;
   };
+
   current_reality: {
     available_study_minutes: number;
     school_end_time: string;
