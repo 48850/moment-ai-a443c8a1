@@ -37,6 +37,14 @@ type RefinedTask = {
   resource_label?: string;
 };
 
+type SavedNoteReview = {
+  headline: string;
+  key_insights: string[];
+  gaps?: string[];
+  mini_lesson: { title: string; body: string };
+  next_step: string;
+};
+
 function normaliseTaskTitle(title: unknown): string {
   if (typeof title === "string" && title.trim()) return title.trim();
   if (title && typeof title === "object") {
@@ -285,6 +293,25 @@ const Tasks = () => {
       payload: {
         id: taskId,
         changes: { notes: (target.notes ?? []).filter((n) => n.id !== noteId) },
+      },
+    });
+  };
+
+  const saveNoteReviewToTask = (taskId: string, review: SavedNoteReview) => {
+    dispatch({
+      type: "task/update",
+      payload: {
+        id: taskId,
+        changes: {
+          note_review: {
+            headline: review.headline ?? "",
+            key_insights: review.key_insights ?? [],
+            gaps: review.gaps ?? [],
+            mini_lesson: review.mini_lesson ?? { title: "", body: "" },
+            next_step: review.next_step ?? "",
+            created_at: new Date().toISOString(),
+          },
+        } as Partial<Task>,
       },
     });
   };
