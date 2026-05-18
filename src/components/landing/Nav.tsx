@@ -32,13 +32,13 @@ export const Nav = () => (
     </nav>
 
     <div className="flex items-center gap-3">
-      <a
-        href="#cta"
+      <Link
+        to="/app"
         className="group inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-medium text-paper transition-transform hover:-translate-y-0.5"
       >
-        Get early access
+        Open Moment
         <span className="transition-transform group-hover:translate-x-0.5">→</span>
-      </a>
+      </Link>
     </div>
   </motion.header>
 );
