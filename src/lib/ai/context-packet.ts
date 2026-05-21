@@ -91,6 +91,7 @@ export interface MomentContextPacket {
     recent_signals: Array<{ feature: string; key: string; value: string }>;
   };
   recent_chat: Array<{ role: "user" | "assistant"; content: string }>;
+  learning_portfolio: LearningPortfolio;
 }
 
 function horizonFromState(s: MomentState, key: "long" | "medium" | "short") {
