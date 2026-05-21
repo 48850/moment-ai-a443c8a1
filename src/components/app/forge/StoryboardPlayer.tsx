@@ -42,72 +42,194 @@ type CharacterPreset = {
 };
 
 const CHARACTERS: CharacterPreset[] = [
-  { id: "ranger", name: "Ranger Harrison", vibe: "Rugged action-hero dad", accent: "#e8b04a", shirt: "#7b4a2a",
-    voice: { pitch: 0.72, rate: 0.86, volume: 1, hints: ["Daniel", "George", "Google UK English Male", "Microsoft David", "Alex"] },
-    dice: { seed: "harrison", top: "shortHairShortFlat", hairColor: "724133", facialHair: "beardLight", skinColor: "edb98a",
-            clothing: "collarAndSweater", clothesColor: "a55728", eyebrows: "default", mouth: "serious" } },
-  { id: "rogue", name: "Rogue MC", vibe: "Hyped MMA podcast bro", accent: "#22d3a0", shirt: "#0b0b0b",
-    voice: { pitch: 0.78, rate: 1.08, volume: 1, hints: ["Google US English", "Microsoft Mark", "Microsoft David", "Alex"] },
-    dice: { seed: "rogan", top: "noHair", facialHair: "beardMedium", hairColor: "2c1b18", skinColor: "edb98a",
-            accessories: "sunglasses", clothing: "hoodie", clothesColor: "262e33", mouth: "default" } },
-  { id: "diva", name: "Pop Diva", vibe: "Chart-topper hype queen", accent: "#ffd166", shirt: "#ff4fa3",
-    voice: { pitch: 1.2, rate: 1.02, volume: 1, hints: ["Samantha", "Google US English", "Microsoft Zira", "Karen"] },
-    dice: { seed: "beyonce", top: "longHairBigHair", hairColor: "f59797", skinColor: "fd9841",
-            clothing: "blazerAndShirt", clothesColor: "ff488e", eyebrows: "raisedExcited", mouth: "smile" } },
-  { id: "mogul", name: "Mogul Talk", vibe: "Daytime mentor", accent: "#f4c75b", shirt: "#7c3aed",
-    voice: { pitch: 1.06, rate: 0.92, volume: 1, hints: ["Samantha", "Microsoft Zira", "Google UK English Female", "Karen"] },
-    dice: { seed: "oprah", top: "longHairCurly", hairColor: "2c1b18", skinColor: "ae5d29",
-            accessories: "prescription02", clothing: "blazerAndShirt", clothesColor: "65c9ff", mouth: "smile" } },
-  { id: "tech", name: "Tech Bro CEO", vibe: "Keynote, black turtleneck", accent: "#5ad1ff", shirt: "#111111",
-    voice: { pitch: 0.9, rate: 0.96, volume: 1, hints: ["Daniel", "Google UK English Male", "Microsoft Mark", "Alex"] },
-    dice: { seed: "ceo", top: "shortHairShortFlat", hairColor: "2c1b18", skinColor: "edb98a",
-            accessories: "round", clothing: "shirtCrewNeck", clothesColor: "262e33", mouth: "default" } },
-  { id: "chill", name: "Chill Legend", vibe: "Smooth West-coast narrator", accent: "#22d3a0", shirt: "#1e3a8a",
-    voice: { pitch: 0.74, rate: 0.82, volume: 1, hints: ["Google US English", "Microsoft David", "Microsoft Mark", "Alex"] },
-    dice: { seed: "snoop", top: "longHairStraight", hairColor: "0e0e0e", skinColor: "8d5524", facialHair: "moustacheFancy",
-            clothing: "graphicShirt", clothesColor: "3c4f5c", mouth: "smile" } },
-  { id: "cowboy", name: "Cowboy Storyteller", vibe: "Wise drawl, rodeo dad", accent: "#f4a261", shirt: "#9a3324",
-    voice: { pitch: 0.82, rate: 0.84, volume: 1, hints: ["Fred", "Daniel", "Microsoft David", "Google UK English Male"] },
-    dice: { seed: "cowboy", top: "shortHairTheCaesar", hairColor: "a55728", skinColor: "f8d25c", facialHair: "beardMedium",
-            clothing: "shirtScoopNeck", clothesColor: "ff5c5c", mouth: "default" } },
-  { id: "indie", name: "Indie Director", vibe: "Whispery A24 voiceover", accent: "#e8b04a", shirt: "#3b3b3b",
-    voice: { pitch: 0.92, rate: 0.78, volume: 0.82, hints: ["Daniel", "Google UK English Male", "Alex", "Microsoft David"] },
-    dice: { seed: "indie", top: "shortHairTheCaesarSidePart", hairColor: "2c1b18", skinColor: "edb98a", facialHair: "beardLight",
-            accessories: "round", clothing: "hoodie", clothesColor: "3c4f5c", mouth: "serious" } },
-  { id: "anchor", name: "News Anchor", vibe: "Breaking-news urgency", accent: "#ef4444", shirt: "#1d4ed8",
-    voice: { pitch: 0.86, rate: 1.12, volume: 1, hints: ["Microsoft Mark", "Google US English", "Daniel", "Alex"] },
-    dice: { seed: "anchor", top: "shortHairFrizzle", hairColor: "2c1b18", skinColor: "edb98a",
-            clothing: "blazerAndShirt", clothesColor: "3c4f5c", mouth: "default" } },
-  { id: "diva2", name: "Soul Queen", vibe: "Gospel hype, big love", accent: "#fcd34d", shirt: "#c026d3",
-    voice: { pitch: 1.14, rate: 0.88, volume: 1, hints: ["Google UK English Female", "Samantha", "Microsoft Zira", "Karen"] },
-    dice: { seed: "soulqueen", top: "longHairCurvy", hairColor: "0e0e0e", skinColor: "614335",
-            clothing: "blazerAndShirt", clothesColor: "ff488e", eyebrows: "raisedExcited", mouth: "smile" } },
+  { id: "forest-sage", name: "Forest Sage Hina", vibe: "Whispery moss-grove storyteller", accent: "#a8d5a2", shirt: "#3b5d3a",
+    voiceId: "EXAVITQu4vr4xnSDxMaL", // Sarah — warm, soft
+    voiceTuning: { stability: 0.6, style: 0.35, speed: 0.95 },
+    voice: { pitch: 1.08, rate: 0.88, volume: 1, hints: ["Samantha", "Karen"] },
+    face: { sky: ["#cfe7c8", "#7fae8d"], groundTint: "#e9f3df", skin: "#f6d6b8", blush: "#f2a59a",
+            hair: "#3a2a1d", hairStyle: "long-wavy", hairAccent: "#9bc792",
+            collar: "#5e7a4f", collarTrim: "#d8c690", mouth: "soft-smile", brows: "soft", freckles: true, motif: "leaf" } },
+  { id: "sky-pirate", name: "Sky Pirate Cal", vibe: "Goggles-up airship rogue", accent: "#f4a261", shirt: "#7b3f1c",
+    voiceId: "JBFqnCBsd6RMkjVDRZzb", // George — gravelly warm
+    voiceTuning: { stability: 0.4, style: 0.55, speed: 1.0 },
+    voice: { pitch: 0.82, rate: 1.0, volume: 1, hints: ["Daniel", "Alex"] },
+    face: { sky: ["#f7d9a8", "#c97a3c"], groundTint: "#fbe7c8", skin: "#e9bb8c", blush: "#e07a4f",
+            hair: "#1c1208", hairStyle: "cap", hairAccent: "#a05a2c",
+            collar: "#5a2e15", collarTrim: "#f0c87a", mouth: "smirk", brows: "raised", motif: "feather" } },
+  { id: "junior-witch", name: "Junior Witch Mei", vibe: "First-broom rookie hype", accent: "#ffd5e5", shirt: "#1d1230",
+    voiceId: "cgSgspJ2msm6clMCkdW9", // Jessica — bright young
+    voiceTuning: { stability: 0.35, style: 0.6, speed: 1.05 },
+    voice: { pitch: 1.25, rate: 1.05, volume: 1, hints: ["Samantha"] },
+    face: { sky: ["#1f1437", "#5a2d6b"], groundTint: "#3a225a", skin: "#fbe0c6", blush: "#ff9bb2",
+            hair: "#1a0f08", hairStyle: "bob", hairAccent: "#ff6fa8",
+            collar: "#0e0a1f", collarTrim: "#ffd5e5", mouth: "open-awe", brows: "raised", motif: "spark" } },
+  { id: "bathhouse", name: "Bathhouse Auntie Yu", vibe: "Steamy gossip with wisdom", accent: "#e8b04a", shirt: "#a02c3a",
+    voiceId: "XrExE9yKIg1WjnnlVkGX", // Matilda — warm matriarch
+    voiceTuning: { stability: 0.55, style: 0.45, speed: 0.95 },
+    voice: { pitch: 1.05, rate: 0.92, volume: 1, hints: ["Samantha", "Karen"] },
+    face: { sky: ["#f7d6c2", "#b6604a"], groundTint: "#fbe2d2", skin: "#e8b896", blush: "#d9695a",
+            hair: "#1c1208", hairStyle: "topknot", hairAccent: "#e8b04a",
+            collar: "#7a1f2a", collarTrim: "#f0d28a", mouth: "soft-smile", brows: "soft", motif: "sprite" } },
+  { id: "tea-granny", name: "Tea-Shop Granny Iro", vibe: "Soft drawl, ancient receipts", accent: "#c9a84c", shirt: "#3a4a2b",
+    voiceId: "pFZP5JQG7iQjIQuC4Bku", // Lily — gentle
+    voiceTuning: { stability: 0.65, style: 0.3, speed: 0.9 },
+    voice: { pitch: 1.0, rate: 0.85, volume: 1, hints: ["Karen"] },
+    face: { sky: ["#dccfa6", "#8a7a4a"], groundTint: "#efe3c2", skin: "#e8c9a6", blush: "#c47a6a",
+            hair: "#d8d2c0", hairStyle: "bob", hairAccent: "#c9a84c",
+            collar: "#5a6a3a", collarTrim: "#d8c690", mouth: "soft-smile", brows: "soft", freckles: true, motif: "leaf" } },
+  { id: "wind-pilot", name: "Wind Pilot Ren", vibe: "Wide-eyed glider kid", accent: "#7ec8e3", shirt: "#1a3c5a",
+    voiceId: "IKne3meq5aSn9XLyUdCD", // Charlie — youthful
+    voiceTuning: { stability: 0.4, style: 0.5, speed: 1.0 },
+    voice: { pitch: 1.1, rate: 1.02, volume: 1, hints: ["Daniel", "Alex"] },
+    face: { sky: ["#c6e6f5", "#3a7aa5"], groundTint: "#e3f1f7", skin: "#f6d6b8", blush: "#e89a8a",
+            hair: "#3a2a1d", hairStyle: "short-tuft", hairAccent: "#7ec8e3",
+            collar: "#2a4a6a", collarTrim: "#f0d890", mouth: "open-awe", brows: "raised", freckles: true, motif: "feather" } },
+  { id: "castle-wiz", name: "Castle Apprentice Ash", vibe: "Moody fashion sorcerer", accent: "#d9a8ff", shirt: "#1f1432",
+    voiceId: "N2lVS1w4EtoT3dr4eOWO", // Callum — moody whisper
+    voiceTuning: { stability: 0.55, style: 0.5, speed: 0.95 },
+    voice: { pitch: 0.92, rate: 0.88, volume: 0.9, hints: ["Daniel", "Alex"] },
+    face: { sky: ["#2a1f48", "#6a3d8a"], groundTint: "#3a2856", skin: "#f0d8c2", blush: "#c97aa0",
+            hair: "#f4dfa8", hairStyle: "long-wavy", hairAccent: "#d9a8ff",
+            collar: "#0f0a1a", collarTrim: "#d9a8ff", mouth: "thin-line", brows: "tilted", motif: "moth" } },
+  { id: "tide-girl", name: "Tide-Caller Nami", vibe: "Bubbly sea-spirit kid", accent: "#ff8a8a", shirt: "#c44a4a",
+    voiceId: "XB0fDUnXU5powFXDhCwa", // fallback to Charlotte if allowed... keep Jessica
+    voiceTuning: { stability: 0.35, style: 0.65, speed: 1.05 },
+    voice: { pitch: 1.3, rate: 1.05, volume: 1, hints: ["Samantha"] },
+    face: { sky: ["#c8e0f5", "#4a8ac8"], groundTint: "#dceaf5", skin: "#fce0c8", blush: "#ff8a8a",
+            hair: "#a02828", hairStyle: "bob", hairAccent: "#ffb84a",
+            collar: "#8a2828", collarTrim: "#ffd5b0", mouth: "round-o", brows: "raised", freckles: true, motif: "koi" } },
+  { id: "boar-hunter", name: "Boar-God Hunter Sho", vibe: "Stoic forest ranger", accent: "#e8b04a", shirt: "#3a2818",
+    voiceId: "onwK4e9ZLuTAKqWW03F9", // Daniel — calm, deep
+    voiceTuning: { stability: 0.6, style: 0.35, speed: 0.92 },
+    voice: { pitch: 0.78, rate: 0.88, volume: 1, hints: ["Daniel", "Alex"] },
+    face: { sky: ["#3a4a3a", "#1a2a1a"], groundTint: "#4a5a4a", skin: "#d8a878", blush: "#a05848",
+            hair: "#0a0a0a", hairStyle: "scarf", hairAccent: "#c44a3a",
+            collar: "#2a1a10", collarTrim: "#c9a84c", mouth: "thin-line", brows: "tilted", motif: "leaf" } },
+  { id: "soot-bard", name: "Soot Bard Kuro", vibe: "Tiny chaos sprite MC", accent: "#ffd166", shirt: "#0a0a0a",
+    voiceId: "TX3LPaxmHKxFdv7VOQHJ", // Liam — playful
+    voiceTuning: { stability: 0.35, style: 0.65, speed: 1.05 },
+    voice: { pitch: 1.1, rate: 1.08, volume: 1, hints: ["Daniel", "Alex"] },
+    face: { sky: ["#1a1a2a", "#3a2a4a"], groundTint: "#2a2a3a", skin: "#1a1a1a", blush: "#ff6fa8",
+            hair: "#0a0a0a", hairStyle: "buzz", hairAccent: "#ffd166",
+            collar: "#0a0a0a", collarTrim: "#ffd166", mouth: "smirk", brows: "raised", motif: "sprite" } },
 ];
 
+// Fix tide-girl voice — must be in allowlist (use Jessica which is allowed)
+CHARACTERS.find((c) => c.id === "tide-girl")!.voiceId = "cgSgspJ2msm6clMCkdW9";
+
+// ---------- Ghibli-style painterly avatar ----------
+// Soft watercolor sky, big round eyes, gentle blush, painterly hair shapes,
+// floating Ghibli motif (leaf / sprite / spark / koi / feather / moth).
 function makeLocalAvatarSvg(c: CharacterPreset): string {
-  const skin = `#${c.dice.skinColor ?? "edb98a"}`;
-  const hair = `#${c.dice.hairColor ?? "2c1b18"}`;
-  const shirt = c.shirt;
-  const hat = c.dice.top?.includes("Caesar") || c.id === "cowboy";
-  const bald = c.dice.top === "noHair";
-  const glasses = Boolean(c.dice.accessories);
-  const beard = Boolean(c.dice.facialHair);
-  const smile = c.dice.mouth === "smile";
+  const f = c.face;
+  const id = c.id.replace(/[^a-z0-9]/gi, "");
+  const eyeShine = "#ffffff";
+  const eyeColor = "#1a1208";
+  const lineColor = "#3a2a20";
+
+  const hair = (() => {
+    switch (f.hairStyle) {
+      case "long-wavy": return `<path d="M28 80 Q22 50 50 30 Q80 12 110 28 Q138 44 134 84 Q132 110 124 130 Q116 100 110 80 Q96 90 80 86 Q60 92 50 84 Q44 110 36 130 Q28 110 28 80z" fill="${f.hair}"/>`;
+      case "short-tuft": return `<path d="M36 72 Q34 42 70 30 Q108 22 128 50 Q132 70 128 84 Q108 70 88 74 Q74 64 60 78 Q48 70 36 84z" fill="${f.hair}"/><path d="M62 28 Q72 18 86 28" stroke="${f.hair}" stroke-width="6" fill="none" stroke-linecap="round"/>`;
+      case "bob": return `<path d="M30 76 Q26 44 58 28 Q92 18 122 36 Q138 58 134 90 Q120 78 110 78 L108 96 Q86 92 78 96 L74 78 Q56 80 46 90 Q38 84 30 76z" fill="${f.hair}"/>`;
+      case "cap": return `<path d="M34 64 Q40 38 80 32 Q124 36 128 64 L128 70 L34 70z" fill="${f.hair}"/><path d="M28 70 L132 70" stroke="${f.hairAccent ?? f.hair}" stroke-width="5" stroke-linecap="round"/><circle cx="118" cy="48" r="6" fill="${f.hairAccent ?? f.hair}" opacity=".8"/>`;
+      case "buzz": return `<path d="M40 70 Q44 50 80 46 Q116 50 120 70" fill="${f.hair}" opacity=".95"/>`;
+      case "scarf": return `<path d="M30 70 Q40 40 80 36 Q120 40 130 70 L130 78 L30 78z" fill="${f.hair}"/><path d="M26 74 Q80 88 134 74 L138 92 Q80 102 22 92z" fill="${f.hairAccent ?? f.hair}"/>`;
+      case "braid": return `<path d="M34 72 Q34 42 80 30 Q126 42 126 72 Q126 100 118 130 Q110 110 108 90 Q92 92 80 88 Q68 92 52 90 Q50 110 42 130 Q34 100 34 72z" fill="${f.hair}"/>`;
+      case "bald-knot": return `<circle cx="80" cy="36" r="8" fill="${f.hair}"/><path d="M48 60 Q60 50 80 50 Q100 50 112 60" fill="${f.hair}" opacity=".4"/>`;
+      case "hood": return `<path d="M22 90 Q22 36 80 28 Q138 36 138 90 L138 110 Q132 78 122 72 Q100 76 80 76 Q60 76 38 72 Q28 78 22 110z" fill="${f.hair}"/>`;
+      case "topknot": return `<path d="M40 72 Q42 48 80 44 Q118 48 120 72" fill="${f.hair}"/><ellipse cx="80" cy="34" rx="14" ry="10" fill="${f.hair}"/><path d="M70 30 Q80 22 90 30" stroke="${f.hairAccent ?? f.hair}" stroke-width="5" fill="none"/>`;
+      default: return "";
+    }
+  })();
+
+  const mouth = (() => {
+    switch (f.mouth) {
+      case "soft-smile": return `<path d="M70 102 Q80 110 90 102" stroke="${lineColor}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
+      case "open-awe": return `<ellipse cx="80" cy="105" rx="4" ry="5" fill="${lineColor}"/>`;
+      case "thin-line": return `<path d="M72 104 L88 104" stroke="${lineColor}" stroke-width="2.2" stroke-linecap="round"/>`;
+      case "smirk": return `<path d="M70 104 Q82 108 90 100" stroke="${lineColor}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
+      case "round-o": return `<circle cx="80" cy="105" r="4" fill="${lineColor}"/>`;
+    }
+  })();
+
+  const brows = (() => {
+    switch (f.brows) {
+      case "soft": return `<path d="M62 76 Q68 74 74 76 M86 76 Q92 74 98 76" stroke="${lineColor}" stroke-width="2.4" fill="none" stroke-linecap="round"/>`;
+      case "raised": return `<path d="M60 72 Q68 68 74 72 M86 72 Q92 68 98 72" stroke="${lineColor}" stroke-width="2.4" fill="none" stroke-linecap="round"/>`;
+      case "tilted": return `<path d="M62 78 L74 74 M86 74 L98 78" stroke="${lineColor}" stroke-width="2.4" fill="none" stroke-linecap="round"/>`;
+    }
+  })();
+
+  const motif = (() => {
+    switch (f.motif) {
+      case "leaf": return `<g transform="translate(20 30) rotate(-20)"><path d="M0 0 Q8 -6 16 0 Q8 10 0 0z" fill="${f.hairAccent ?? "#9bc792"}"/><path d="M2 2 L14 -2" stroke="#3a5a3a" stroke-width="0.8"/></g><g transform="translate(132 110) rotate(25)"><path d="M0 0 Q6 -4 12 0 Q6 8 0 0z" fill="${f.hairAccent ?? "#9bc792"}" opacity=".8"/></g>`;
+      case "spark": return `<g fill="${c.accent}"><circle cx="22" cy="36" r="1.6"/><circle cx="28" cy="28" r="1"/><circle cx="138" cy="44" r="1.4"/><circle cx="132" cy="36" r="1"/><circle cx="142" cy="110" r="1.6"/><path d="M18 50 l2 2 l-2 2 l-2 -2z" /></g>`;
+      case "sprite": return `<g><circle cx="22" cy="42" r="6" fill="#0a0a0a"/><circle cx="20" cy="40" r="1.6" fill="#fff"/><circle cx="24" cy="40" r="1.6" fill="#fff"/><circle cx="20" cy="40" r="0.6" fill="#000"/><circle cx="24" cy="40" r="0.6" fill="#000"/><circle cx="138" cy="118" r="5" fill="#0a0a0a"/><circle cx="136" cy="116" r="1.3" fill="#fff"/><circle cx="140" cy="116" r="1.3" fill="#fff"/></g>`;
+      case "koi": return `<g transform="translate(20 122)"><path d="M0 0 Q10 -8 22 0 Q18 6 22 12 Q10 6 0 12 Q4 6 0 0z" fill="${c.accent}" opacity=".9"/><circle cx="6" cy="4" r="1.2" fill="#1a1208"/></g>`;
+      case "feather": return `<g transform="translate(132 30) rotate(35)"><path d="M0 0 Q4 -10 0 -22 Q-4 -10 0 0z" fill="${f.hairAccent ?? c.accent}"/><path d="M0 -2 L0 -20" stroke="#3a2818" stroke-width="0.8"/></g>`;
+      case "moth": return `<g transform="translate(22 38)"><path d="M0 0 Q-6 -4 -8 0 Q-6 4 0 2 Q6 4 8 0 Q6 -4 0 0z" fill="${f.hairAccent ?? "#d9a8ff"}" opacity=".9"/></g>`;
+      default: return "";
+    }
+  })();
+
   return `data:image/svg+xml;utf8,${encodeURIComponent(`
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">
-      <defs><radialGradient id="g" cx="50%" cy="35%" r="65%"><stop stop-color="${c.accent}" stop-opacity=".34"/><stop offset="1" stop-color="#10131f" stop-opacity=".08"/></radialGradient></defs>
-      <circle cx="80" cy="80" r="72" fill="url(#g)"/>
-      <path d="M35 148c7-31 83-31 90 0" fill="${shirt}"/>
-      <circle cx="80" cy="72" r="39" fill="${skin}"/>
-      ${bald ? "" : `<path d="M43 69c2-31 22-47 43-43 25 5 33 25 31 43-17-12-50-19-74 0z" fill="${hair}"/>`}
-      ${hat ? `<path d="M39 46c18-13 62-16 82 0l-7 13H46z" fill="${hair}"/><path d="M26 59h108" stroke="${c.accent}" stroke-width="8" stroke-linecap="round"/>` : ""}
-      <circle cx="66" cy="72" r="4" fill="#141414"/><circle cx="94" cy="72" r="4" fill="#141414"/>
-      ${glasses ? `<path d="M54 70h24v14H54zM84 70h24v14H84z" fill="none" stroke="#151515" stroke-width="4"/><path d="M78 77h6" stroke="#151515" stroke-width="4"/>` : ""}
-      <path d="M72 86c4 3 12 3 16 0" stroke="#9b5b43" stroke-width="3" fill="none" stroke-linecap="round"/>
-      ${beard ? `<path d="M55 93c13 23 39 23 50 0-4 31-45 34-50 0z" fill="${hair}" opacity=".72"/>` : ""}
-      <path d="M64 104 ${smile ? "q16 16 32 0" : "q16 6 32 0"}" stroke="#161616" stroke-width="5" fill="none" stroke-linecap="round"/>
-      <circle cx="50" cy="88" r="8" fill="#ff7b7b" opacity=".28"/><circle cx="110" cy="88" r="8" fill="#ff7b7b" opacity=".28"/>
-    </svg>`)} `;
+      <defs>
+        <radialGradient id="sky${id}" cx="50%" cy="40%" r="75%">
+          <stop offset="0%" stop-color="${f.sky[0]}"/>
+          <stop offset="100%" stop-color="${f.sky[1]}"/>
+        </radialGradient>
+        <radialGradient id="halo${id}" cx="50%" cy="60%" r="50%">
+          <stop offset="0%" stop-color="${f.groundTint}" stop-opacity=".95"/>
+          <stop offset="100%" stop-color="${f.groundTint}" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="cheek${id}" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="${f.blush}" stop-opacity=".7"/>
+          <stop offset="100%" stop-color="${f.blush}" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <circle cx="80" cy="80" r="78" fill="url(#sky${id})"/>
+      <circle cx="80" cy="100" r="60" fill="url(#halo${id})"/>
+      <!-- soft clouds -->
+      <ellipse cx="34" cy="58" rx="18" ry="5" fill="#ffffff" opacity=".35"/>
+      <ellipse cx="124" cy="48" rx="22" ry="6" fill="#ffffff" opacity=".28"/>
+      <!-- shoulders / collar -->
+      <path d="M14 156 Q40 124 80 122 Q120 124 146 156 L146 160 L14 160z" fill="${f.collar}"/>
+      <path d="M60 124 Q80 134 100 124 L100 132 Q80 140 60 132z" fill="${f.collarTrim ?? f.collar}" opacity=".95"/>
+      <!-- neck -->
+      <path d="M70 110 Q80 118 90 110 L92 122 Q80 126 68 122z" fill="${f.skin}"/>
+      <path d="M68 122 Q80 126 92 122" stroke="${lineColor}" stroke-width="1.2" fill="none" opacity=".4"/>
+      <!-- face shape (rounded heart) -->
+      <path d="M44 76 Q44 46 80 42 Q116 46 116 76 Q116 102 80 116 Q44 102 44 76z" fill="${f.skin}"/>
+      <!-- hair layer -->
+      ${hair}
+      <!-- cheeks -->
+      <circle cx="58" cy="94" r="9" fill="url(#cheek${id})"/>
+      <circle cx="102" cy="94" r="9" fill="url(#cheek${id})"/>
+      ${f.freckles ? `<g fill="${lineColor}" opacity=".5"><circle cx="64" cy="92" r="0.7"/><circle cx="68" cy="94" r="0.6"/><circle cx="92" cy="94" r="0.6"/><circle cx="96" cy="92" r="0.7"/></g>` : ""}
+      <!-- eyes (big round Ghibli) -->
+      <g>
+        <ellipse cx="66" cy="86" rx="6" ry="7.5" fill="#fff"/>
+        <ellipse cx="94" cy="86" rx="6" ry="7.5" fill="#fff"/>
+        <ellipse cx="66" cy="87" rx="4.4" ry="6" fill="${eyeColor}"/>
+        <ellipse cx="94" cy="87" rx="4.4" ry="6" fill="${eyeColor}"/>
+        <circle cx="64.5" cy="85" r="1.6" fill="${eyeShine}"/>
+        <circle cx="92.5" cy="85" r="1.6" fill="${eyeShine}"/>
+        <circle cx="67.6" cy="89" r="0.8" fill="${eyeShine}" opacity=".7"/>
+        <circle cx="95.6" cy="89" r="0.8" fill="${eyeShine}" opacity=".7"/>
+        <!-- top lash -->
+        <path d="M60 82 Q66 78 72 82" stroke="${lineColor}" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+        <path d="M88 82 Q94 78 100 82" stroke="${lineColor}" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+      </g>
+      ${brows}
+      <!-- nose -->
+      <path d="M80 92 Q78 98 80 100" stroke="${lineColor}" stroke-width="1.4" fill="none" stroke-linecap="round" opacity=".55"/>
+      ${mouth}
+      <!-- chin shadow -->
+      <path d="M60 112 Q80 122 100 112" stroke="${lineColor}" stroke-width="1" fill="none" opacity=".25"/>
+      ${motif}
+    </svg>`)}`;
 }
 
 function pickSpeechVoice(character: CharacterPreset): SpeechSynthesisVoice | undefined {
