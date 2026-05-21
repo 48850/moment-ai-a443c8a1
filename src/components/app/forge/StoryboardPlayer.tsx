@@ -11,6 +11,12 @@ type CharacterPreset = {
   vibe: string;
   accent: string;
   shirt: string;
+  voice: {
+    pitch: number;
+    rate: number;
+    volume: number;
+    hints: string[];
+  };
   // DiceBear `avataaars` options (https://www.dicebear.com/styles/avataaars/)
   dice: {
     seed: string;
@@ -29,33 +35,43 @@ type CharacterPreset = {
 
 const CHARACTERS: CharacterPreset[] = [
   { id: "ranger", name: "Ranger Harrison", vibe: "Rugged action-hero dad", accent: "#e8b04a", shirt: "#7b4a2a",
+    voice: { pitch: 0.72, rate: 0.86, volume: 1, hints: ["Daniel", "George", "Google UK English Male", "Microsoft David", "Alex"] },
     dice: { seed: "harrison", top: "shortHairShortFlat", hairColor: "724133", facialHair: "beardLight", skinColor: "edb98a",
             clothing: "collarAndSweater", clothesColor: "a55728", eyebrows: "default", mouth: "serious" } },
   { id: "rogue", name: "Rogue MC", vibe: "Hyped MMA podcast bro", accent: "#22d3a0", shirt: "#0b0b0b",
+    voice: { pitch: 0.78, rate: 1.08, volume: 1, hints: ["Google US English", "Microsoft Mark", "Microsoft David", "Alex"] },
     dice: { seed: "rogan", top: "noHair", facialHair: "beardMedium", hairColor: "2c1b18", skinColor: "edb98a",
             accessories: "sunglasses", clothing: "hoodie", clothesColor: "262e33", mouth: "default" } },
   { id: "diva", name: "Pop Diva", vibe: "Chart-topper hype queen", accent: "#ffd166", shirt: "#ff4fa3",
+    voice: { pitch: 1.2, rate: 1.02, volume: 1, hints: ["Samantha", "Google US English", "Microsoft Zira", "Karen"] },
     dice: { seed: "beyonce", top: "longHairBigHair", hairColor: "f59797", skinColor: "fd9841",
             clothing: "blazerAndShirt", clothesColor: "ff488e", eyebrows: "raisedExcited", mouth: "smile" } },
   { id: "mogul", name: "Mogul Talk", vibe: "Daytime mentor", accent: "#f4c75b", shirt: "#7c3aed",
+    voice: { pitch: 1.06, rate: 0.92, volume: 1, hints: ["Samantha", "Microsoft Zira", "Google UK English Female", "Karen"] },
     dice: { seed: "oprah", top: "longHairCurly", hairColor: "2c1b18", skinColor: "ae5d29",
             accessories: "prescription02", clothing: "blazerAndShirt", clothesColor: "65c9ff", mouth: "smile" } },
   { id: "tech", name: "Tech Bro CEO", vibe: "Keynote, black turtleneck", accent: "#5ad1ff", shirt: "#111111",
+    voice: { pitch: 0.9, rate: 0.96, volume: 1, hints: ["Daniel", "Google UK English Male", "Microsoft Mark", "Alex"] },
     dice: { seed: "ceo", top: "shortHairShortFlat", hairColor: "2c1b18", skinColor: "edb98a",
             accessories: "round", clothing: "shirtCrewNeck", clothesColor: "262e33", mouth: "default" } },
   { id: "chill", name: "Chill Legend", vibe: "Smooth West-coast narrator", accent: "#22d3a0", shirt: "#1e3a8a",
+    voice: { pitch: 0.74, rate: 0.82, volume: 1, hints: ["Google US English", "Microsoft David", "Microsoft Mark", "Alex"] },
     dice: { seed: "snoop", top: "longHairStraight", hairColor: "0e0e0e", skinColor: "8d5524", facialHair: "moustacheFancy",
             clothing: "graphicShirt", clothesColor: "3c4f5c", mouth: "smile" } },
   { id: "cowboy", name: "Cowboy Storyteller", vibe: "Wise drawl, rodeo dad", accent: "#f4a261", shirt: "#9a3324",
+    voice: { pitch: 0.82, rate: 0.84, volume: 1, hints: ["Fred", "Daniel", "Microsoft David", "Google UK English Male"] },
     dice: { seed: "cowboy", top: "shortHairTheCaesar", hairColor: "a55728", skinColor: "f8d25c", facialHair: "beardMedium",
             clothing: "shirtScoopNeck", clothesColor: "ff5c5c", mouth: "default" } },
   { id: "indie", name: "Indie Director", vibe: "Whispery A24 voiceover", accent: "#e8b04a", shirt: "#3b3b3b",
+    voice: { pitch: 0.92, rate: 0.78, volume: 0.82, hints: ["Daniel", "Google UK English Male", "Alex", "Microsoft David"] },
     dice: { seed: "indie", top: "shortHairTheCaesarSidePart", hairColor: "2c1b18", skinColor: "edb98a", facialHair: "beardLight",
             accessories: "round", clothing: "hoodie", clothesColor: "3c4f5c", mouth: "serious" } },
   { id: "anchor", name: "News Anchor", vibe: "Breaking-news urgency", accent: "#ef4444", shirt: "#1d4ed8",
+    voice: { pitch: 0.86, rate: 1.12, volume: 1, hints: ["Microsoft Mark", "Google US English", "Daniel", "Alex"] },
     dice: { seed: "anchor", top: "shortHairFrizzle", hairColor: "2c1b18", skinColor: "edb98a",
             clothing: "blazerAndShirt", clothesColor: "3c4f5c", mouth: "default" } },
   { id: "diva2", name: "Soul Queen", vibe: "Gospel hype, big love", accent: "#fcd34d", shirt: "#c026d3",
+    voice: { pitch: 1.14, rate: 0.88, volume: 1, hints: ["Google UK English Female", "Samantha", "Microsoft Zira", "Karen"] },
     dice: { seed: "soulqueen", top: "longHairCurvy", hairColor: "0e0e0e", skinColor: "614335",
             clothing: "blazerAndShirt", clothesColor: "ff488e", eyebrows: "raisedExcited", mouth: "smile" } },
 ];
@@ -84,6 +100,17 @@ function makeLocalAvatarSvg(c: CharacterPreset): string {
       <path d="M64 104 ${smile ? "q16 16 32 0" : "q16 6 32 0"}" stroke="#161616" stroke-width="5" fill="none" stroke-linecap="round"/>
       <circle cx="50" cy="88" r="8" fill="#ff7b7b" opacity=".28"/><circle cx="110" cy="88" r="8" fill="#ff7b7b" opacity=".28"/>
     </svg>`)} `;
+}
+
+function pickSpeechVoice(character: CharacterPreset): SpeechSynthesisVoice | undefined {
+  if (!("speechSynthesis" in window)) return undefined;
+  const voices = window.speechSynthesis.getVoices();
+  const englishVoices = voices.filter((v) => /^en[-_]/i.test(v.lang));
+  const pool = englishVoices.length ? englishVoices : voices;
+  const hintedVoice = character.voice.hints
+    .map((hint) => pool.find((v) => v.name.toLowerCase().includes(hint.toLowerCase())))
+    .find(Boolean);
+  return hintedVoice ?? pool[0];
 }
 
 
@@ -224,6 +251,7 @@ export function StoryboardPlayer({
   const [editing, setEditing] = useState<"A" | "B" | null>(null);
   const [customA, setCustomA] = useState(hostAName);
   const [customB, setCustomB] = useState(hostBName);
+  const [castVersion, setCastVersion] = useState(0);
 
   // Start paused — autoplay is blocked by the browser until a user gesture.
   const [started, setStarted] = useState(false);
@@ -236,6 +264,8 @@ export function StoryboardPlayer({
 
 
   const seg = segments[segIdx];
+  const activeCharacter = seg?.host === "B" ? charB : charA;
+  const activeAudioBase64 = castVersion === 0 ? seg?.audio_base64 : undefined;
   const audioLevel = useAudioLevel(audioEl);
   const [fallbackTick, setFallbackTick] = useState(0);
   useEffect(() => {
@@ -260,16 +290,17 @@ export function StoryboardPlayer({
       }
     };
 
-    if (!seg.audio_base64) {
+    if (!activeAudioBase64) {
       // No generated voiceover — use browser speech so the reel still has sound.
-      const ms = Math.max(2400, seg.line.split(/\s+/).length * 280);
+      const ms = Math.max(2400, seg.line.split(/\s+/).length * (290 / activeCharacter.voice.rate));
       setSegDuration(ms);
       if ("speechSynthesis" in window) {
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(seg.line);
-        utterance.rate = 0.88;
-        utterance.pitch = seg.host === "A" ? 0.88 : 1.08;
-        utterance.volume = muted ? 0 : 1;
+        utterance.voice = pickSpeechVoice(activeCharacter) ?? null;
+        utterance.rate = activeCharacter.voice.rate;
+        utterance.pitch = activeCharacter.voice.pitch;
+        utterance.volume = muted ? 0 : activeCharacter.voice.volume;
         utterance.onstart = () => setSyntheticSpeaking(true);
         utterance.onend = () => { setSyntheticSpeaking(false); advance(); };
         utterance.onerror = () => { setSyntheticSpeaking(false); advance(); };
@@ -280,7 +311,7 @@ export function StoryboardPlayer({
       return () => { clearTimeout(t); setSyntheticSpeaking(false); };
     }
 
-    const audio = new Audio(`data:audio/mpeg;base64,${seg.audio_base64}`);
+    const audio = new Audio(`data:audio/mpeg;base64,${activeAudioBase64}`);
     audio.muted = muted;
     audio.volume = 1;
     setAudioEl(audio);
@@ -303,7 +334,7 @@ export function StoryboardPlayer({
       setSyntheticSpeaking(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segIdx, playing, muted]);
+  }, [segIdx, playing, muted, activeAudioBase64, activeCharacter]);
 
   // Mute toggle propagation
   useEffect(() => { if (audioEl) audioEl.muted = muted; }, [muted, audioEl]);
@@ -422,6 +453,7 @@ export function StoryboardPlayer({
                       onClick={() => {
                         if (editing === "A") { setCharA(c); setCustomA(c.name); }
                         else { setCharB(c); setCustomB(c.name); }
+                        setCastVersion((v) => v + 1);
                       }}
                       className={`rounded-xl border p-2 text-left transition ${selected ? "border-white bg-white/15" : "border-white/15 bg-white/5 hover:bg-white/10"}`}
                     >
@@ -435,14 +467,14 @@ export function StoryboardPlayer({
           )}
 
           {/* Waveform */}
-          <Waveform level={level} accent={palette.accent} active={!!seg.audio_base64} />
+          <Waveform level={level} accent={palette.accent} active={!!activeAudioBase64 || syntheticSpeaking} />
         </div>
 
         {/* Live caption */}
         <div className="absolute inset-x-0 bottom-20 z-20 px-6">
           <div className="mx-auto max-w-[92%] text-center">
             <div className="mb-1.5 text-[10px] uppercase tracking-[0.3em] opacity-70">
-              {activeHost === "A" ? hostAName : hostBName}
+              {activeHost === "A" ? customA : customB}
             </div>
             <div
               key={segIdx}
