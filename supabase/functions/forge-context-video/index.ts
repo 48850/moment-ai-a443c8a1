@@ -32,11 +32,26 @@ function renderPortfolio(p: any): string {
   ].filter(Boolean).join("\n");
 }
 
-function renderContext(snap: Snapshot): string {
+function renderNotes(snap: Snapshot): string {
+  const list = snap?.signals?.task_notes_context ?? [];
+  if (!list.length) return "(no notes yet)";
+  return list.slice(-8).map((t: any) => {
+    const notes = (t.notes ?? []).map((n: any) => `   - ${String(n.content).slice(0, 280)}`).join("\n");
+    const review = t.latest_review
+      ? `\n   Prior review: ${t.latest_review.headline}${t.latest_review.mini_lesson?.title ? ` · lesson "${t.latest_review.mini_lesson.title}"` : ""}`
+      : "";
+    return `• "${t.task_title}" (${t.task_status})${review}\n${notes || "   (no note bodies)"}`;
+  }).join("\n");
+}
+
+function renderContext(snap: Snapshot, format?: string): string {
   const u = snap?.user ?? {};
   const g = snap?.active_goal ?? {};
   const r = snap?.current_reality ?? {};
   const pending = (snap?.signals?.task_notes_context ?? []).map((t: any) => `- "${t.task_title}" (${t.task_status})`).slice(0, 8).join("\n");
+  const notesBlock = format === "review"
+    ? `\nNOTES TO CONSOLIDATE (verbatim — use real phrases from these):\n${renderNotes(snap)}\n`
+    : "";
   return `
 USER: ${u.display_name ?? "the user"} · age ${u.age ?? "?"} · ${u.school_year ?? ""} · ${u.academic_context ?? ""}.
 
@@ -54,7 +69,7 @@ First high-priority pending: ${r.first_pending_high_priority ? `"${r.first_pendi
 
 TASK SIGNALS:
 ${pending || "(none)"}
-
+${notesBlock}
 LEARNING PORTFOLIO:
 ${renderPortfolio(snap?.learning_portfolio)}
 `.trim();
@@ -68,11 +83,12 @@ const FORMAT_BRIEFS: Record<string, string> = {
   mission_briefing: "Pre-block mission briefing (4-5 scenes, 3-5s each). Agent-style. Name the enemy (avoidance / specific task / time pressure), the weakness (starting), the first move (3-minute launch step).",
   mockumentary: "Mockumentary documentary clip (5-6 scenes, 4-6s each). Deadpan narrator observing the user's habits in third person. Subtle humour, ends with the next concrete move.",
   motivational_edit: "Short motivational edit (4-5 scenes, 3-5s each). Crisp, not cringe. No 'follow your dreams'. Concrete, identity-grounded.",
+  review: "Study-review consolidation clip (5-6 scenes, 4-6s each). Calm, teacherly, focused. Scene 1: name the topic/task being reviewed (use real task title). Scenes 2-4: each consolidates ONE key idea from the user's actual notes — quote or paraphrase a real phrase from their notes in the voiceover, then compress it into a sharp 1-line takeaway as on_screen_text. Scene 5: name the gap or weakest link to revisit (from notes or prior review gaps). Final scene: one concrete next action — re-do a problem, teach it back out loud, or schedule a recall block. Palette: warm paper / deep ink / single saturated accent — feels like a study flashcard, not a TikTok. If there are no notes, return a single-scene clip telling the user to capture notes first and CTA kind=reflect.",
 };
 
 function buildVideoPrompt(snap: Snapshot, format: string, tone?: string): string {
   const brief = FORMAT_BRIEFS[format] ?? FORMAT_BRIEFS.pov;
-  return `${renderContext(snap)}
+  return `${renderContext(snap, format)}
 
 GENERATION BRIEF
 Format: ${format}
@@ -212,7 +228,7 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     const { snapshot = {}, format = "pov", tone, with_voiceover = false, voice_id = DEFAULT_VOICE_ID } = body ?? {};
-    if (!["pov", "roast", "trailer", "recap", "mission_briefing", "mockumentary", "motivational_edit"].includes(format)) {
+    if (!["pov", "roast", "trailer", "recap", "mission_briefing", "mockumentary", "motivational_edit", "review"].includes(format)) {
       return new Response(JSON.stringify({ error: "Unknown format" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
