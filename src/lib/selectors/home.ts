@@ -37,16 +37,30 @@ function isTodayTask(task: Task): boolean {
   const today = todayKey();
   if (task.status === "done") return task.completed_at?.slice(0, 10) === today;
   if (task.status === "skipped") return false;
-  return !task.due_date || task.due_date === today;
+  // Pending: include undated, due today, or overdue
+  return !task.due_date || task.due_date <= today;
 }
 
 function selectThreeTodayTasks(tasks: Task[]): Task[] {
   const priority = { high: 0, medium: 1, low: 2 } as const;
-  return tasks
-    .filter(isTodayTask)
-    .sort((a, b) => priority[a.priority] - priority[b.priority] || a.created_at.localeCompare(b.created_at))
-    .slice(0, 3);
+  const sortPending = (a: Task, b: Task) =>
+    priority[a.priority] - priority[b.priority] ||
+    (a.due_date || "9999").localeCompare(b.due_date || "9999") ||
+    a.created_at.localeCompare(b.created_at);
+
+  const primary = tasks.filter(isTodayTask).sort(sortPending);
+  if (primary.length >= 3) return primary.slice(0, 3);
+
+  // Backfill with any remaining pending tasks (upcoming) so the dashboard
+  // is never empty when there's work to do.
+  const seen = new Set(primary.map((t) => t.id));
+  const backfill = tasks
+    .filter((t) => !seen.has(t.id) && t.status !== "done" && t.status !== "skipped")
+    .sort(sortPending);
+
+  return [...primary, ...backfill].slice(0, 3);
 }
+
 
 /**
  * Connects the most recently completed task to the active goal and matching
