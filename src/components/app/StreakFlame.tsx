@@ -7,15 +7,22 @@ import type { Task } from "@/lib/types";
  * on which the user completed ≥ 1 task. The flame lights up when today
  * already has a completion, and bursts when a new task is completed.
  */
+function localDayKey(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function computeStreak(tasks: Task[]): { streak: number; litToday: boolean } {
   const days = new Set<string>();
   for (const t of tasks) {
     if (t.status !== "done" || !t.completed_at) continue;
-    days.add(t.completed_at.slice(0, 10));
+    days.add(localDayKey(new Date(t.completed_at)));
   }
   if (days.size === 0) return { streak: 0, litToday: false };
 
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayKey = localDayKey(new Date());
   const litToday = days.has(todayKey);
 
   const cursor = new Date();
@@ -23,7 +30,7 @@ function computeStreak(tasks: Task[]): { streak: number; litToday: boolean } {
 
   let streak = 0;
   while (true) {
-    const key = cursor.toISOString().slice(0, 10);
+    const key = localDayKey(cursor);
     if (days.has(key)) {
       streak += 1;
       cursor.setDate(cursor.getDate() - 1);
@@ -31,6 +38,7 @@ function computeStreak(tasks: Task[]): { streak: number; litToday: boolean } {
   }
   return { streak, litToday };
 }
+
 
 interface Props {
   tasks: Task[];
