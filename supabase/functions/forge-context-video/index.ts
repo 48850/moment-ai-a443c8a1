@@ -88,7 +88,7 @@ const FORMAT_BRIEFS: Record<string, string> = {
 
 function buildVideoPrompt(snap: Snapshot, format: string, tone?: string): string {
   const brief = FORMAT_BRIEFS[format] ?? FORMAT_BRIEFS.pov;
-  return `${renderContext(snap)}
+  return `${renderContext(snap, format)}
 
 GENERATION BRIEF
 Format: ${format}
