@@ -111,6 +111,36 @@ HARD RULES:
 - Never include "as an AI", "stay motivated", "follow your dreams", "SMART goals", "just be consistent".`;
 }
 
+function extractJson(raw: string): any {
+  let s = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/g, "").trim();
+  const start = s.search(/[\{\[]/);
+  if (start === -1) throw new Error("No JSON found in model response");
+  const open = s[start];
+  const close = open === "[" ? "]" : "}";
+  // Walk to find matching close, respecting strings/escapes
+  let depth = 0, inStr = false, esc = false, end = -1;
+  for (let i = start; i < s.length; i++) {
+    const c = s[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === "\\") esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') { inStr = true; continue; }
+    if (c === open) depth++;
+    else if (c === close) { depth--; if (depth === 0) { end = i; break; } }
+  }
+  let body = end !== -1 ? s.slice(start, end + 1) : s.slice(start);
+  try { return JSON.parse(body); } catch {}
+  // Repair: strip control chars, trailing commas, balance brackets
+  body = body.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "").replace(/,(\s*[}\]])/g, "$1");
+  const ob = (body.match(/\{/g) || []).length, cb = (body.match(/\}/g) || []).length;
+  const obr = (body.match(/\[/g) || []).length, cbr = (body.match(/\]/g) || []).length;
+  body += "]".repeat(Math.max(0, obr - cbr)) + "}".repeat(Math.max(0, ob - cb));
+  return JSON.parse(body);
+}
+
 async function generateScript(snap: Snapshot, format: string, tone?: string) {
   const KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!KEY) throw new Error("LOVABLE_API_KEY not configured");
