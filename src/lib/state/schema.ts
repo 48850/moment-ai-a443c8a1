@@ -335,6 +335,40 @@ export const chatStateSchema = z.object({
   ]).default("explain_goal"),
 });
 
+export const contextVideoSceneSchema = z.object({
+  scene_number: z.number(),
+  visual_prompt: z.string().default(""),
+  voiceover: z.string().default(""),
+  on_screen_text: z.string().default(""),
+  duration_seconds: z.number().default(5),
+  palette: z.object({
+    bg: z.string().default("#0a0a14"),
+    fg: z.string().default("#ffffff"),
+    accent: z.string().default("#ff5a36"),
+  }).default({ bg: "#0a0a14", fg: "#ffffff", accent: "#ff5a36" }),
+  audio_base64: z.string().optional(),
+});
+
+export const contextVideoSchema = z.object({
+  id: z.string(),
+  created_at: z.string(),
+  format: z.enum(["pov", "roast", "trailer", "recap", "mission_briefing", "mockumentary", "motivational_edit"]),
+  tone: z.string().default("playful"),
+  title: z.string(),
+  hook: z.string().default(""),
+  scenes: z.array(contextVideoSceneSchema).default([]),
+  caption: z.string().default(""),
+  call_to_action: z.object({
+    kind: z.enum(["start_task", "break_down", "reform_plan", "schedule", "reflect", "open_node", "rescue"]),
+    label: z.string(),
+    task_id: z.string().optional(),
+    node_id: z.string().optional(),
+    prompt: z.string().optional(),
+    when: z.string().optional(),
+  }),
+  has_voiceover: z.boolean().default(false),
+});
+
 export const forgeStateSchema = z.object({
   interview_answers: z.array(z.any()).default([]),
   candidate_features: z.array(z.any()).default([]),
@@ -347,6 +381,7 @@ export const forgeStateSchema = z.object({
   forge_signals: z.array(z.any()).default([]),
   guidebook_build_status: z.string().default("idle"),
   draft_guidebook: z.any().nullable().default(null),
+  forge_videos: z.array(contextVideoSchema).default([]),
 });
 
 // --- Pursuit compiler sub-schemas ---
