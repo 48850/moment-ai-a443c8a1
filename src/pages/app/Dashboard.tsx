@@ -11,7 +11,16 @@ import { DoneCheckIn } from "@/components/app/DoneCheckIn";
 import { COMPLIMENTS } from "@/components/app/StreakFlame";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { toast } from "sonner";
+import { QuickReviewNotes } from "@/components/app/QuickReviewNotes";
 import type { Task } from "@/lib/types";
+
+type SavedNoteReview = {
+  headline: string;
+  key_insights: string[];
+  gaps?: string[];
+  mini_lesson: { title: string; body: string };
+  next_step: string;
+};
 
 const Dashboard = () => {
   const state = useStateStore((s) => s.state);
@@ -81,6 +90,25 @@ const Dashboard = () => {
       payload: {
         id: taskId,
         changes: { notes: (target.notes ?? []).filter((n) => n.id !== noteId) },
+      },
+    });
+  };
+
+  const saveNoteReviewToTask = (taskId: string, review: SavedNoteReview) => {
+    dispatch({
+      type: "task/update",
+      payload: {
+        id: taskId,
+        changes: {
+          note_review: {
+            headline: review.headline ?? "",
+            key_insights: review.key_insights ?? [],
+            gaps: review.gaps ?? [],
+            mini_lesson: review.mini_lesson ?? { title: "", body: "" },
+            next_step: review.next_step ?? "",
+            created_at: new Date().toISOString(),
+          },
+        } as Partial<Task>,
       },
     });
   };
@@ -273,7 +301,15 @@ const Dashboard = () => {
             </SheetDescription>
           </SheetHeader>
 
-          <div className="flex-1 space-y-2 overflow-y-auto pr-1">
+          <div className="flex-1 space-y-3 overflow-y-auto pr-1">
+            {notesTask && (notesTask.notes?.length ?? 0) > 0 && (
+              <QuickReviewNotes
+                taskTitle={notesTask.title}
+                taskContext={(notesTask as { description?: string }).description ?? ""}
+                notes={notesTask.notes ?? []}
+                onSaveReview={(review) => saveNoteReviewToTask(notesTask.id, review)}
+              />
+            )}
             {(notesTask?.notes ?? []).length === 0 ? (
               <p className="rounded-md border border-dashed border-border bg-background/40 p-4 text-center text-xs text-muted-foreground">
                 No notes yet. Capture what you learned, what got in the way, or what to try next.
