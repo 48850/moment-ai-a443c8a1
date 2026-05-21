@@ -14,7 +14,7 @@ function horizonFromState(state: MomentState, key: "long" | "medium" | "short") 
 
   const source = [state.active_goal.statement, state.active_goal.success_definition].filter(Boolean).join("\n");
   const label = key === "long" ? "Long-term" : key === "medium" ? "Medium-term" : "Short-term";
-  const match = source.match(new RegExp(`${label}:\\s*([^\\n]+)`, "i"));
+  const match = source.match(new RegExp(`${label}:\\s*([^\\n|·]+?)(?=\\s*\\||$)`, "i"));
   if (match?.[1]?.trim()) return match[1].trim();
   return key === "long" ? state.active_goal.statement : "";
 }

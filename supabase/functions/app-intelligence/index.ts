@@ -538,7 +538,7 @@ function buildContextHeader(snapshot: any): string {
   const available_min = snapshot?.current_reality?.available_study_minutes ?? 60;
   const horizonFallback = (label: string) => {
     const source = `${snapshot?.active_goal?.statement ?? ""}\n${snapshot?.active_goal?.success_definition ?? ""}`;
-    return source.match(new RegExp(`${label}:\\s*([^\\n]+)`, "i"))?.[1]?.trim() ?? "";
+    return source.match(new RegExp(`${label}:\\s*([^\\n|·]+?)(?=\\s*\\||$)`, "i"))?.[1]?.trim() ?? "";
   };
   const longTerm = snapshot?.active_goal?.long_term_goal || horizonFallback("Long-term") || snapshot?.active_goal?.statement || "";
   const mediumTerm = snapshot?.active_goal?.medium_term_goal || horizonFallback("Medium-term") || "";
@@ -597,7 +597,7 @@ function userPrompt(intent: string, snapshot: any, payload: any): string {
   const ctx = buildContextHeader(snapshot);
   const horizonFallback = (label: string) => {
     const source = `${snapshot?.active_goal?.statement ?? ""}\n${snapshot?.active_goal?.success_definition ?? ""}`;
-    return source.match(new RegExp(`${label}:\\s*([^\\n]+)`, "i"))?.[1]?.trim() ?? "";
+    return source.match(new RegExp(`${label}:\\s*([^\\n|·]+?)(?=\\s*\\||$)`, "i"))?.[1]?.trim() ?? "";
   };
   const _lt = snapshot?.active_goal?.long_term_goal || horizonFallback("Long-term") || snapshot?.active_goal?.statement || "";
   const _mt = snapshot?.active_goal?.medium_term_goal || horizonFallback("Medium-term") || "";
