@@ -94,6 +94,25 @@ const Dashboard = () => {
     });
   };
 
+  const saveNoteReviewToTask = (taskId: string, review: SavedNoteReview) => {
+    dispatch({
+      type: "task/update",
+      payload: {
+        id: taskId,
+        changes: {
+          note_review: {
+            headline: review.headline ?? "",
+            key_insights: review.key_insights ?? [],
+            gaps: review.gaps ?? [],
+            mini_lesson: review.mini_lesson ?? { title: "", body: "" },
+            next_step: review.next_step ?? "",
+            created_at: new Date().toISOString(),
+          },
+        } as Partial<Task>,
+      },
+    });
+  };
+
   const dmTask = dm ? state.tasks.find((t) => t.id === dm.id) : null;
 
   return (
