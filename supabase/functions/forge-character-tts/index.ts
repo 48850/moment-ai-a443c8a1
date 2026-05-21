@@ -52,8 +52,14 @@ Deno.serve(async (req) => {
     );
     if (!resp.ok) {
       const errTxt = await resp.text();
-      return new Response(JSON.stringify({ error: `elevenlabs ${resp.status}`, detail: errTxt.slice(0, 400) }), {
-        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      // Return 200 with fallback signal so client gracefully degrades to browser TTS
+      // instead of surfacing a 502 (especially for ElevenLabs free-tier abuse blocks).
+      return new Response(JSON.stringify({
+        fallback: true,
+        error: `elevenlabs ${resp.status}`,
+        detail: errTxt.slice(0, 400),
+      }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     const buf = new Uint8Array(await resp.arrayBuffer());
