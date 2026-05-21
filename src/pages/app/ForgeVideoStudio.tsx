@@ -21,7 +21,7 @@ const CARDS: Array<{ format: Format; title: string; subtitle: string; icon: any;
 
 export default function ForgeVideoStudio() {
   const state = useStateStore((s) => s.state);
-  const update = useStateStore((s) => s.update);
+  const applyPatch = useStateStore((s) => s.applyPatch);
   const navigate = useNavigate();
   const [generating, setGenerating] = useState<Format | null>(null);
   const [voiceLoading, setVoiceLoading] = useState(false);
@@ -43,10 +43,8 @@ export default function ForgeVideoStudio() {
       if (!video) throw new Error("Empty response");
       setActiveVideo(video);
       // persist to state (cap to last 10)
-      update((s) => {
-        const list = [video, ...(s.forge_state?.forge_videos ?? [])].slice(0, 10);
-        s.forge_state = { ...(s.forge_state ?? {} as any), forge_videos: list };
-      });
+      const list = [video, ...(state.forge_state?.forge_videos ?? [])].slice(0, 10);
+      applyPatch({ forge_state: { ...(state.forge_state as any), forge_videos: list } });
     } catch (e) {
       console.error(e);
       toast({ title: "Couldn't generate video", description: e instanceof Error ? e.message : "Try again", variant: "destructive" });
@@ -68,10 +66,8 @@ export default function ForgeVideoStudio() {
       if (data?.error) throw new Error(data.error);
       const video = data?.result;
       setActiveVideo(video);
-      update((s) => {
-        const list = [video, ...(s.forge_state?.forge_videos ?? [])].slice(0, 10);
-        s.forge_state = { ...(s.forge_state ?? {} as any), forge_videos: list };
-      });
+      const list = [video, ...(state?.forge_state?.forge_videos ?? [])].slice(0, 10);
+      applyPatch({ forge_state: { ...(state?.forge_state as any), forge_videos: list } });
     } catch (e) {
       console.error(e);
       toast({ title: "Voiceover failed", description: e instanceof Error ? e.message : "Try again", variant: "destructive" });
