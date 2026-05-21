@@ -1,5 +1,6 @@
 import type { MomentState, GoalFeasibilityReport } from "@/lib/types";
 import { computeStallPattern } from "@/lib/selectors/audit";
+import { buildLearningPortfolio, type LearningPortfolio } from "@/lib/ai/learning-portfolio";
 
 export interface MomentContextPacket {
   user: {
