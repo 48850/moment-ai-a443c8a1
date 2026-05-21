@@ -185,6 +185,13 @@ export function StoryboardPlayer({
   const hostBName = video.hosts?.B?.name ?? "Sasha";
   const palette = video.palette ?? { bg: "#0b0612", fg: "#ffffff", accent: "#ff5a36" };
 
+  // Editable cast — user can swap each host for a celebrity-flavored cartoon character.
+  const [charA, setCharA] = useState<CharacterPreset>(CHARACTERS[0]);
+  const [charB, setCharB] = useState<CharacterPreset>(CHARACTERS[2]);
+  const [editing, setEditing] = useState<"A" | "B" | null>(null);
+  const [customA, setCustomA] = useState(hostAName);
+  const [customB, setCustomB] = useState(hostBName);
+
   // Start paused — autoplay is blocked by the browser until a user gesture.
   const [started, setStarted] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -192,6 +199,7 @@ export function StoryboardPlayer({
   const [segIdx, setSegIdx] = useState(0);
   const [segDuration, setSegDuration] = useState(2500);
   const [audioEl, setAudioEl] = useState<HTMLAudioElement | null>(null);
+
 
   const seg = segments[segIdx];
   const level = useAudioLevel(audioEl);
