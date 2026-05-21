@@ -116,7 +116,7 @@ export function StoryboardPlayer({
   if (!scene) return null;
 
   const replay = () => {
-    elapsedRef.current = 0;
+    elapsedBeforeRef.current = 0;
     setProgressMs(0);
     setSceneIdx(0);
     setPlaying(true);
