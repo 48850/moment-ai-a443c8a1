@@ -136,8 +136,7 @@ async function generateScript(snap: Snapshot, format: string, tone?: string) {
 
   const data = await resp.json();
   const content = data.choices?.[0]?.message?.content ?? "";
-  const cleaned = String(content).trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
-  const parsed = JSON.parse(cleaned);
+  const parsed = extractJson(String(content));
 
   parsed.id = crypto.randomUUID();
   parsed.created_at = new Date().toISOString();
