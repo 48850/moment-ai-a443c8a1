@@ -714,7 +714,28 @@ YOUR JOB NOW:
 11. If the user is venting or stuck, acknowledge first. The feedback signals tell you when to soften.
 12. Never produce generic productivity advice. Every statement must connect to THIS goal and THIS user's actual situation. Never repeat the user's words back to them.
 13. If the user says "I already told you", "I already said that", "you already asked", or similar — apologise briefly, infer the answer from recent_chat if possible, save it, and move to the next field. Never defend yourself or ask the same question again.`
-}`;
+}
+
+${renderPortfolio((snap as any)?.learning_portfolio)}`;
+}
+
+function renderPortfolio(p: any): string {
+  if (!p) return "";
+  const ls = p.lifetime_stats ?? {};
+  const lines: string[] = [];
+  lines.push(`LEARNING PORTFOLIO (the user's progressive record — always reference; never act like this is day one):`);
+  lines.push(`- Lifetime: ${ls.days_active ?? 0} days · ${ls.tasks_completed ?? 0}/${ls.tasks_total ?? 0} tasks (${Math.round((ls.completion_rate ?? 0) * 100)}%) · ${ls.notes_written ?? 0} notes · streak ${ls.streak_days ?? 0}d`);
+  if (p.milestones?.length) lines.push(`- Milestones: ${p.milestones.join(" · ")}`);
+  if (p.completed_work?.length) lines.push(`- Recently completed: ${p.completed_work.slice(0, 8).map((c: any) => `"${c.title}"`).join(" | ")}`);
+  if (p.mini_lessons_learned?.length) {
+    lines.push(`- Mini-lessons already taught (don't repeat):`);
+    for (const l of p.mini_lessons_learned.slice(0, 4)) lines.push(`  · ${l.title}: ${(l.body ?? "").slice(0, 160)}`);
+  }
+  if (p.recurring_patterns?.common_struggles?.length) lines.push(`- Recurring struggles: ${p.recurring_patterns.common_struggles.join("; ")}`);
+  if (p.recurring_patterns?.common_feedback?.length) lines.push(`- Feedback patterns: ${p.recurring_patterns.common_feedback.map((f: any) => `${f.label}×${f.count}`).join(", ")}`);
+  if (p.open_threads?.length) lines.push(`- In-flight: ${p.open_threads.slice(0, 6).map((t: any) => t.text).join(" | ")}`);
+  lines.push(`RULE: Reference progress. Don't re-teach. Build on what they've done.`);
+  return lines.join("\n");
 }
 
 // ---------- anti-repeat helpers ----------
