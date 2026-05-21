@@ -162,67 +162,122 @@ function WeekConstellation({ state }: { state: MomentState }) {
   );
 }
 
-/* ─── Month progress — 4-week completion grid ──────────────────────────────── */
-function MonthProgress({ state }: { state: MomentState }) {
-  const weeks = useMemo(() => {
-    return Array.from({ length: 4 }, (_, w) => {
-      const endOffset = (3 - w) * 7;
-      const startOffset = endOffset + 6;
-      const endDate = new Date(); endDate.setDate(endDate.getDate() - endOffset);
-      const startDate = new Date(); startDate.setDate(startDate.getDate() - startOffset);
-      const startStr = startDate.toISOString().slice(0, 10);
-      const endStr = endDate.toISOString().slice(0, 10);
-      const completed = (state.tasks ?? []).filter((t) => {
-        const d = t.completed_at?.slice(0, 10);
-        return t.status === "done" && d && d >= startStr && d <= endStr;
-      }).length;
-      const friction = (state.execution_feedback ?? []).filter((f) => {
-        const d = f.created_at?.slice(0, 10);
-        return (f.feedback === "hard" || f.feedback === "too_big") && d && d >= startStr && d <= endStr;
-      }).length;
-      return { label: `Week ${w + 1}`, completed, friction, isCurrent: w === 3 };
-    });
-  }, [state.tasks, state.execution_feedback]);
+/* ─── Month constellation — calendar grid for the current month ───────────── */
+function MonthConstellation({ state, milestone }: { state: MomentState; milestone?: { month: string; title: string; detail?: string; milestone?: string } }) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const monthIdx = now.getMonth();
+  const monthLabel = now.toLocaleString(undefined, { month: "long", year: "numeric" });
+  const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
+  const firstWeekday = (new Date(year, monthIdx, 1).getDay() + 6) % 7; // Mon=0
+  const todayDate = now.getDate();
 
-  const total = weeks.reduce((s, w) => s + w.completed, 0);
+  const localKey = (y: number, m: number, d: number) =>
+    `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 
-  if (total === 0) {
-    return (
-      <div className="rounded-xl border border-border bg-card p-4">
-        <p className="text-xs text-muted-foreground">
-          Not enough progress data yet. Complete tasks and give feedback to build your month view.
-        </p>
-      </div>
-    );
-  }
+  const { completionsByDay, maxCount, totalDone, scheduledDays } = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const t of state.tasks ?? []) {
+      if (t.status !== "done" || !t.completed_at) continue;
+      const d = new Date(t.completed_at);
+      if (d.getFullYear() !== year || d.getMonth() !== monthIdx) continue;
+      const key = localKey(year, monthIdx, d.getDate());
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    // scheduled days (any block category) inferred from week_plan day_index mapping to upcoming days
+    const week = (state.schedule_state?.week_plan ?? []) as Array<{ day_index: number }>;
+    const scheduledDow = new Set(week.map((b) => b.day_index)); // Mon=0..Sun=6
+    let max = 0;
+    for (const v of map.values()) if (v > max) max = v;
+    let total = 0;
+    for (const v of map.values()) total += v;
+    return { completionsByDay: map, maxCount: max, totalDone: total, scheduledDays: scheduledDow };
+  }, [state.tasks, state.schedule_state?.week_plan, year, monthIdx]);
+
+  const cells: Array<{ day: number | null; key: string }> = [];
+  for (let i = 0; i < firstWeekday; i++) cells.push({ day: null, key: `pad-${i}` });
+  for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d, key: `d-${d}` });
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Last 4 weeks</div>
-        <div className="text-xs text-muted-foreground">{total} proofs completed</div>
+    <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
+      <div className="flex items-baseline justify-between">
+        <div>
+          <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Month constellation</div>
+          <div className="mt-0.5 text-lg font-semibold text-foreground">{monthLabel}</div>
+        </div>
+        <div className="text-xs text-muted-foreground">{totalDone} proof{totalDone === 1 ? "" : "s"} this month</div>
       </div>
-      <div className="grid grid-cols-4 gap-2">
-        {weeks.map((w) => (
-          <div
-            key={w.label}
-            className={`rounded-lg p-3 flex flex-col gap-1 border ${
-              w.isCurrent ? "border-primary/40 bg-primary/5" : "border-border bg-muted/30"
-            }`}
-          >
-            <div className="text-[10px] text-muted-foreground">{w.label}</div>
-            <div className={`text-lg font-semibold ${w.completed > 0 ? "text-emerald-400" : "text-muted-foreground/40"}`}>
-              {w.completed}
-            </div>
-            <div className="text-[9px] text-muted-foreground">
-              {w.completed === 0 ? "no data" : w.friction > 0 ? `${w.friction} hard` : "smooth"}
-            </div>
-          </div>
+
+      {milestone && (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+          <div className="text-[10px] uppercase tracking-wider text-primary/80">This month's milestone</div>
+          <div className="mt-1 text-sm font-medium text-foreground">{milestone.title}</div>
+          {milestone.milestone && <div className="mt-0.5 text-xs text-muted-foreground">🏁 {milestone.milestone}</div>}
+        </div>
+      )}
+
+      <div className="grid grid-cols-7 gap-1 text-center text-[9px] uppercase tracking-wider text-muted-foreground">
+        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+          <div key={d}>{d}</div>
         ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1.5">
+        {cells.map((c) => {
+          if (c.day == null) return <div key={c.key} className="aspect-square" />;
+          const key = localKey(year, monthIdx, c.day);
+          const count = completionsByDay.get(key) ?? 0;
+          const isToday = c.day === todayDate;
+          const isFuture = c.day > todayDate;
+          const dow = (new Date(year, monthIdx, c.day).getDay() + 6) % 7;
+          const isScheduled = scheduledDays.has(dow);
+          const intensity = maxCount > 0 ? count / maxCount : 0;
+
+          return (
+            <div
+              key={c.key}
+              title={`${monthLabel.split(" ")[0]} ${c.day} · ${count} completed${isScheduled ? " · scheduled" : ""}`}
+              className={`relative aspect-square rounded-md flex items-center justify-center text-[10px] transition-all ${
+                isToday ? "ring-1 ring-primary" : ""
+              } ${
+                count > 0
+                  ? "border border-primary/30"
+                  : isFuture && isScheduled
+                    ? "border border-dashed border-primary/30 bg-primary/5"
+                    : "border border-border/60 bg-muted/20"
+              }`}
+              style={
+                count > 0
+                  ? { background: `hsl(var(--primary) / ${0.15 + intensity * 0.55})` }
+                  : undefined
+              }
+            >
+              <span className={count > 0 ? "font-semibold text-foreground" : "text-muted-foreground/60"}>
+                {c.day}
+              </span>
+              {count > 1 && (
+                <span className="absolute bottom-0.5 right-0.5 rounded-full bg-background/80 px-1 text-[8px] font-medium text-primary">
+                  {count}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <span className="inline-block h-2 w-2 rounded-sm border border-primary/30" />
+          <span>completed</span>
+          <span className="inline-block h-2 w-2 rounded-sm border border-dashed border-primary/30 bg-primary/5 ml-2" />
+          <span>scheduled</span>
+        </div>
+        <div>Resets on the 1st</div>
       </div>
     </div>
   );
 }
+
 
 const Plan = () => {
   const state = useStateStore((s) => s.state);
@@ -740,7 +795,7 @@ const Plan = () => {
 
           {horizon === "months" && (
             <div className="space-y-6">
-              <MonthProgress state={state} />
+              <MonthConstellation state={state} milestone={aiPlan?.months?.[0]} />
               {aiPlan?.months?.length ? (
                 <HorizonList
                   title="Monthly milestones"
