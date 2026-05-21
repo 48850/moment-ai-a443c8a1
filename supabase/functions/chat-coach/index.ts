@@ -403,7 +403,7 @@ function horizonFromSnap(snap: ChatSnapshot, key: "long" | "medium" | "short") {
   if (answer?.trim()) return answer.trim();
   const source = snap.active_goal?.statement ?? "";
   const label = key === "long" ? "Long-term" : key === "medium" ? "Medium-term" : "Short-term";
-  const match = source.match(new RegExp(`${label}:\\s*([^\\n]+)`, "i"));
+  const match = source.match(new RegExp(`${label}:\\s*([^\\n|·]+?)(?=\\s*\\||$)`, "i"));
   if (match?.[1]?.trim()) return match[1].trim();
   return key === "long" ? source : "";
 }

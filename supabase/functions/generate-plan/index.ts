@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
     const prefs = u.preferences ?? {};
     const horizonFallback = (label: string) => {
       const source = `${goal ?? ""}\n${snapshot?.active_goal?.statement ?? ""}\n${snapshot?.active_goal?.success_definition ?? ""}`;
-      return source.match(new RegExp(`${label}:\\s*([^\\n]+)`, "i"))?.[1]?.trim() ?? "";
+      return source.match(new RegExp(`${label}:\\s*([^\\n|·]+?)(?=\\s*\\||$)`, "i"))?.[1]?.trim() ?? "";
     };
     const longTerm = goal_horizons?.long_term_goal || snapshot?.active_goal?.long_term_goal || horizonFallback("Long-term") || goal;
     const mediumTerm = goal_horizons?.medium_term_goal || snapshot?.active_goal?.medium_term_goal || horizonFallback("Medium-term") || "";
