@@ -254,10 +254,20 @@ export function StoryboardPlayer({
   const [segIdx, setSegIdx] = useState(0);
   const [segDuration, setSegDuration] = useState(2500);
   const [audioEl, setAudioEl] = useState<HTMLAudioElement | null>(null);
+  const [syntheticSpeaking, setSyntheticSpeaking] = useState(false);
 
 
   const seg = segments[segIdx];
-  const level = useAudioLevel(audioEl);
+  const audioLevel = useAudioLevel(audioEl);
+  const [fallbackTick, setFallbackTick] = useState(0);
+  useEffect(() => {
+    if (!syntheticSpeaking) return;
+    let raf = 0;
+    const loop = () => { setFallbackTick((t) => t + 1); raf = requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [syntheticSpeaking]);
+  const level = audioEl ? audioLevel : syntheticSpeaking ? 0.45 + Math.abs(Math.sin(fallbackTick / 3)) * 0.35 : 0;
 
   // Play current segment audio
   useEffect(() => {
@@ -273,11 +283,23 @@ export function StoryboardPlayer({
     };
 
     if (!seg.audio_base64) {
-      // No audio — estimate read time from word count, but slower so captions are legible
+      // No generated voiceover — use browser speech so the reel still has sound.
       const ms = Math.max(2400, seg.line.split(/\s+/).length * 280);
       setSegDuration(ms);
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(seg.line);
+        utterance.rate = 0.88;
+        utterance.pitch = seg.host === "A" ? 0.88 : 1.08;
+        utterance.volume = muted ? 0 : 1;
+        utterance.onstart = () => setSyntheticSpeaking(true);
+        utterance.onend = () => { setSyntheticSpeaking(false); advance(); };
+        utterance.onerror = () => { setSyntheticSpeaking(false); advance(); };
+        window.speechSynthesis.speak(utterance);
+        return () => { window.speechSynthesis.cancel(); setSyntheticSpeaking(false); };
+      }
       const t = setTimeout(advance, ms);
-      return () => clearTimeout(t);
+      return () => { clearTimeout(t); setSyntheticSpeaking(false); };
     }
 
     const audio = new Audio(`data:audio/mpeg;base64,${seg.audio_base64}`);
@@ -300,9 +322,10 @@ export function StoryboardPlayer({
       audio.removeEventListener("ended", onEnded);
       audio.pause();
       setAudioEl(null);
+      setSyntheticSpeaking(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segIdx, playing]);
+  }, [segIdx, playing, muted]);
 
   // Mute toggle propagation
   useEffect(() => { if (audioEl) audioEl.muted = muted; }, [muted, audioEl]);
@@ -310,12 +333,14 @@ export function StoryboardPlayer({
   const revealed = useWordReveal(seg?.line ?? "", segDuration, playing && !!seg, segIdx);
 
   const start = () => {
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     setStarted(true);
     setSegIdx(0);
     setPlaying(true);
   };
 
   const replay = () => {
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     setSegIdx(0);
     setPlaying(true);
     setStarted(true);
