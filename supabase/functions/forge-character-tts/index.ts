@@ -28,8 +28,8 @@ Deno.serve(async (req) => {
     }
     const apiKey = Deno.env.get("ELEVENLABS_API_KEY");
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: "ELEVENLABS_API_KEY not set" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      return new Response(JSON.stringify({ fallback: true, error: "voice provider unavailable" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     const resp = await fetch(
@@ -68,8 +68,12 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: (e as Error).message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return new Response(JSON.stringify({
+      fallback: true,
+      error: "character voice unavailable",
+      detail: e instanceof Error ? e.message : "unknown",
+    }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
