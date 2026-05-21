@@ -60,23 +60,6 @@ const CHARACTERS: CharacterPreset[] = [
             clothing: "blazerAndShirt", clothesColor: "ff488e", eyebrows: "raisedExcited", mouth: "smile" } },
 ];
 
-function diceBearUrl(c: CharacterPreset): string {
-  const params = new URLSearchParams();
-  params.set("seed", c.dice.seed);
-  params.set("backgroundType", "solid");
-  params.set("backgroundColor", "transparent");
-  const entries: [string, string | undefined][] = [
-    ["top", c.dice.top], ["accessories", c.dice.accessories], ["facialHair", c.dice.facialHair],
-    ["clothing", c.dice.clothing], ["clothesColor", c.dice.clothesColor], ["skinColor", c.dice.skinColor],
-    ["hairColor", c.dice.hairColor], ["eyebrows", c.dice.eyebrows], ["mouth", c.dice.mouth], ["eyes", c.dice.eyes],
-  ];
-  for (const [k, v] of entries) if (v) params.set(k, v);
-  // Force the chosen options (no random override)
-  if (c.dice.accessories) params.set("accessoriesProbability", "100");
-  if (c.dice.facialHair) params.set("facialHairProbability", "100");
-  return `https://api.dicebear.com/9.x/avataaars/svg?${params.toString()}`;
-}
-
 function makeLocalAvatarSvg(c: CharacterPreset): string {
   const skin = `#${c.dice.skinColor ?? "edb98a"}`;
   const hair = `#${c.dice.hairColor ?? "2c1b18"}`;
