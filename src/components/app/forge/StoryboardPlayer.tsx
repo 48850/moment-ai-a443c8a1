@@ -292,6 +292,25 @@ export function StoryboardPlayer({
           <div className="h-full" style={{ width: `${progressPct}%`, background: palette.accent, transition: "width 200ms linear" }} />
         </div>
 
+        {/* Bottom progress bar */}
+        <div className="absolute inset-x-0 bottom-0 h-1 bg-black/40">
+          <div className="h-full" style={{ width: `${progressPct}%`, background: palette.accent, transition: "width 200ms linear" }} />
+        </div>
+
+        {/* Tap-to-start overlay (required to unlock autoplay) */}
+        {!started && (
+          <button
+            onClick={start}
+            className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-black/55 backdrop-blur-sm"
+          >
+            <div className="grid h-20 w-20 place-items-center rounded-full bg-white/95 shadow-2xl transition-transform hover:scale-105">
+              <Play className="h-8 w-8 translate-x-0.5 fill-black text-black" />
+            </div>
+            <div className="text-sm font-semibold uppercase tracking-[0.25em]">Tap to play</div>
+            <div className="text-xs opacity-70">With sound · {segments.length} segments</div>
+          </button>
+        )}
+
         {/* Side controls — TikTok style */}
         <div className="absolute right-3 top-1/2 z-20 flex -translate-y-1/2 flex-col items-center gap-3">
           <button onClick={() => setPlaying((p) => !p)} className="rounded-full bg-white/15 p-3 backdrop-blur-sm hover:bg-white/25">
