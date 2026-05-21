@@ -11,12 +11,12 @@ import { toast } from "@/hooks/use-toast";
 type Format = "pov" | "roast" | "trailer" | "recap" | "mission_briefing" | "mockumentary" | "motivational_edit";
 
 const CARDS: Array<{ format: Format; title: string; subtitle: string; icon: any; bg: string }> = [
-  { format: "pov", title: "Make a funny video about today", subtitle: "POV: your day, as the AI sees it", icon: Film, bg: "from-fuchsia-500/20 to-purple-700/10" },
-  { format: "roast", title: "Roast my procrastination", subtitle: "Playful — roasts behaviour, never you", icon: Flame, bg: "from-orange-500/25 to-red-700/10" },
-  { format: "trailer", title: "Cinematic goal trailer", subtitle: "Your long-term anchor, dramatised", icon: Stars, bg: "from-amber-400/20 to-yellow-700/10" },
-  { format: "mission_briefing", title: "Mission briefing", subtitle: "Pre-block briefing for your next move", icon: Target, bg: "from-emerald-500/20 to-teal-700/10" },
-  { format: "recap", title: "Weekly recap", subtitle: "Real numbers, one upgrade for next week", icon: Award, bg: "from-sky-500/20 to-indigo-700/10" },
-  { format: "mockumentary", title: "Mockumentary clip", subtitle: "Deadpan narrator observes your week", icon: History, bg: "from-slate-500/20 to-zinc-700/10" },
+  { format: "pov", title: "Today's episode about you", subtitle: "Two hosts react to your day — live", icon: Film, bg: "from-fuchsia-500/20 to-purple-700/10" },
+  { format: "roast", title: "Roast my calendar", subtitle: "We roast the avoidance, never you", icon: Flame, bg: "from-orange-500/25 to-red-700/10" },
+  { format: "trailer", title: "Cinematic goal trailer", subtitle: "Movie-trailer cold open about your goal", icon: Stars, bg: "from-amber-400/20 to-yellow-700/10" },
+  { format: "mission_briefing", title: "Mission briefing", subtitle: "Mission control hypes your next block", icon: Target, bg: "from-emerald-500/20 to-teal-700/10" },
+  { format: "recap", title: "Weekly recap show", subtitle: "Hosts review the week, name the play", icon: Award, bg: "from-sky-500/20 to-indigo-700/10" },
+  { format: "mockumentary", title: "Mockumentary clip", subtitle: "Affectionate, observational, never mean", icon: History, bg: "from-slate-500/20 to-zinc-700/10" },
 ];
 
 export default function ForgeVideoStudio() {
