@@ -509,11 +509,9 @@ export function StoryboardPlayer({
           <button onClick={replay} className="rounded-full bg-white/15 p-3 backdrop-blur-sm hover:bg-white/25">
             <RotateCcw className="h-4 w-4" />
           </button>
-          {video.has_voiceover && (
-            <button onClick={() => setMuted((m) => !m)} className="rounded-full bg-white/15 p-3 backdrop-blur-sm hover:bg-white/25">
-              {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-            </button>
-          )}
+          <button onClick={() => setMuted((m) => !m)} className="rounded-full bg-white/15 p-3 backdrop-blur-sm hover:bg-white/25">
+            {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+          </button>
         </div>
       </div>
 
@@ -534,8 +532,7 @@ export function StoryboardPlayer({
 }
 
 function HostAvatar({ name, host, active, level, character }: { name: string; host: "A" | "B"; active: boolean; level: number; character: CharacterPreset }) {
-  // Real cartoon avatar via DiceBear avataaars — looks like a proper character.
-  const avatarUrl = useMemo(() => diceBearUrl(character), [character]);
+  const avatarUrl = useMemo(() => makeLocalAvatarSvg(character), [character]);
 
   // Animate the wrapper instead of redrawing the face: bob, sway, tilt, breathe.
   const [tick, setTick] = useState(0);
