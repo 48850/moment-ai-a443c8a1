@@ -5,6 +5,7 @@
  */
 import type { MomentState, ChatMessage } from "@/lib/types";
 import { selectNextBestTask } from "@/lib/engine/next-best-task";
+import { buildLearningPortfolio } from "@/lib/ai/learning-portfolio";
 
 function horizonFromState(state: MomentState, key: "long" | "medium" | "short") {
   const answers = state.onboarding?.answers ?? {};
