@@ -136,7 +136,9 @@ export function StoryboardPlayer({
   const hostBName = video.hosts?.B?.name ?? "Sasha";
   const palette = video.palette ?? { bg: "#0b0612", fg: "#ffffff", accent: "#ff5a36" };
 
-  const [playing, setPlaying] = useState(true);
+  // Start paused — autoplay is blocked by the browser until a user gesture.
+  const [started, setStarted] = useState(false);
+  const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [segIdx, setSegIdx] = useState(0);
   const [segDuration, setSegDuration] = useState(2500);
@@ -148,29 +150,39 @@ export function StoryboardPlayer({
   // Play current segment audio
   useEffect(() => {
     if (!playing || !seg) return;
+    const BREATH_MS = 380; // small pause between segments so it doesn't feel rushed
+
+    const advance = () => {
+      if (segIdx + 1 < segments.length) {
+        setTimeout(() => setSegIdx((i) => i + 1), BREATH_MS);
+      } else {
+        setPlaying(false);
+      }
+    };
 
     if (!seg.audio_base64) {
-      // No audio — estimate read time from word count
-      const ms = Math.max(1800, seg.line.split(/\s+/).length * 220);
+      // No audio — estimate read time from word count, but slower so captions are legible
+      const ms = Math.max(2400, seg.line.split(/\s+/).length * 280);
       setSegDuration(ms);
-      const t = setTimeout(() => {
-        setSegIdx((i) => (i + 1 < segments.length ? i + 1 : i));
-        if (segIdx + 1 >= segments.length) setPlaying(false);
-      }, ms);
+      const t = setTimeout(advance, ms);
       return () => clearTimeout(t);
     }
 
     const audio = new Audio(`data:audio/mpeg;base64,${seg.audio_base64}`);
     audio.muted = muted;
+    audio.volume = 1;
     setAudioEl(audio);
-    const onLoaded = () => setSegDuration(Math.max(800, audio.duration * 1000));
-    const onEnded = () => {
-      if (segIdx + 1 < segments.length) setSegIdx((i) => i + 1);
-      else setPlaying(false);
-    };
+    const onLoaded = () => setSegDuration(Math.max(1200, audio.duration * 1000));
+    const onEnded = () => advance();
     audio.addEventListener("loadedmetadata", onLoaded);
     audio.addEventListener("ended", onEnded);
-    audio.play().catch(() => { /* user gesture may be needed */ });
+    audio.play().catch((e) => {
+      console.warn("audio play blocked, advancing on timer", e);
+      // Fallback: advance after estimated read time
+      const ms = Math.max(2400, seg.line.split(/\s+/).length * 280);
+      setSegDuration(ms);
+      setTimeout(advance, ms);
+    });
     return () => {
       audio.removeEventListener("loadedmetadata", onLoaded);
       audio.removeEventListener("ended", onEnded);
