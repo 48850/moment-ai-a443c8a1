@@ -453,6 +453,7 @@ export function StoryboardPlayer({
                       onClick={() => {
                         if (editing === "A") { setCharA(c); setCustomA(c.name); }
                         else { setCharB(c); setCustomB(c.name); }
+                        setCastVersion((v) => v + 1);
                       }}
                       className={`rounded-xl border p-2 text-left transition ${selected ? "border-white bg-white/15" : "border-white/15 bg-white/5 hover:bg-white/10"}`}
                     >
@@ -466,14 +467,14 @@ export function StoryboardPlayer({
           )}
 
           {/* Waveform */}
-          <Waveform level={level} accent={palette.accent} active={!!seg.audio_base64} />
+          <Waveform level={level} accent={palette.accent} active={!!activeAudioBase64 || syntheticSpeaking} />
         </div>
 
         {/* Live caption */}
         <div className="absolute inset-x-0 bottom-20 z-20 px-6">
           <div className="mx-auto max-w-[92%] text-center">
             <div className="mb-1.5 text-[10px] uppercase tracking-[0.3em] opacity-70">
-              {activeHost === "A" ? hostAName : hostBName}
+              {activeHost === "A" ? customA : customB}
             </div>
             <div
               key={segIdx}
