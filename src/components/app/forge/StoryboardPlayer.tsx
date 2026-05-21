@@ -197,9 +197,16 @@ export function StoryboardPlayer({
 
   const revealed = useWordReveal(seg?.line ?? "", segDuration, playing && !!seg, segIdx);
 
+  const start = () => {
+    setStarted(true);
+    setSegIdx(0);
+    setPlaying(true);
+  };
+
   const replay = () => {
     setSegIdx(0);
     setPlaying(true);
+    setStarted(true);
     onReplay?.();
   };
 
