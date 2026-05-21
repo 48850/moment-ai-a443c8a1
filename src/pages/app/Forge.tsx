@@ -814,24 +814,6 @@ const Forge = () => {
         </p>
       </div>
 
-      {/* Context Video Studio entry */}
-      <Link
-        to="/app/forge/videos"
-        className="group relative block overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-fuchsia-500/15 via-orange-500/10 to-amber-500/15 p-5 transition hover:border-primary/50"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">New · Forge</div>
-            <div className="mt-1 text-lg font-semibold">Context Video Studio</div>
-            <div className="mt-1 text-sm text-muted-foreground">
-              Turn today, your goal trio, your tasks, and the week's pattern into a short personalised video — POV, roast, trailer, mission briefing, recap. Each one ends in a tappable next move.
-            </div>
-          </div>
-          <div className="rounded-xl border border-border bg-background/60 p-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-          </div>
-        </div>
-      </Link>
 
       {!building && gap && (
         <SystemGapCard gap={gap} onBuild={handleBuildAroundGap} />

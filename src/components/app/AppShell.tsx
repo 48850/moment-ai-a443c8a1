@@ -35,9 +35,10 @@ const tabs: { to: string; label: string; icon: React.ComponentType<{ className?:
     to: "/app/mission",
     label: "Mission",
     icon: Target,
-    match: ["/app/mission"],
+    match: ["/app/mission", "/app/mission/summary"],
     sub: [
       { to: "/app/mission", label: "Mission", icon: Target },
+      { to: "/app/mission/summary", label: "Summary clips", icon: Target },
     ],
   },
 ];
