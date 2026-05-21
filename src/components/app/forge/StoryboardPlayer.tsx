@@ -392,10 +392,18 @@ export function StoryboardPlayer({
   const [audioEl, setAudioEl] = useState<HTMLAudioElement | null>(null);
   const [syntheticSpeaking, setSyntheticSpeaking] = useState(false);
 
+  // Cache ElevenLabs results by `${segIdx}::${character.id}` so swapping back is instant.
+  const ttsCacheRef = useRef<Map<string, string>>(new Map());
+  const [, setCacheTick] = useState(0);
 
   const seg = segments[segIdx];
   const activeCharacter = seg?.host === "B" ? charB : charA;
-  const activeAudioBase64 = castVersion === 0 ? seg?.audio_base64 : undefined;
+  // If user has swapped the cast, ignore the pre-baked audio and use ElevenLabs
+  // for the swapped character. Otherwise use the original generated audio.
+  const cacheKey = seg ? `${segIdx}::${activeCharacter.id}` : "";
+  const cached = cacheKey ? ttsCacheRef.current.get(cacheKey) : undefined;
+  const activeAudioBase64 = castVersion === 0 ? seg?.audio_base64 : cached;
+
   const audioLevel = useAudioLevel(audioEl);
   const [fallbackTick, setFallbackTick] = useState(0);
   useEffect(() => {
@@ -407,10 +415,39 @@ export function StoryboardPlayer({
   }, [syntheticSpeaking]);
   const level = audioEl ? audioLevel : syntheticSpeaking ? 0.45 + Math.abs(Math.sin(fallbackTick / 3)) * 0.35 : 0;
 
+  // Fetch ElevenLabs audio for the swapped character if we don't have it cached yet.
+  useEffect(() => {
+    if (!playing || !seg) return;
+    if (castVersion === 0) return; // original audio is fine
+    if (cached) return; // already have it
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("forge-character-tts", {
+          body: {
+            text: seg.line,
+            voiceId: activeCharacter.voiceId,
+            ...(activeCharacter.voiceTuning ?? {}),
+          },
+        });
+        if (cancelled) return;
+        if (error || !data?.audio_base64) {
+          console.warn("character tts failed, falling back to browser speech", error);
+          return;
+        }
+        ttsCacheRef.current.set(`${segIdx}::${activeCharacter.id}`, data.audio_base64);
+        setCacheTick((t) => t + 1);
+      } catch (e) {
+        console.warn("character tts threw", e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [playing, segIdx, activeCharacter, castVersion, cached, seg]);
+
   // Play current segment audio
   useEffect(() => {
     if (!playing || !seg) return;
-    const BREATH_MS = 380; // small pause between segments so it doesn't feel rushed
+    const BREATH_MS = 380;
 
     const advance = () => {
       if (segIdx + 1 < segments.length) {
@@ -421,7 +458,8 @@ export function StoryboardPlayer({
     };
 
     if (!activeAudioBase64) {
-      // No generated voiceover — use browser speech so the reel still has sound.
+      // Either ElevenLabs is still loading (swapped cast) or it failed.
+      // Use browser speech as a short bridge so the reel doesn't freeze.
       const ms = Math.max(2400, seg.line.split(/\s+/).length * (290 / activeCharacter.voice.rate));
       setSegDuration(ms);
       if ("speechSynthesis" in window) {
@@ -451,7 +489,6 @@ export function StoryboardPlayer({
     audio.addEventListener("ended", onEnded);
     audio.play().catch((e) => {
       console.warn("audio play blocked, advancing on timer", e);
-      // Fallback: advance after estimated read time
       const ms = Math.max(2400, seg.line.split(/\s+/).length * 280);
       setSegDuration(ms);
       setTimeout(advance, ms);
