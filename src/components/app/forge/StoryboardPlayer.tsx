@@ -308,20 +308,73 @@ export function StoryboardPlayer({
 
         {/* Two-host stage */}
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-8 px-6 pt-20 pb-40">
-          <div className="flex w-full items-center justify-center gap-6 md:gap-12">
-            <HostAvatar
-              name={hostAName}
-              host="A"
-              active={activeHost === "A"}
-              level={activeHost === "A" ? level : 0}
-            />
-            <HostAvatar
-              name={hostBName}
-              host="B"
-              active={activeHost === "B"}
-              level={activeHost === "B" ? level : 0}
-            />
+          <div className="flex w-full items-end justify-center gap-6 md:gap-12">
+            <div className="flex flex-col items-center gap-2">
+              <HostAvatar
+                name={customA}
+                host="A"
+                character={charA}
+                active={activeHost === "A"}
+                level={activeHost === "A" ? level : 0}
+              />
+              <button
+                onClick={() => setEditing(editing === "A" ? null : "A")}
+                className="flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm hover:bg-white/25"
+              >
+                <Pencil className="h-3 w-3" /> Cast A
+              </button>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <HostAvatar
+                name={customB}
+                host="B"
+                character={charB}
+                active={activeHost === "B"}
+                level={activeHost === "B" ? level : 0}
+              />
+              <button
+                onClick={() => setEditing(editing === "B" ? null : "B")}
+                className="flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm hover:bg-white/25"
+              >
+                <Pencil className="h-3 w-3" /> Cast B
+              </button>
+            </div>
           </div>
+
+          {editing && (
+            <div className="absolute inset-x-3 top-16 z-30 max-h-[55%] overflow-y-auto rounded-2xl border border-white/15 bg-black/85 p-3 backdrop-blur-xl">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider">
+                  <Sparkles className="h-3.5 w-3.5" /> Cast Host {editing}
+                </div>
+                <button onClick={() => setEditing(null)} className="text-[11px] opacity-70 hover:opacity-100">Done</button>
+              </div>
+              <input
+                value={editing === "A" ? customA : customB}
+                onChange={(e) => (editing === "A" ? setCustomA(e.target.value) : setCustomB(e.target.value))}
+                placeholder="Stage name (e.g. Harrison)"
+                className="mb-2 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-sm placeholder:opacity-50 focus:border-white/40 focus:outline-none"
+              />
+              <div className="grid grid-cols-2 gap-1.5 md:grid-cols-3">
+                {CHARACTERS.map((c) => {
+                  const selected = (editing === "A" ? charA.id : charB.id) === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => {
+                        if (editing === "A") { setCharA(c); setCustomA(c.name); }
+                        else { setCharB(c); setCustomB(c.name); }
+                      }}
+                      className={`rounded-xl border p-2 text-left transition ${selected ? "border-white bg-white/15" : "border-white/15 bg-white/5 hover:bg-white/10"}`}
+                    >
+                      <div className="text-[11px] font-bold leading-tight">{c.name}</div>
+                      <div className="mt-0.5 text-[9px] opacity-60">{c.vibe}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Waveform */}
           <Waveform level={level} accent={palette.accent} active={!!seg.audio_base64} />
