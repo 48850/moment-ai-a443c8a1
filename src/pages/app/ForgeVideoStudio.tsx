@@ -66,6 +66,9 @@ export default function ForgeVideoStudio() {
       setActiveVideo(video);
       const list = [video, ...(state?.forge_state?.forge_videos ?? [])].slice(0, 10);
       applyPatch({ forge_state: { ...(state?.forge_state as any), forge_videos: list } });
+      if (data?.voiceover_error) {
+        toast({ title: "Voiceover unavailable", description: data.voiceover_error });
+      }
     } catch (e) {
       console.error(e);
       toast({ title: "Voiceover failed", description: e instanceof Error ? e.message : "Try again", variant: "destructive" });

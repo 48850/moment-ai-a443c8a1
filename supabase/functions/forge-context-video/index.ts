@@ -233,12 +233,19 @@ Deno.serve(async (req) => {
     }
 
     const concept = await generateConcept(snapshot, format, tone);
+    let voiceover_error: string | null = null;
     if (with_voiceover) {
-      concept.scenes = await generateVoiceover(concept.scenes, voice_id);
-      concept.has_voiceover = true;
+      try {
+        concept.scenes = await generateVoiceover(concept.scenes, voice_id);
+        concept.has_voiceover = true;
+      } catch (ve) {
+        console.error("voiceover skipped", ve);
+        voiceover_error = ve instanceof Error ? ve.message : "Voiceover unavailable";
+        concept.has_voiceover = false;
+      }
     }
 
-    return new Response(JSON.stringify({ result: concept }), {
+    return new Response(JSON.stringify({ result: concept, voiceover_error }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
