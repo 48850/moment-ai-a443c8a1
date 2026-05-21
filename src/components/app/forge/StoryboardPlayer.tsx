@@ -102,6 +102,17 @@ function makeLocalAvatarSvg(c: CharacterPreset): string {
     </svg>`)} `;
 }
 
+function pickSpeechVoice(character: CharacterPreset): SpeechSynthesisVoice | undefined {
+  if (!("speechSynthesis" in window)) return undefined;
+  const voices = window.speechSynthesis.getVoices();
+  const englishVoices = voices.filter((v) => /^en[-_]/i.test(v.lang));
+  const pool = englishVoices.length ? englishVoices : voices;
+  const hintedVoice = character.voice.hints
+    .map((hint) => pool.find((v) => v.name.toLowerCase().includes(hint.toLowerCase())))
+    .find(Boolean);
+  return hintedVoice ?? pool[0];
+}
+
 
 
 
