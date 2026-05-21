@@ -1,6 +1,55 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Play, Pause, RotateCcw, Volume2, VolumeX, Mic } from "lucide-react";
+import { Play, Pause, RotateCcw, Volume2, VolumeX, Mic, Sparkles, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+// ---------- Cartoon character presets (celebrity-flavored archetypes) ----------
+type CharacterPreset = {
+  id: string;
+  name: string;
+  vibe: string;
+  palette: { skin: string; skinShade: string; hair: string; shirt: string; accent: string };
+  features: {
+    hairStyle: "swoop" | "buzz" | "wavy" | "afro" | "bun" | "bald" | "longstraight" | "fedora";
+    facialHair?: "stubble" | "goatee" | "mustache" | "beard";
+    glasses?: "aviator" | "round" | "shades" | "rect";
+    hat?: "fedora" | "cap" | "cowboy" | "beanie" | "crown";
+    skinTone?: "light" | "tan" | "brown" | "deep";
+  };
+};
+
+const CHARACTERS: CharacterPreset[] = [
+  { id: "ranger",  name: "Ranger Harrison", vibe: "Rugged action-hero dad energy",
+    palette: { skin: "#f1c79a", skinShade: "#cf9866", hair: "#5a4030", shirt: "#7b4a2a", accent: "#e8b04a" },
+    features: { hairStyle: "swoop", facialHair: "stubble", hat: "fedora" } },
+  { id: "rogue",   name: "Rogue MC", vibe: "Hyped MMA podcast bro",
+    palette: { skin: "#eebd96", skinShade: "#c89572", hair: "#1a1a1a", shirt: "#0b0b0b", accent: "#22d3a0" },
+    features: { hairStyle: "buzz", facialHair: "goatee", glasses: "shades" } },
+  { id: "diva",    name: "Pop Diva", vibe: "Confident chart-topper hype queen",
+    palette: { skin: "#e4b079", skinShade: "#c08a55", hair: "#f6d365", shirt: "#ff4fa3", accent: "#ffd166" },
+    features: { hairStyle: "wavy", hat: "crown" } },
+  { id: "mogul",   name: "Mogul Talk", vibe: "Daytime mentor / life coach",
+    palette: { skin: "#a26b46", skinShade: "#7e4f30", hair: "#1a1a1a", shirt: "#7c3aed", accent: "#f4c75b" },
+    features: { hairStyle: "afro", glasses: "rect" } },
+  { id: "tech",    name: "Tech Bro CEO", vibe: "Keynote, black turtleneck",
+    palette: { skin: "#f3cda6", skinShade: "#cfa179", hair: "#3a3a3a", shirt: "#111111", accent: "#5ad1ff" },
+    features: { hairStyle: "buzz", glasses: "round" } },
+  { id: "chill",   name: "Chill Legend", vibe: "Smooth West-coast narrator",
+    palette: { skin: "#8b5a36", skinShade: "#6a4023", hair: "#1a1a1a", shirt: "#1e3a8a", accent: "#22d3a0" },
+    features: { hairStyle: "longstraight", facialHair: "mustache", hat: "beanie" } },
+  { id: "cowboy",  name: "Cowboy Storyteller", vibe: "Wise drawl, rodeo dad",
+    palette: { skin: "#e9b88a", skinShade: "#c08a5c", hair: "#a87038", shirt: "#9a3324", accent: "#f4a261" },
+    features: { hairStyle: "wavy", facialHair: "beard", hat: "cowboy" } },
+  { id: "indie",   name: "Indie Director", vibe: "Whispery A24 voiceover",
+    palette: { skin: "#ecc9a5", skinShade: "#c8a07c", hair: "#2b1f17", shirt: "#3b3b3b", accent: "#e8b04a" },
+    features: { hairStyle: "bun", glasses: "round", facialHair: "stubble" } },
+  { id: "anchor",  name: "News Anchor", vibe: "Breaking-news urgency",
+    palette: { skin: "#f1c79a", skinShade: "#cf9866", hair: "#1a1a1a", shirt: "#1d4ed8", accent: "#ef4444" },
+    features: { hairStyle: "swoop" } },
+  { id: "diva2",   name: "Soul Queen", vibe: "Gospel hype, big love",
+    palette: { skin: "#7a4a2a", skinShade: "#5a341c", hair: "#0a0a0a", shirt: "#c026d3", accent: "#fcd34d" },
+    features: { hairStyle: "afro" } },
+];
+
 
 interface Segment {
   idx: number;
