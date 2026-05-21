@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronLeft, Sparkles, Loader2, Film, Flame, Award, Target, History, Stars, Mic2, BookOpen } from "lucide-react";
+import { ChevronLeft, Sparkles, Loader2, Award, Target, Stars, Mic2, BookOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { buildContextPacket } from "@/lib/ai/context-packet";
 import { useStateStore } from "@/stores/state-store";
@@ -8,16 +8,13 @@ import { StoryboardPlayer } from "@/components/app/forge/StoryboardPlayer";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 
-type Format = "pov" | "roast" | "trailer" | "recap" | "mission_briefing" | "mockumentary" | "motivational_edit" | "review";
+type Format = "review" | "recap" | "mission_briefing" | "trailer";
 
 const CARDS: Array<{ format: Format; title: string; subtitle: string; icon: any; bg: string }> = [
-  { format: "review", title: "Review my notes", subtitle: "Consolidates your notes into a study clip you can replay", icon: BookOpen, bg: "from-amber-300/20 to-rose-400/10" },
-  { format: "pov", title: "Make a funny video about today", subtitle: "POV: your day, as the AI sees it", icon: Film, bg: "from-fuchsia-500/20 to-purple-700/10" },
-  { format: "roast", title: "Roast my procrastination", subtitle: "Playful — roasts behaviour, never you", icon: Flame, bg: "from-orange-500/25 to-red-700/10" },
-  { format: "trailer", title: "Cinematic goal trailer", subtitle: "Your long-term anchor, dramatised", icon: Stars, bg: "from-amber-400/20 to-yellow-700/10" },
-  { format: "mission_briefing", title: "Mission briefing", subtitle: "Pre-block briefing for your next move", icon: Target, bg: "from-emerald-500/20 to-teal-700/10" },
-  { format: "recap", title: "Weekly recap", subtitle: "Real numbers, one upgrade for next week", icon: Award, bg: "from-sky-500/20 to-indigo-700/10" },
-  { format: "mockumentary", title: "Mockumentary clip", subtitle: "Deadpan narrator observes your week", icon: History, bg: "from-slate-500/20 to-zinc-700/10" },
+  { format: "review", title: "Notes summary", subtitle: "Consolidates your task notes into a study clip you can replay", icon: BookOpen, bg: "from-amber-300/20 to-rose-400/10" },
+  { format: "recap", title: "Weekly recap", subtitle: "What you learned, what you skipped, one upgrade for next week", icon: Award, bg: "from-sky-500/20 to-indigo-700/10" },
+  { format: "mission_briefing", title: "Today summary", subtitle: "Your queue, the enemy, the first move — in 20 seconds", icon: Target, bg: "from-emerald-500/20 to-teal-700/10" },
+  { format: "trailer", title: "Goal arc summary", subtitle: "Long-term anchor → milestone → next proof, in one clip", icon: Stars, bg: "from-amber-400/20 to-yellow-700/10" },
 ];
 
 export default function ForgeVideoStudio() {
