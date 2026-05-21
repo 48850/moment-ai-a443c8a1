@@ -262,6 +262,9 @@ const Tasks = () => {
     [notesTaskId, tasks],
   );
 
+  if (!state)
+    return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
+
   const addNoteToTask = (taskId: string, content: string) => {
     const text = content.trim();
     if (!text) return;
