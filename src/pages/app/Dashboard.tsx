@@ -310,6 +310,7 @@ const Dashboard = () => {
                 onSaveReview={(review) => saveNoteReviewToTask(notesTask.id, review)}
               />
             )}
+            {(notesTask?.notes ?? []).length === 0 ? (
               <p className="rounded-md border border-dashed border-border bg-background/40 p-4 text-center text-xs text-muted-foreground">
                 No notes yet. Capture what you learned, what got in the way, or what to try next.
               </p>
