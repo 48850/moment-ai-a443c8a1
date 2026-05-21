@@ -301,8 +301,15 @@ const Dashboard = () => {
             </SheetDescription>
           </SheetHeader>
 
-          <div className="flex-1 space-y-2 overflow-y-auto pr-1">
-            {(notesTask?.notes ?? []).length === 0 ? (
+          <div className="flex-1 space-y-3 overflow-y-auto pr-1">
+            {notesTask && (notesTask.notes?.length ?? 0) > 0 && (
+              <QuickReviewNotes
+                taskTitle={notesTask.title}
+                taskContext={(notesTask as { description?: string }).description ?? ""}
+                notes={notesTask.notes ?? []}
+                onSaveReview={(review) => saveNoteReviewToTask(notesTask.id, review)}
+              />
+            )}
               <p className="rounded-md border border-dashed border-border bg-background/40 p-4 text-center text-xs text-muted-foreground">
                 No notes yet. Capture what you learned, what got in the way, or what to try next.
               </p>
