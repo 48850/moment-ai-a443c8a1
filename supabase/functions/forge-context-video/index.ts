@@ -228,7 +228,7 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     const { snapshot = {}, format = "pov", tone, with_voiceover = false, voice_id = DEFAULT_VOICE_ID } = body ?? {};
-    if (!["pov", "roast", "trailer", "recap", "mission_briefing", "mockumentary", "motivational_edit"].includes(format)) {
+    if (!["pov", "roast", "trailer", "recap", "mission_briefing", "mockumentary", "motivational_edit", "review"].includes(format)) {
       return new Response(JSON.stringify({ error: "Unknown format" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
