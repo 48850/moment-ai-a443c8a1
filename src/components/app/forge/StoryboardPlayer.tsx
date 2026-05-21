@@ -2,53 +2,82 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Play, Pause, RotateCcw, Volume2, VolumeX, Mic, Sparkles, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// ---------- Cartoon character presets (celebrity-flavored archetypes) ----------
+// ---------- Cartoon character presets — rendered via DiceBear avataaars ----------
+// Each preset maps to deterministic DiceBear options so the avatar actually looks
+// like the archetype (hat, hair, glasses, facial hair, skin, shirt color).
 type CharacterPreset = {
   id: string;
   name: string;
   vibe: string;
-  palette: { skin: string; skinShade: string; hair: string; shirt: string; accent: string };
-  features: {
-    hairStyle: "swoop" | "buzz" | "wavy" | "afro" | "bun" | "bald" | "longstraight" | "fedora";
-    facialHair?: "stubble" | "goatee" | "mustache" | "beard";
-    glasses?: "aviator" | "round" | "shades" | "rect";
-    hat?: "fedora" | "cap" | "cowboy" | "beanie" | "crown";
-    skinTone?: "light" | "tan" | "brown" | "deep";
+  accent: string;
+  shirt: string;
+  // DiceBear `avataaars` options (https://www.dicebear.com/styles/avataaars/)
+  dice: {
+    seed: string;
+    top?: string;        // hat / hair
+    accessories?: string;
+    facialHair?: string;
+    clothing?: string;
+    clothesColor?: string;
+    skinColor?: string;
+    hairColor?: string;
+    eyebrows?: string;
+    mouth?: string;
+    eyes?: string;
   };
 };
 
 const CHARACTERS: CharacterPreset[] = [
-  { id: "ranger",  name: "Ranger Harrison", vibe: "Rugged action-hero dad energy",
-    palette: { skin: "#f1c79a", skinShade: "#cf9866", hair: "#5a4030", shirt: "#7b4a2a", accent: "#e8b04a" },
-    features: { hairStyle: "swoop", facialHair: "stubble", hat: "fedora" } },
-  { id: "rogue",   name: "Rogue MC", vibe: "Hyped MMA podcast bro",
-    palette: { skin: "#eebd96", skinShade: "#c89572", hair: "#1a1a1a", shirt: "#0b0b0b", accent: "#22d3a0" },
-    features: { hairStyle: "buzz", facialHair: "goatee", glasses: "shades" } },
-  { id: "diva",    name: "Pop Diva", vibe: "Confident chart-topper hype queen",
-    palette: { skin: "#e4b079", skinShade: "#c08a55", hair: "#f6d365", shirt: "#ff4fa3", accent: "#ffd166" },
-    features: { hairStyle: "wavy", hat: "crown" } },
-  { id: "mogul",   name: "Mogul Talk", vibe: "Daytime mentor / life coach",
-    palette: { skin: "#a26b46", skinShade: "#7e4f30", hair: "#1a1a1a", shirt: "#7c3aed", accent: "#f4c75b" },
-    features: { hairStyle: "afro", glasses: "rect" } },
-  { id: "tech",    name: "Tech Bro CEO", vibe: "Keynote, black turtleneck",
-    palette: { skin: "#f3cda6", skinShade: "#cfa179", hair: "#3a3a3a", shirt: "#111111", accent: "#5ad1ff" },
-    features: { hairStyle: "buzz", glasses: "round" } },
-  { id: "chill",   name: "Chill Legend", vibe: "Smooth West-coast narrator",
-    palette: { skin: "#8b5a36", skinShade: "#6a4023", hair: "#1a1a1a", shirt: "#1e3a8a", accent: "#22d3a0" },
-    features: { hairStyle: "longstraight", facialHair: "mustache", hat: "beanie" } },
-  { id: "cowboy",  name: "Cowboy Storyteller", vibe: "Wise drawl, rodeo dad",
-    palette: { skin: "#e9b88a", skinShade: "#c08a5c", hair: "#a87038", shirt: "#9a3324", accent: "#f4a261" },
-    features: { hairStyle: "wavy", facialHair: "beard", hat: "cowboy" } },
-  { id: "indie",   name: "Indie Director", vibe: "Whispery A24 voiceover",
-    palette: { skin: "#ecc9a5", skinShade: "#c8a07c", hair: "#2b1f17", shirt: "#3b3b3b", accent: "#e8b04a" },
-    features: { hairStyle: "bun", glasses: "round", facialHair: "stubble" } },
-  { id: "anchor",  name: "News Anchor", vibe: "Breaking-news urgency",
-    palette: { skin: "#f1c79a", skinShade: "#cf9866", hair: "#1a1a1a", shirt: "#1d4ed8", accent: "#ef4444" },
-    features: { hairStyle: "swoop" } },
-  { id: "diva2",   name: "Soul Queen", vibe: "Gospel hype, big love",
-    palette: { skin: "#7a4a2a", skinShade: "#5a341c", hair: "#0a0a0a", shirt: "#c026d3", accent: "#fcd34d" },
-    features: { hairStyle: "afro" } },
+  { id: "ranger", name: "Ranger Harrison", vibe: "Rugged action-hero dad", accent: "#e8b04a", shirt: "#7b4a2a",
+    dice: { seed: "harrison", top: "shortHairShortFlat", hairColor: "724133", facialHair: "beardLight", skinColor: "edb98a",
+            clothing: "collarAndSweater", clothesColor: "a55728", eyebrows: "default", mouth: "serious" } },
+  { id: "rogue", name: "Rogue MC", vibe: "Hyped MMA podcast bro", accent: "#22d3a0", shirt: "#0b0b0b",
+    dice: { seed: "rogan", top: "noHair", facialHair: "beardMedium", hairColor: "2c1b18", skinColor: "edb98a",
+            accessories: "sunglasses", clothing: "hoodie", clothesColor: "262e33", mouth: "default" } },
+  { id: "diva", name: "Pop Diva", vibe: "Chart-topper hype queen", accent: "#ffd166", shirt: "#ff4fa3",
+    dice: { seed: "beyonce", top: "longHairBigHair", hairColor: "f59797", skinColor: "fd9841",
+            clothing: "blazerAndShirt", clothesColor: "ff488e", eyebrows: "raisedExcited", mouth: "smile" } },
+  { id: "mogul", name: "Mogul Talk", vibe: "Daytime mentor", accent: "#f4c75b", shirt: "#7c3aed",
+    dice: { seed: "oprah", top: "longHairCurly", hairColor: "2c1b18", skinColor: "ae5d29",
+            accessories: "prescription02", clothing: "blazerAndShirt", clothesColor: "65c9ff", mouth: "smile" } },
+  { id: "tech", name: "Tech Bro CEO", vibe: "Keynote, black turtleneck", accent: "#5ad1ff", shirt: "#111111",
+    dice: { seed: "ceo", top: "shortHairShortFlat", hairColor: "2c1b18", skinColor: "edb98a",
+            accessories: "round", clothing: "shirtCrewNeck", clothesColor: "262e33", mouth: "default" } },
+  { id: "chill", name: "Chill Legend", vibe: "Smooth West-coast narrator", accent: "#22d3a0", shirt: "#1e3a8a",
+    dice: { seed: "snoop", top: "longHairStraight", hairColor: "0e0e0e", skinColor: "8d5524", facialHair: "moustacheFancy",
+            clothing: "graphicShirt", clothesColor: "3c4f5c", mouth: "smile" } },
+  { id: "cowboy", name: "Cowboy Storyteller", vibe: "Wise drawl, rodeo dad", accent: "#f4a261", shirt: "#9a3324",
+    dice: { seed: "cowboy", top: "shortHairTheCaesar", hairColor: "a55728", skinColor: "f8d25c", facialHair: "beardMedium",
+            clothing: "shirtScoopNeck", clothesColor: "ff5c5c", mouth: "default" } },
+  { id: "indie", name: "Indie Director", vibe: "Whispery A24 voiceover", accent: "#e8b04a", shirt: "#3b3b3b",
+    dice: { seed: "indie", top: "shortHairTheCaesarSidePart", hairColor: "2c1b18", skinColor: "edb98a", facialHair: "beardLight",
+            accessories: "round", clothing: "hoodie", clothesColor: "3c4f5c", mouth: "serious" } },
+  { id: "anchor", name: "News Anchor", vibe: "Breaking-news urgency", accent: "#ef4444", shirt: "#1d4ed8",
+    dice: { seed: "anchor", top: "shortHairFrizzle", hairColor: "2c1b18", skinColor: "edb98a",
+            clothing: "blazerAndShirt", clothesColor: "3c4f5c", mouth: "default" } },
+  { id: "diva2", name: "Soul Queen", vibe: "Gospel hype, big love", accent: "#fcd34d", shirt: "#c026d3",
+    dice: { seed: "soulqueen", top: "longHairCurvy", hairColor: "0e0e0e", skinColor: "614335",
+            clothing: "blazerAndShirt", clothesColor: "ff488e", eyebrows: "raisedExcited", mouth: "smile" } },
 ];
+
+function diceBearUrl(c: CharacterPreset): string {
+  const params = new URLSearchParams();
+  params.set("seed", c.dice.seed);
+  params.set("backgroundType", "solid");
+  params.set("backgroundColor", "transparent");
+  const entries: [string, string | undefined][] = [
+    ["top", c.dice.top], ["accessories", c.dice.accessories], ["facialHair", c.dice.facialHair],
+    ["clothing", c.dice.clothing], ["clothesColor", c.dice.clothesColor], ["skinColor", c.dice.skinColor],
+    ["hairColor", c.dice.hairColor], ["eyebrows", c.dice.eyebrows], ["mouth", c.dice.mouth], ["eyes", c.dice.eyes],
+  ];
+  for (const [k, v] of entries) if (v) params.set(k, v);
+  // Force the chosen options (no random override)
+  if (c.dice.accessories) params.set("accessoriesProbability", "100");
+  if (c.dice.facialHair) params.set("facialHairProbability", "100");
+  return `https://api.dicebear.com/9.x/avataaars/svg?${params.toString()}`;
+}
+
+
 
 
 interface Segment {
@@ -454,24 +483,10 @@ export function StoryboardPlayer({
 }
 
 function HostAvatar({ name, host, active, level, character }: { name: string; host: "A" | "B"; active: boolean; level: number; character: CharacterPreset }) {
-  const palette = character.palette;
-  const f = character.features;
+  // Real cartoon avatar via DiceBear avataaars — looks like a proper character.
+  const avatarUrl = useMemo(() => diceBearUrl(character), [character]);
 
-  const [blink, setBlink] = useState(false);
-  useEffect(() => {
-    let t: any;
-    const loop = () => {
-      const next = 2200 + Math.random() * 2800;
-      t = setTimeout(() => {
-        setBlink(true);
-        setTimeout(() => setBlink(false), 120);
-        loop();
-      }, next);
-    };
-    loop();
-    return () => clearTimeout(t);
-  }, []);
-
+  // Animate the wrapper instead of redrawing the face: bob, sway, tilt, breathe.
   const [tick, setTick] = useState(0);
   useEffect(() => {
     let raf: number;
@@ -479,111 +494,68 @@ function HostAvatar({ name, host, active, level, character }: { name: string; ho
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, []);
-  // Make idle motion feel more "AI-random" — multiple sines combined per-host
   const seed = host === "A" ? 0 : 1.7;
-  const idle = Math.sin(tick / 18 + seed) * 1.2 + Math.sin(tick / 7 + seed * 2) * 0.4;
-  const bob = active ? idle + level * 6 + Math.sin(tick / 5) * level * 2 : idle * 0.4;
-  const sway = active ? Math.sin(tick / 14 + seed) * 3 + level * 5 + Math.cos(tick / 9) * level * 2 : Math.sin(tick / 30 + seed) * 1.2;
-  const headTilt = active ? Math.sin(tick / 22 + seed) * 2 + level * 1.5 : 0;
-
-  const mouthOpen = active ? 2 + level * 16 + Math.abs(Math.sin(tick / 3)) * level * 4 : 1.5;
-  const mouthW = active ? 11 + level * 7 : 10;
-  const eyeY = blink ? 0.05 : 1;
-
-  // ---- Feature renderers ----
-  const renderHair = () => {
-    switch (f.hairStyle) {
-      case "buzz":   return <path d={`M 30 38 Q 60 22 90 38 L 88 46 Q 60 38 32 46 Z`} fill={palette.hair} />;
-      case "wavy":   return <path d={`M 28 40 Q 38 18 60 22 Q 82 18 92 40 Q 80 28 60 30 Q 40 28 28 40 Z`} fill={palette.hair} />;
-      case "afro":   return <ellipse cx="60" cy="30" rx="40" ry="26" fill={palette.hair} />;
-      case "bun":    return <><ellipse cx="60" cy="42" rx="32" ry="22" fill={palette.hair} /><circle cx="60" cy="14" r="9" fill={palette.hair} /></>;
-      case "bald":   return null;
-      case "longstraight": return <><ellipse cx="60" cy="40" rx="36" ry="34" fill={palette.hair} /><rect x="24" y="40" width="72" height="38" fill={palette.hair} /></>;
-      case "swoop":  return <path d={`M 30 40 Q 50 14 90 28 Q 78 34 60 32 Q 44 32 30 40 Z`} fill={palette.hair} />;
-      default:       return <path d={`M 32 38 Q 60 18 88 38 Q 75 30 60 32 Q 45 30 32 38 Z`} fill={palette.hair} />;
-    }
-  };
-
-  const renderFacialHair = () => {
-    if (!f.facialHair) return null;
-    switch (f.facialHair) {
-      case "stubble":  return <ellipse cx="60" cy="72" rx="18" ry="6" fill={palette.hair} opacity="0.25" />;
-      case "goatee":   return <path d={`M 54 72 Q 60 86 66 72 Q 60 78 54 72 Z`} fill={palette.hair} />;
-      case "mustache": return <path d={`M 50 66 Q 60 70 70 66 Q 60 64 50 66 Z`} fill={palette.hair} />;
-      case "beard":    return <path d={`M 38 60 Q 40 90 60 92 Q 80 90 82 60 Q 70 80 60 80 Q 50 80 38 60 Z`} fill={palette.hair} opacity="0.9" />;
-    }
-  };
-
-  const renderGlasses = () => {
-    if (!f.glasses) return null;
-    const isShades = f.glasses === "shades";
-    const fill = isShades ? "#0a0a0a" : "none";
-    const stroke = "#1a1a1a";
-    switch (f.glasses) {
-      case "round":   return <g><circle cx="48" cy="50" r="7" fill={fill} stroke={stroke} strokeWidth="1.6" /><circle cx="72" cy="50" r="7" fill={fill} stroke={stroke} strokeWidth="1.6" /><line x1="55" y1="50" x2="65" y2="50" stroke={stroke} strokeWidth="1.6" /></g>;
-      case "aviator": return <g><ellipse cx="48" cy="51" rx="8" ry="6" fill={fill} stroke={stroke} strokeWidth="1.6" /><ellipse cx="72" cy="51" rx="8" ry="6" fill={fill} stroke={stroke} strokeWidth="1.6" /><line x1="56" y1="50" x2="64" y2="50" stroke={stroke} strokeWidth="1.6" /></g>;
-      case "shades":  return <g><rect x="40" y="46" width="16" height="8" rx="2" fill="#0a0a0a" /><rect x="64" y="46" width="16" height="8" rx="2" fill="#0a0a0a" /><line x1="56" y1="50" x2="64" y2="50" stroke="#0a0a0a" strokeWidth="2" /></g>;
-      case "rect":    return <g><rect x="40" y="46" width="16" height="9" rx="1.5" fill="none" stroke={stroke} strokeWidth="1.6" /><rect x="64" y="46" width="16" height="9" rx="1.5" fill="none" stroke={stroke} strokeWidth="1.6" /><line x1="56" y1="50" x2="64" y2="50" stroke={stroke} strokeWidth="1.6" /></g>;
-    }
-  };
-
-  const renderHat = () => {
-    if (!f.hat) return null;
-    switch (f.hat) {
-      case "fedora":  return <g><ellipse cx="60" cy="24" rx="40" ry="5" fill="#3a2418" /><path d={`M 32 22 Q 60 6 88 22 L 86 18 Q 60 4 34 18 Z`} fill="#3a2418" /></g>;
-      case "cowboy":  return <g><path d={`M 22 24 Q 60 12 98 24 Q 80 22 60 22 Q 40 22 22 24 Z`} fill="#5b3a1f" /><path d={`M 34 18 Q 60 0 86 18 Q 60 6 34 18 Z`} fill="#5b3a1f" /></g>;
-      case "cap":     return <g><path d={`M 30 30 Q 60 10 90 30 Q 90 20 60 16 Q 30 20 30 30 Z`} fill={palette.shirt} /><rect x="56" y="18" width="8" height="3" fill={palette.accent} /></g>;
-      case "beanie":  return <g><path d={`M 30 30 Q 60 8 90 30 Z`} fill={palette.shirt} /><rect x="30" y="28" width="60" height="6" fill={palette.accent} /></g>;
-      case "crown":   return <g><path d={`M 36 22 L 42 8 L 50 18 L 60 6 L 70 18 L 78 8 L 84 22 Z`} fill="#f4c84b" stroke="#b88a1a" strokeWidth="1" /><circle cx="60" cy="14" r="2" fill="#ef4444" /></g>;
-    }
-  };
+  const idle = Math.sin(tick / 22 + seed) * 1.3 + Math.sin(tick / 9 + seed * 2) * 0.5;
+  const bob = active ? idle + level * 5 + Math.sin(tick / 4) * level * 2.5 : idle * 0.5;
+  const tilt = active ? Math.sin(tick / 16 + seed) * 2.5 + level * 2 : Math.sin(tick / 40 + seed) * 0.8;
+  const scale = active ? 1 + level * 0.06 + Math.sin(tick / 5) * level * 0.02 : 1;
 
   return (
     <div className="flex flex-col items-center gap-2">
-      <div className="relative" style={{ filter: active ? "none" : "saturate(0.55) brightness(0.75)" }}>
+      <div
+        className="relative"
+        style={{
+          filter: active ? "drop-shadow(0 12px 24px rgba(0,0,0,0.4))" : "saturate(0.65) brightness(0.78)",
+        }}
+      >
+        {/* Speaking pulse rings */}
         {active && (
-          <div
-            className="absolute inset-0 rounded-full"
-            style={{ boxShadow: `0 0 0 ${4 + level * 12}px ${palette.shirt}33`, transition: "box-shadow 80ms linear" }}
-          />
+          <>
+            <div
+              className="pointer-events-none absolute -inset-3 rounded-full"
+              style={{
+                boxShadow: `0 0 0 ${3 + level * 14}px ${character.accent}33, 0 0 0 ${10 + level * 22}px ${character.accent}1a`,
+                transition: "box-shadow 80ms linear",
+              }}
+            />
+            <div
+              className="pointer-events-none absolute -inset-1 rounded-full"
+              style={{
+                background: `radial-gradient(circle at 50% 60%, ${character.accent}55 0%, transparent 60%)`,
+                opacity: 0.4 + level * 0.6,
+              }}
+            />
+          </>
         )}
-        <svg
-          width="120"
-          height="140"
-          viewBox="0 0 120 140"
-          className="drop-shadow-2xl"
-          style={{ transform: `translateY(${-bob * 0.4}px) rotate(${sway * 0.3}deg)`, transition: "transform 60ms linear" }}
+
+        <div
+          style={{
+            transform: `translateY(${-bob}px) rotate(${tilt}deg) scale(${scale})`,
+            transition: "transform 60ms linear",
+          }}
         >
-          <path d={`M 20 140 Q 20 95 60 92 Q 100 95 100 140 Z`} fill={palette.shirt} />
-          <rect x="52" y="78" width="16" height="14" fill={palette.skinShade} rx="3" />
-          <g style={{ transform: `translateY(${-bob}px) rotate(${sway * 0.5 + headTilt}deg)`, transformOrigin: "60px 60px", transition: "transform 60ms linear" }}>
-            <ellipse cx="60" cy="50" rx="28" ry="32" fill={palette.skin} />
-            {renderHair()}
-            <circle cx="44" cy="58" r="4" fill={palette.shirt} opacity="0.22" />
-            <circle cx="76" cy="58" r="4" fill={palette.shirt} opacity="0.22" />
-            <g style={{ transform: `scaleY(${eyeY})`, transformOrigin: "60px 50px", transition: "transform 70ms" }}>
-              <ellipse cx="48" cy="50" rx="3.2" ry="4" fill="#1a1a1a" />
-              <ellipse cx="72" cy="50" rx="3.2" ry="4" fill="#1a1a1a" />
-              <circle cx="49" cy="49" r="1" fill="#fff" />
-              <circle cx="73" cy="49" r="1" fill="#fff" />
-            </g>
-            <path d={`M 42 ${42 - level * 2} Q 48 ${39 - level * 2} 54 ${42 - level * 2}`} stroke={palette.hair} strokeWidth="2" fill="none" strokeLinecap="round" />
-            <path d={`M 66 ${42 - level * 2} Q 72 ${39 - level * 2} 78 ${42 - level * 2}`} stroke={palette.hair} strokeWidth="2" fill="none" strokeLinecap="round" />
-            {renderGlasses()}
-            {renderFacialHair()}
-            <ellipse cx="60" cy={68 + mouthOpen / 4} rx={mouthW / 2} ry={mouthOpen / 2} fill="#2a1018" />
-            {mouthOpen > 8 && (
-              <ellipse cx="60" cy={70 + mouthOpen / 4} rx={mouthW / 3} ry={mouthOpen / 4} fill="#d6566a" opacity="0.7" />
-            )}
-            {renderHat()}
-          </g>
-          <g style={{ transform: `translate(${74 + sway * 0.3}px, ${88 + bob * 0.2}px)`, transition: "transform 60ms linear" }}>
-            <rect x="0" y="0" width="10" height="16" rx="5" fill="#1a1a1a" />
-            <rect x="-2" y="14" width="14" height="3" rx="1.5" fill="#1a1a1a" />
-            <rect x="3" y="17" width="4" height="10" fill="#1a1a1a" />
-            {active && <circle cx="5" cy="6" r="2" fill="#ff4444" />}
-          </g>
-        </svg>
+          <img
+            src={avatarUrl}
+            alt={name}
+            width={140}
+            height={140}
+            className="block"
+            draggable={false}
+          />
+        </div>
+
+        {/* Mic badge (matches their accent) */}
+        <div
+          className="absolute -bottom-1 right-2 flex items-center gap-1 rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-wider"
+          style={{
+            background: active ? character.accent : "rgba(255,255,255,0.15)",
+            color: active ? "#0a0a0a" : "rgba(255,255,255,0.8)",
+            boxShadow: active ? `0 4px 12px ${character.accent}66` : "none",
+          }}
+        >
+          <Mic className="h-2.5 w-2.5" />
+          {active && <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />}
+        </div>
       </div>
       <div className={`text-[11px] font-bold uppercase tracking-wider ${active ? "opacity-100" : "opacity-50"}`}>
         {name}
@@ -591,6 +563,7 @@ function HostAvatar({ name, host, active, level, character }: { name: string; ho
     </div>
   );
 }
+
 
 
 function Waveform({ level, accent, active }: { level: number; accent: string; active: boolean }) {
