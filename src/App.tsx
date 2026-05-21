@@ -84,6 +84,7 @@ const App = () => {
               <Route path="rescue" element={<Rescue />} />
               <Route path="forge" element={<Forge />} />
               <Route path="forge/videos" element={<ForgeVideoStudio />} />
+              <Route path="mission/summary" element={<ForgeVideoStudio />} />
               <Route path="forge/:featureId" element={<ForgeFeature />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
