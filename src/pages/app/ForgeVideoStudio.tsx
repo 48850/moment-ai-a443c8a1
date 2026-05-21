@@ -105,14 +105,14 @@ export default function ForgeVideoStudio() {
           <ChevronLeft className="h-4 w-4" /> Forge
         </Link>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Sparkles className="h-3.5 w-3.5" /> Context Video Studio
+          <Sparkles className="h-3.5 w-3.5" /> Summary Clip Studio
         </div>
       </div>
 
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Turn your week into a video.</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Turn your work into a clip you can replay.</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Moment reads your goal, today, your tasks, what you skipped, and the pattern across the week — and renders it as a short, personalised piece. Every video ends in one tappable next move.
+          Short consolidation clips built from your real notes, tasks, and goal arc — designed to help you review and remember, not entertain. Every clip ends in one tappable next move.
         </p>
       </div>
 
