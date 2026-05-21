@@ -225,8 +225,10 @@ Deno.serve(async (req) => {
 
     const reel = await generateScript(snapshot, format, tone);
     if (with_voiceover && reel.segments?.length) {
-      reel.segments = await attachVoiceover(reel.segments);
-      reel.has_voiceover = true;
+      const vo = await attachVoiceover(reel.segments);
+      reel.segments = vo.segments;
+      reel.has_voiceover = vo.ok;
+      if (!vo.ok) reel.voiceover_error = vo.error;
     }
 
     return new Response(JSON.stringify({ result: reel }), {
