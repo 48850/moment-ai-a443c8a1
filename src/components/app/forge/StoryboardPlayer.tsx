@@ -89,7 +89,7 @@ function useAudioLevel(audio: HTMLAudioElement | null) {
       buf = new Uint8Array(analyser.frequencyBinCount);
       const tick = () => {
         if (!analyser || !buf) return;
-        analyser.getByteFrequencyData(buf);
+        analyser.getByteFrequencyData(buf as Uint8Array<ArrayBuffer>);
         let sum = 0;
         for (let i = 0; i < buf.length; i++) sum += buf[i];
         setLevel(Math.min(1, sum / (buf.length * 180)));
