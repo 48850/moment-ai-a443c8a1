@@ -483,24 +483,10 @@ export function StoryboardPlayer({
 }
 
 function HostAvatar({ name, host, active, level, character }: { name: string; host: "A" | "B"; active: boolean; level: number; character: CharacterPreset }) {
-  const palette = character.palette;
-  const f = character.features;
+  // Real cartoon avatar via DiceBear avataaars — looks like a proper character.
+  const avatarUrl = useMemo(() => diceBearUrl(character), [character]);
 
-  const [blink, setBlink] = useState(false);
-  useEffect(() => {
-    let t: any;
-    const loop = () => {
-      const next = 2200 + Math.random() * 2800;
-      t = setTimeout(() => {
-        setBlink(true);
-        setTimeout(() => setBlink(false), 120);
-        loop();
-      }, next);
-    };
-    loop();
-    return () => clearTimeout(t);
-  }, []);
-
+  // Animate the wrapper instead of redrawing the face: bob, sway, tilt, breathe.
   const [tick, setTick] = useState(0);
   useEffect(() => {
     let raf: number;
@@ -508,111 +494,68 @@ function HostAvatar({ name, host, active, level, character }: { name: string; ho
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, []);
-  // Make idle motion feel more "AI-random" — multiple sines combined per-host
   const seed = host === "A" ? 0 : 1.7;
-  const idle = Math.sin(tick / 18 + seed) * 1.2 + Math.sin(tick / 7 + seed * 2) * 0.4;
-  const bob = active ? idle + level * 6 + Math.sin(tick / 5) * level * 2 : idle * 0.4;
-  const sway = active ? Math.sin(tick / 14 + seed) * 3 + level * 5 + Math.cos(tick / 9) * level * 2 : Math.sin(tick / 30 + seed) * 1.2;
-  const headTilt = active ? Math.sin(tick / 22 + seed) * 2 + level * 1.5 : 0;
-
-  const mouthOpen = active ? 2 + level * 16 + Math.abs(Math.sin(tick / 3)) * level * 4 : 1.5;
-  const mouthW = active ? 11 + level * 7 : 10;
-  const eyeY = blink ? 0.05 : 1;
-
-  // ---- Feature renderers ----
-  const renderHair = () => {
-    switch (f.hairStyle) {
-      case "buzz":   return <path d={`M 30 38 Q 60 22 90 38 L 88 46 Q 60 38 32 46 Z`} fill={palette.hair} />;
-      case "wavy":   return <path d={`M 28 40 Q 38 18 60 22 Q 82 18 92 40 Q 80 28 60 30 Q 40 28 28 40 Z`} fill={palette.hair} />;
-      case "afro":   return <ellipse cx="60" cy="30" rx="40" ry="26" fill={palette.hair} />;
-      case "bun":    return <><ellipse cx="60" cy="42" rx="32" ry="22" fill={palette.hair} /><circle cx="60" cy="14" r="9" fill={palette.hair} /></>;
-      case "bald":   return null;
-      case "longstraight": return <><ellipse cx="60" cy="40" rx="36" ry="34" fill={palette.hair} /><rect x="24" y="40" width="72" height="38" fill={palette.hair} /></>;
-      case "swoop":  return <path d={`M 30 40 Q 50 14 90 28 Q 78 34 60 32 Q 44 32 30 40 Z`} fill={palette.hair} />;
-      default:       return <path d={`M 32 38 Q 60 18 88 38 Q 75 30 60 32 Q 45 30 32 38 Z`} fill={palette.hair} />;
-    }
-  };
-
-  const renderFacialHair = () => {
-    if (!f.facialHair) return null;
-    switch (f.facialHair) {
-      case "stubble":  return <ellipse cx="60" cy="72" rx="18" ry="6" fill={palette.hair} opacity="0.25" />;
-      case "goatee":   return <path d={`M 54 72 Q 60 86 66 72 Q 60 78 54 72 Z`} fill={palette.hair} />;
-      case "mustache": return <path d={`M 50 66 Q 60 70 70 66 Q 60 64 50 66 Z`} fill={palette.hair} />;
-      case "beard":    return <path d={`M 38 60 Q 40 90 60 92 Q 80 90 82 60 Q 70 80 60 80 Q 50 80 38 60 Z`} fill={palette.hair} opacity="0.9" />;
-    }
-  };
-
-  const renderGlasses = () => {
-    if (!f.glasses) return null;
-    const isShades = f.glasses === "shades";
-    const fill = isShades ? "#0a0a0a" : "none";
-    const stroke = "#1a1a1a";
-    switch (f.glasses) {
-      case "round":   return <g><circle cx="48" cy="50" r="7" fill={fill} stroke={stroke} strokeWidth="1.6" /><circle cx="72" cy="50" r="7" fill={fill} stroke={stroke} strokeWidth="1.6" /><line x1="55" y1="50" x2="65" y2="50" stroke={stroke} strokeWidth="1.6" /></g>;
-      case "aviator": return <g><ellipse cx="48" cy="51" rx="8" ry="6" fill={fill} stroke={stroke} strokeWidth="1.6" /><ellipse cx="72" cy="51" rx="8" ry="6" fill={fill} stroke={stroke} strokeWidth="1.6" /><line x1="56" y1="50" x2="64" y2="50" stroke={stroke} strokeWidth="1.6" /></g>;
-      case "shades":  return <g><rect x="40" y="46" width="16" height="8" rx="2" fill="#0a0a0a" /><rect x="64" y="46" width="16" height="8" rx="2" fill="#0a0a0a" /><line x1="56" y1="50" x2="64" y2="50" stroke="#0a0a0a" strokeWidth="2" /></g>;
-      case "rect":    return <g><rect x="40" y="46" width="16" height="9" rx="1.5" fill="none" stroke={stroke} strokeWidth="1.6" /><rect x="64" y="46" width="16" height="9" rx="1.5" fill="none" stroke={stroke} strokeWidth="1.6" /><line x1="56" y1="50" x2="64" y2="50" stroke={stroke} strokeWidth="1.6" /></g>;
-    }
-  };
-
-  const renderHat = () => {
-    if (!f.hat) return null;
-    switch (f.hat) {
-      case "fedora":  return <g><ellipse cx="60" cy="24" rx="40" ry="5" fill="#3a2418" /><path d={`M 32 22 Q 60 6 88 22 L 86 18 Q 60 4 34 18 Z`} fill="#3a2418" /></g>;
-      case "cowboy":  return <g><path d={`M 22 24 Q 60 12 98 24 Q 80 22 60 22 Q 40 22 22 24 Z`} fill="#5b3a1f" /><path d={`M 34 18 Q 60 0 86 18 Q 60 6 34 18 Z`} fill="#5b3a1f" /></g>;
-      case "cap":     return <g><path d={`M 30 30 Q 60 10 90 30 Q 90 20 60 16 Q 30 20 30 30 Z`} fill={palette.shirt} /><rect x="56" y="18" width="8" height="3" fill={palette.accent} /></g>;
-      case "beanie":  return <g><path d={`M 30 30 Q 60 8 90 30 Z`} fill={palette.shirt} /><rect x="30" y="28" width="60" height="6" fill={palette.accent} /></g>;
-      case "crown":   return <g><path d={`M 36 22 L 42 8 L 50 18 L 60 6 L 70 18 L 78 8 L 84 22 Z`} fill="#f4c84b" stroke="#b88a1a" strokeWidth="1" /><circle cx="60" cy="14" r="2" fill="#ef4444" /></g>;
-    }
-  };
+  const idle = Math.sin(tick / 22 + seed) * 1.3 + Math.sin(tick / 9 + seed * 2) * 0.5;
+  const bob = active ? idle + level * 5 + Math.sin(tick / 4) * level * 2.5 : idle * 0.5;
+  const tilt = active ? Math.sin(tick / 16 + seed) * 2.5 + level * 2 : Math.sin(tick / 40 + seed) * 0.8;
+  const scale = active ? 1 + level * 0.06 + Math.sin(tick / 5) * level * 0.02 : 1;
 
   return (
     <div className="flex flex-col items-center gap-2">
-      <div className="relative" style={{ filter: active ? "none" : "saturate(0.55) brightness(0.75)" }}>
+      <div
+        className="relative"
+        style={{
+          filter: active ? "drop-shadow(0 12px 24px rgba(0,0,0,0.4))" : "saturate(0.65) brightness(0.78)",
+        }}
+      >
+        {/* Speaking pulse rings */}
         {active && (
-          <div
-            className="absolute inset-0 rounded-full"
-            style={{ boxShadow: `0 0 0 ${4 + level * 12}px ${palette.shirt}33`, transition: "box-shadow 80ms linear" }}
-          />
+          <>
+            <div
+              className="pointer-events-none absolute -inset-3 rounded-full"
+              style={{
+                boxShadow: `0 0 0 ${3 + level * 14}px ${character.accent}33, 0 0 0 ${10 + level * 22}px ${character.accent}1a`,
+                transition: "box-shadow 80ms linear",
+              }}
+            />
+            <div
+              className="pointer-events-none absolute -inset-1 rounded-full"
+              style={{
+                background: `radial-gradient(circle at 50% 60%, ${character.accent}55 0%, transparent 60%)`,
+                opacity: 0.4 + level * 0.6,
+              }}
+            />
+          </>
         )}
-        <svg
-          width="120"
-          height="140"
-          viewBox="0 0 120 140"
-          className="drop-shadow-2xl"
-          style={{ transform: `translateY(${-bob * 0.4}px) rotate(${sway * 0.3}deg)`, transition: "transform 60ms linear" }}
+
+        <div
+          style={{
+            transform: `translateY(${-bob}px) rotate(${tilt}deg) scale(${scale})`,
+            transition: "transform 60ms linear",
+          }}
         >
-          <path d={`M 20 140 Q 20 95 60 92 Q 100 95 100 140 Z`} fill={palette.shirt} />
-          <rect x="52" y="78" width="16" height="14" fill={palette.skinShade} rx="3" />
-          <g style={{ transform: `translateY(${-bob}px) rotate(${sway * 0.5 + headTilt}deg)`, transformOrigin: "60px 60px", transition: "transform 60ms linear" }}>
-            <ellipse cx="60" cy="50" rx="28" ry="32" fill={palette.skin} />
-            {renderHair()}
-            <circle cx="44" cy="58" r="4" fill={palette.shirt} opacity="0.22" />
-            <circle cx="76" cy="58" r="4" fill={palette.shirt} opacity="0.22" />
-            <g style={{ transform: `scaleY(${eyeY})`, transformOrigin: "60px 50px", transition: "transform 70ms" }}>
-              <ellipse cx="48" cy="50" rx="3.2" ry="4" fill="#1a1a1a" />
-              <ellipse cx="72" cy="50" rx="3.2" ry="4" fill="#1a1a1a" />
-              <circle cx="49" cy="49" r="1" fill="#fff" />
-              <circle cx="73" cy="49" r="1" fill="#fff" />
-            </g>
-            <path d={`M 42 ${42 - level * 2} Q 48 ${39 - level * 2} 54 ${42 - level * 2}`} stroke={palette.hair} strokeWidth="2" fill="none" strokeLinecap="round" />
-            <path d={`M 66 ${42 - level * 2} Q 72 ${39 - level * 2} 78 ${42 - level * 2}`} stroke={palette.hair} strokeWidth="2" fill="none" strokeLinecap="round" />
-            {renderGlasses()}
-            {renderFacialHair()}
-            <ellipse cx="60" cy={68 + mouthOpen / 4} rx={mouthW / 2} ry={mouthOpen / 2} fill="#2a1018" />
-            {mouthOpen > 8 && (
-              <ellipse cx="60" cy={70 + mouthOpen / 4} rx={mouthW / 3} ry={mouthOpen / 4} fill="#d6566a" opacity="0.7" />
-            )}
-            {renderHat()}
-          </g>
-          <g style={{ transform: `translate(${74 + sway * 0.3}px, ${88 + bob * 0.2}px)`, transition: "transform 60ms linear" }}>
-            <rect x="0" y="0" width="10" height="16" rx="5" fill="#1a1a1a" />
-            <rect x="-2" y="14" width="14" height="3" rx="1.5" fill="#1a1a1a" />
-            <rect x="3" y="17" width="4" height="10" fill="#1a1a1a" />
-            {active && <circle cx="5" cy="6" r="2" fill="#ff4444" />}
-          </g>
-        </svg>
+          <img
+            src={avatarUrl}
+            alt={name}
+            width={140}
+            height={140}
+            className="block"
+            draggable={false}
+          />
+        </div>
+
+        {/* Mic badge (matches their accent) */}
+        <div
+          className="absolute -bottom-1 right-2 flex items-center gap-1 rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-wider"
+          style={{
+            background: active ? character.accent : "rgba(255,255,255,0.15)",
+            color: active ? "#0a0a0a" : "rgba(255,255,255,0.8)",
+            boxShadow: active ? `0 4px 12px ${character.accent}66` : "none",
+          }}
+        >
+          <Mic className="h-2.5 w-2.5" />
+          {active && <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />}
+        </div>
       </div>
       <div className={`text-[11px] font-bold uppercase tracking-wider ${active ? "opacity-100" : "opacity-50"}`}>
         {name}
@@ -620,6 +563,7 @@ function HostAvatar({ name, host, active, level, character }: { name: string; ho
     </div>
   );
 }
+
 
 
 function Waveform({ level, accent, active }: { level: number; accent: string; active: boolean }) {
