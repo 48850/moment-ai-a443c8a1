@@ -48,59 +48,69 @@ export function StoryboardPlayer({
   const [muted, setMuted] = useState(false);
   const [sceneIdx, setSceneIdx] = useState(0);
   const [progressMs, setProgressMs] = useState(0);
-  const startedAtRef = useRef<number | null>(null);
-  const elapsedRef = useRef<number>(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const sceneStartRef = useRef<number>(0);
+  const elapsedBeforeRef = useRef<number>(0);
 
-  // Play voiceover for current scene
+  // Play voiceover for current scene; advance only when audio ends (or fallback timer)
   useEffect(() => {
     if (!playing) return;
     const scene = scenes[sceneIdx];
-    if (!scene?.audio_base64 || muted) return;
-    const audio = new Audio(`data:audio/mpeg;base64,${scene.audio_base64}`);
-    audioRef.current = audio;
-    audio.play().catch((e) => console.warn("audio play failed", e));
+    if (!scene) return;
+
+    sceneStartRef.current = performance.now();
+    let timeoutId: number | undefined;
+    let audio: HTMLAudioElement | null = null;
+
+    const advance = () => {
+      setSceneIdx((i) => {
+        if (i + 1 >= scenes.length) {
+          setPlaying(false);
+          return i;
+        }
+        return i + 1;
+      });
+    };
+
+    const fallbackMs = Math.max(1500, (scene.duration_seconds || 4) * 1000);
+
+    if (scene.audio_base64 && !muted) {
+      audio = new Audio(`data:audio/mpeg;base64,${scene.audio_base64}`);
+      audioRef.current = audio;
+      audio.addEventListener("ended", advance);
+      audio.play().catch((e) => {
+        console.warn("audio play failed", e);
+        timeoutId = window.setTimeout(advance, fallbackMs);
+      });
+      // Hard safety cap
+      timeoutId = window.setTimeout(advance, 30000);
+    } else {
+      timeoutId = window.setTimeout(advance, fallbackMs);
+    }
+
     return () => {
-      audio.pause();
+      if (timeoutId) clearTimeout(timeoutId);
+      if (audio) {
+        audio.removeEventListener("ended", advance);
+        audio.pause();
+      }
       audioRef.current = null;
+      elapsedBeforeRef.current += performance.now() - sceneStartRef.current;
     };
   }, [sceneIdx, playing, muted, scenes]);
 
-  // Scene advancing
+  // Progress bar tick
   useEffect(() => {
-    if (!playing || scenes.length === 0) return;
-    startedAtRef.current = performance.now();
+    if (!playing) return;
     let raf = 0;
     const tick = () => {
-      if (startedAtRef.current == null) return;
-      const now = performance.now();
-      const live = elapsedRef.current + (now - startedAtRef.current);
+      const live = elapsedBeforeRef.current + (performance.now() - sceneStartRef.current);
       setProgressMs(Math.min(live, totalMs));
-      // figure out which scene we're on
-      let acc = 0;
-      let idx = 0;
-      for (let i = 0; i < scenes.length; i++) {
-        acc += scenes[i].duration_seconds * 1000;
-        if (live <= acc) { idx = i; break; }
-        idx = i;
-      }
-      if (idx !== sceneIdx) setSceneIdx(idx);
-      if (live >= totalMs) {
-        setPlaying(false);
-        elapsedRef.current = 0;
-        return;
-      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => {
-      cancelAnimationFrame(raf);
-      if (startedAtRef.current != null) {
-        elapsedRef.current += performance.now() - startedAtRef.current;
-        startedAtRef.current = null;
-      }
-    };
-  }, [playing, scenes, totalMs, sceneIdx]);
+    return () => cancelAnimationFrame(raf);
+  }, [playing, totalMs, sceneIdx]);
 
   const scene = scenes[sceneIdx] ?? scenes[0];
   if (!scene) return null;
