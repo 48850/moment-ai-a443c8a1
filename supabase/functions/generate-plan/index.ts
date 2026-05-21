@@ -124,6 +124,8 @@ Deno.serve(async (req) => {
 
     const system = `You are an elite life-design coach for ambitious teenagers. You translate a goal trio into a phased plan across four horizons: days, weeks, months, years. Be concrete, specific, age-appropriate, energising, never preachy. Every item should be doable and unmistakably move the goal forward. Avoid generic productivity fluff. ALWAYS calibrate to the user profile provided — never propose actions that conflict with their age, schedule, or onboarding-confirmed reality. Use short-term as the main source for days/weeks, medium-term for month-level milestones, and long-term only as the anchor/why. HARD CAP: the days array is today's work and must contain no more than 3 tasks.`;
 
+    const portfolioBlock = renderPortfolio(snapshot?.learning_portfolio);
+
     const user = `${userBlock}
 
 Goal horizons:
@@ -134,7 +136,9 @@ Why it matters: ${why || "(not provided)"}
 Context: ${context || "(not provided)"}
 ${notesBlock}
 
-Produce a complete multi-horizon plan that fits the person above. Each horizon must contain DIFFERENT actions — days are tactical from the short-term goal, weeks are outcomes toward the short-term proof, months ladder into the medium-term milestone, and years stay anchored to the long-term direction.`;
+${portfolioBlock}
+
+Produce a complete multi-horizon plan that fits the person above and BUILDS ON their portfolio. Days/weeks/months must not duplicate completed work or re-teach lessons already in the portfolio. If they have a streak, protect it. If they have recurring struggles, address them. Each horizon must contain DIFFERENT actions — days are tactical from the short-term goal, weeks are outcomes toward the short-term proof, months ladder into the medium-term milestone, and years stay anchored to the long-term direction.`;
 
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
