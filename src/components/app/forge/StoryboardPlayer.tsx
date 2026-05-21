@@ -1,36 +1,44 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Play, Pause, RotateCcw, Volume2, VolumeX, Mic, Sparkles, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
-// ---------- Cartoon character presets — rendered via DiceBear avataaars ----------
-// Each preset maps to deterministic DiceBear options so the avatar actually looks
-// like the archetype (hat, hair, glasses, facial hair, skin, shirt color).
+// ---------- Ghibli-inspired podcaster cast ----------
+// Painterly, niche archetypes (no celebrity look-alikes). Each one binds to a
+// real ElevenLabs voice so swapped hosts sound human, not robotic.
+type GhibliFace = {
+  // sky / scene
+  sky: [string, string];        // background gradient
+  groundTint: string;           // soft halo behind shoulders
+  // skin & hair
+  skin: string;
+  blush: string;
+  hair: string;
+  hairStyle: "long-wavy" | "short-tuft" | "bob" | "cap" | "buzz" | "scarf" | "braid" | "bald-knot" | "hood" | "topknot";
+  hairAccent?: string;          // leaves, feather, ribbon
+  // wardrobe
+  collar: string;
+  collarTrim?: string;
+  // face
+  mouth: "soft-smile" | "open-awe" | "thin-line" | "smirk" | "round-o";
+  brows: "soft" | "raised" | "tilted";
+  freckles?: boolean;
+  // floating motif (Ghibli touch — soot sprite, leaf, koi, star)
+  motif?: "leaf" | "spark" | "sprite" | "koi" | "feather" | "moth";
+};
+
 type CharacterPreset = {
   id: string;
   name: string;
   vibe: string;
   accent: string;
   shirt: string;
-  voice: {
-    pitch: number;
-    rate: number;
-    volume: number;
-    hints: string[];
-  };
-  // DiceBear `avataaars` options (https://www.dicebear.com/styles/avataaars/)
-  dice: {
-    seed: string;
-    top?: string;        // hat / hair
-    accessories?: string;
-    facialHair?: string;
-    clothing?: string;
-    clothesColor?: string;
-    skinColor?: string;
-    hairColor?: string;
-    eyebrows?: string;
-    mouth?: string;
-    eyes?: string;
-  };
+  // ElevenLabs voice (live TTS for ANY swapped host — no browser fallback robot voice)
+  voiceId: string;
+  voiceTuning?: { stability?: number; similarity_boost?: number; style?: number; speed?: number };
+  // browser-TTS last-resort settings (only if edge function fails)
+  voice: { pitch: number; rate: number; volume: number; hints: string[] };
+  face: GhibliFace;
 };
 
 const CHARACTERS: CharacterPreset[] = [
