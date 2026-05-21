@@ -795,7 +795,7 @@ const Plan = () => {
 
           {horizon === "months" && (
             <div className="space-y-6">
-              <MonthProgress state={state} />
+              <MonthConstellation state={state} milestone={aiPlan?.months?.[0]} />
               {aiPlan?.months?.length ? (
                 <HorizonList
                   title="Monthly milestones"
