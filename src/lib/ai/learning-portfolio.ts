@@ -90,7 +90,7 @@ export function buildLearningPortfolio(s: MomentState | null): LearningPortfolio
   }
 
   const tasks = s.tasks ?? [];
-  const completed = tasks.filter((t) => t.status === "completed");
+  const completed = tasks.filter((t) => t.status === "done");
   const feedback = s.execution_feedback ?? [];
   const reflections = s.reflections ?? [];
   const chat = s.chat_messages ?? [];
@@ -187,7 +187,7 @@ export function buildLearningPortfolio(s: MomentState | null): LearningPortfolio
     .filter((g) => g.status === "active")
     .map((g) => ({
       guidebook: g.title,
-      signal_count: (s.forge_state?.forge_signals ?? []).filter((sig) => sig.guidebook_id === g.id).length,
+      signal_count: (s.forge_state?.forge_signals ?? []).filter((sig: any) => sig?.guidebook_id === g.id || sig?.feature_id === g.id).length,
     }));
 
   // ----- decisions / commitments worth remembering -----
