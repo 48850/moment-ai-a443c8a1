@@ -420,7 +420,6 @@ export function StoryboardPlayer({
   // Fetch ElevenLabs audio for the swapped character if we don't have it cached yet.
   useEffect(() => {
     if (!playing || !seg) return;
-    if (castVersion === 0) return; // original audio is fine
     if (cached) return; // already have it
     let cancelled = false;
     (async () => {
