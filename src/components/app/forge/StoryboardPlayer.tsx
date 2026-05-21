@@ -394,6 +394,7 @@ export function StoryboardPlayer({
 
   // Cache ElevenLabs results by `${segIdx}::${character.id}` so swapping back is instant.
   const ttsCacheRef = useRef<Map<string, string>>(new Map());
+  const ttsUnavailableRef = useRef(false);
   const [, setCacheTick] = useState(0);
 
   const seg = segments[segIdx];
@@ -420,6 +421,7 @@ export function StoryboardPlayer({
   // Fetch ElevenLabs audio for the swapped character if we don't have it cached yet.
   useEffect(() => {
     if (!playing || !seg) return;
+    if (ttsUnavailableRef.current) return;
     if (cached) return; // already have it
     let cancelled = false;
     (async () => {
@@ -432,13 +434,15 @@ export function StoryboardPlayer({
           },
         });
         if (cancelled) return;
-        if (error || !data?.audio_base64) {
-          console.warn("character tts failed, falling back to browser speech", error);
+        if (error || data?.fallback || !data?.audio_base64) {
+          ttsUnavailableRef.current = true;
+          console.warn("character tts unavailable, falling back to browser speech", error ?? data?.error);
           return;
         }
         ttsCacheRef.current.set(`${segIdx}::${activeCharacter.id}`, data.audio_base64);
         setCacheTick((t) => t + 1);
       } catch (e) {
+        ttsUnavailableRef.current = true;
         console.warn("character tts threw", e);
       }
     })();
