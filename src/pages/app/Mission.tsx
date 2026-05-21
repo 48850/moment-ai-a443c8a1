@@ -256,6 +256,18 @@ function SignalPill({ value, label, tone }: { value: string | number; label: str
   );
 }
 
+function GoalHorizonCard({ label, value, emphasis = false }: { label: string; value: string; emphasis?: boolean }) {
+  if (!value.trim()) return null;
+  return (
+    <div className={`rounded-xl border p-4 ${emphasis ? "border-primary/30 bg-primary/8" : "border-border/60 bg-background/35"}`}>
+      <div className={`font-mono text-[10px] uppercase tracking-[0.18em] ${emphasis ? "text-primary/70" : "text-muted-foreground"}`}>
+        {label}
+      </div>
+      <p className="mt-2 text-sm font-medium leading-snug text-foreground">{value}</p>
+    </div>
+  );
+}
+
 /* ─── Main page ────────────────────────────────────────────────────────────── */
 
 const Mission = () => {
@@ -374,6 +386,7 @@ const Mission = () => {
 
   const name = state.profile?.display_name?.trim();
   const goalStatement = m.goal.statement;
+  const goalHorizons = [m.goal.shortTerm, m.goal.mediumTerm, m.goal.longTerm].filter((g) => g.trim());
   const rawStage = state.active_goal?.current_stage ?? "";
   const stage = readableStage(rawStage);
   const stageBrief = stage ? STAGE_BRIEF[stage] ?? null : null;
@@ -419,6 +432,13 @@ const Mission = () => {
             </h1>
             {goalStatement && (
               <p className="mt-1.5 text-lg text-muted-foreground leading-snug">{goalStatement}</p>
+            )}
+            {goalHorizons.length > 0 && (
+              <div className="mt-5 grid gap-3 md:grid-cols-3">
+                <GoalHorizonCard label="Short-term · next proof" value={m.goal.shortTerm} emphasis />
+                <GoalHorizonCard label="Medium-term · milestone" value={m.goal.mediumTerm} />
+                <GoalHorizonCard label="Long-term · anchor" value={m.goal.longTerm} />
+              </div>
             )}
             {stage && (
               <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/8 px-3.5 py-1 text-sm font-medium text-primary">
