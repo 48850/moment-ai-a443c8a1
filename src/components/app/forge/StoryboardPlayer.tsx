@@ -1,6 +1,55 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Play, Pause, RotateCcw, Volume2, VolumeX, Mic } from "lucide-react";
+import { Play, Pause, RotateCcw, Volume2, VolumeX, Mic, Sparkles, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+// ---------- Cartoon character presets (celebrity-flavored archetypes) ----------
+type CharacterPreset = {
+  id: string;
+  name: string;
+  vibe: string;
+  palette: { skin: string; skinShade: string; hair: string; shirt: string; accent: string };
+  features: {
+    hairStyle: "swoop" | "buzz" | "wavy" | "afro" | "bun" | "bald" | "longstraight" | "fedora";
+    facialHair?: "stubble" | "goatee" | "mustache" | "beard";
+    glasses?: "aviator" | "round" | "shades" | "rect";
+    hat?: "fedora" | "cap" | "cowboy" | "beanie" | "crown";
+    skinTone?: "light" | "tan" | "brown" | "deep";
+  };
+};
+
+const CHARACTERS: CharacterPreset[] = [
+  { id: "ranger",  name: "Ranger Harrison", vibe: "Rugged action-hero dad energy",
+    palette: { skin: "#f1c79a", skinShade: "#cf9866", hair: "#5a4030", shirt: "#7b4a2a", accent: "#e8b04a" },
+    features: { hairStyle: "swoop", facialHair: "stubble", hat: "fedora" } },
+  { id: "rogue",   name: "Rogue MC", vibe: "Hyped MMA podcast bro",
+    palette: { skin: "#eebd96", skinShade: "#c89572", hair: "#1a1a1a", shirt: "#0b0b0b", accent: "#22d3a0" },
+    features: { hairStyle: "buzz", facialHair: "goatee", glasses: "shades" } },
+  { id: "diva",    name: "Pop Diva", vibe: "Confident chart-topper hype queen",
+    palette: { skin: "#e4b079", skinShade: "#c08a55", hair: "#f6d365", shirt: "#ff4fa3", accent: "#ffd166" },
+    features: { hairStyle: "wavy", hat: "crown" } },
+  { id: "mogul",   name: "Mogul Talk", vibe: "Daytime mentor / life coach",
+    palette: { skin: "#a26b46", skinShade: "#7e4f30", hair: "#1a1a1a", shirt: "#7c3aed", accent: "#f4c75b" },
+    features: { hairStyle: "afro", glasses: "rect" } },
+  { id: "tech",    name: "Tech Bro CEO", vibe: "Keynote, black turtleneck",
+    palette: { skin: "#f3cda6", skinShade: "#cfa179", hair: "#3a3a3a", shirt: "#111111", accent: "#5ad1ff" },
+    features: { hairStyle: "buzz", glasses: "round" } },
+  { id: "chill",   name: "Chill Legend", vibe: "Smooth West-coast narrator",
+    palette: { skin: "#8b5a36", skinShade: "#6a4023", hair: "#1a1a1a", shirt: "#1e3a8a", accent: "#22d3a0" },
+    features: { hairStyle: "longstraight", facialHair: "mustache", hat: "beanie" } },
+  { id: "cowboy",  name: "Cowboy Storyteller", vibe: "Wise drawl, rodeo dad",
+    palette: { skin: "#e9b88a", skinShade: "#c08a5c", hair: "#a87038", shirt: "#9a3324", accent: "#f4a261" },
+    features: { hairStyle: "wavy", facialHair: "beard", hat: "cowboy" } },
+  { id: "indie",   name: "Indie Director", vibe: "Whispery A24 voiceover",
+    palette: { skin: "#ecc9a5", skinShade: "#c8a07c", hair: "#2b1f17", shirt: "#3b3b3b", accent: "#e8b04a" },
+    features: { hairStyle: "bun", glasses: "round", facialHair: "stubble" } },
+  { id: "anchor",  name: "News Anchor", vibe: "Breaking-news urgency",
+    palette: { skin: "#f1c79a", skinShade: "#cf9866", hair: "#1a1a1a", shirt: "#1d4ed8", accent: "#ef4444" },
+    features: { hairStyle: "swoop" } },
+  { id: "diva2",   name: "Soul Queen", vibe: "Gospel hype, big love",
+    palette: { skin: "#7a4a2a", skinShade: "#5a341c", hair: "#0a0a0a", shirt: "#c026d3", accent: "#fcd34d" },
+    features: { hairStyle: "afro" } },
+];
+
 
 interface Segment {
   idx: number;
@@ -136,6 +185,13 @@ export function StoryboardPlayer({
   const hostBName = video.hosts?.B?.name ?? "Sasha";
   const palette = video.palette ?? { bg: "#0b0612", fg: "#ffffff", accent: "#ff5a36" };
 
+  // Editable cast — user can swap each host for a celebrity-flavored cartoon character.
+  const [charA, setCharA] = useState<CharacterPreset>(CHARACTERS[0]);
+  const [charB, setCharB] = useState<CharacterPreset>(CHARACTERS[2]);
+  const [editing, setEditing] = useState<"A" | "B" | null>(null);
+  const [customA, setCustomA] = useState(hostAName);
+  const [customB, setCustomB] = useState(hostBName);
+
   // Start paused — autoplay is blocked by the browser until a user gesture.
   const [started, setStarted] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -143,6 +199,7 @@ export function StoryboardPlayer({
   const [segIdx, setSegIdx] = useState(0);
   const [segDuration, setSegDuration] = useState(2500);
   const [audioEl, setAudioEl] = useState<HTMLAudioElement | null>(null);
+
 
   const seg = segments[segIdx];
   const level = useAudioLevel(audioEl);
@@ -251,20 +308,73 @@ export function StoryboardPlayer({
 
         {/* Two-host stage */}
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-8 px-6 pt-20 pb-40">
-          <div className="flex w-full items-center justify-center gap-6 md:gap-12">
-            <HostAvatar
-              name={hostAName}
-              host="A"
-              active={activeHost === "A"}
-              level={activeHost === "A" ? level : 0}
-            />
-            <HostAvatar
-              name={hostBName}
-              host="B"
-              active={activeHost === "B"}
-              level={activeHost === "B" ? level : 0}
-            />
+          <div className="flex w-full items-end justify-center gap-6 md:gap-12">
+            <div className="flex flex-col items-center gap-2">
+              <HostAvatar
+                name={customA}
+                host="A"
+                character={charA}
+                active={activeHost === "A"}
+                level={activeHost === "A" ? level : 0}
+              />
+              <button
+                onClick={() => setEditing(editing === "A" ? null : "A")}
+                className="flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm hover:bg-white/25"
+              >
+                <Pencil className="h-3 w-3" /> Cast A
+              </button>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <HostAvatar
+                name={customB}
+                host="B"
+                character={charB}
+                active={activeHost === "B"}
+                level={activeHost === "B" ? level : 0}
+              />
+              <button
+                onClick={() => setEditing(editing === "B" ? null : "B")}
+                className="flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm hover:bg-white/25"
+              >
+                <Pencil className="h-3 w-3" /> Cast B
+              </button>
+            </div>
           </div>
+
+          {editing && (
+            <div className="absolute inset-x-3 top-16 z-30 max-h-[55%] overflow-y-auto rounded-2xl border border-white/15 bg-black/85 p-3 backdrop-blur-xl">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider">
+                  <Sparkles className="h-3.5 w-3.5" /> Cast Host {editing}
+                </div>
+                <button onClick={() => setEditing(null)} className="text-[11px] opacity-70 hover:opacity-100">Done</button>
+              </div>
+              <input
+                value={editing === "A" ? customA : customB}
+                onChange={(e) => (editing === "A" ? setCustomA(e.target.value) : setCustomB(e.target.value))}
+                placeholder="Stage name (e.g. Harrison)"
+                className="mb-2 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-sm placeholder:opacity-50 focus:border-white/40 focus:outline-none"
+              />
+              <div className="grid grid-cols-2 gap-1.5 md:grid-cols-3">
+                {CHARACTERS.map((c) => {
+                  const selected = (editing === "A" ? charA.id : charB.id) === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => {
+                        if (editing === "A") { setCharA(c); setCustomA(c.name); }
+                        else { setCharB(c); setCustomB(c.name); }
+                      }}
+                      className={`rounded-xl border p-2 text-left transition ${selected ? "border-white bg-white/15" : "border-white/15 bg-white/5 hover:bg-white/10"}`}
+                    >
+                      <div className="text-[11px] font-bold leading-tight">{c.name}</div>
+                      <div className="mt-0.5 text-[9px] opacity-60">{c.vibe}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Waveform */}
           <Waveform level={level} accent={palette.accent} active={!!seg.audio_base64} />
@@ -343,22 +453,18 @@ export function StoryboardPlayer({
   );
 }
 
-function HostAvatar({ name, host, active, level }: { name: string; host: "A" | "B"; active: boolean; level: number }) {
-  // Cartoon-style talking head, lip-syncs to audio level.
-  // Host A — warm/orange. Host B — cool/violet.
-  const palette = host === "A"
-    ? { skin: "#f9c89b", skinShade: "#e0a37a", hair: "#3a1f12", shirt: "#ff5a36", accent: "#ffd166" }
-    : { skin: "#f4d3b5", skinShade: "#d9b08b", hair: "#1f2540", shirt: "#7c5cff", accent: "#5ad1ff" };
+function HostAvatar({ name, host, active, level, character }: { name: string; host: "A" | "B"; active: boolean; level: number; character: CharacterPreset }) {
+  const palette = character.palette;
+  const f = character.features;
 
-  // Blink every ~3.5s
   const [blink, setBlink] = useState(false);
   useEffect(() => {
     let t: any;
     const loop = () => {
-      const next = 2500 + Math.random() * 2500;
+      const next = 2200 + Math.random() * 2800;
       t = setTimeout(() => {
         setBlink(true);
-        setTimeout(() => setBlink(false), 130);
+        setTimeout(() => setBlink(false), 120);
         loop();
       }, next);
     };
@@ -366,7 +472,6 @@ function HostAvatar({ name, host, active, level }: { name: string; host: "A" | "
     return () => clearTimeout(t);
   }, []);
 
-  // Head bob & body sway driven by audio level + a constant idle sine
   const [tick, setTick] = useState(0);
   useEffect(() => {
     let raf: number;
@@ -374,31 +479,74 @@ function HostAvatar({ name, host, active, level }: { name: string; host: "A" | "
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, []);
-  const idle = Math.sin(tick / 18) * 1.5;
-  const bob = active ? idle + level * 5 : idle * 0.4;
-  const sway = active ? Math.sin(tick / 14) * 3 + level * 4 : Math.sin(tick / 30) * 1.2;
+  // Make idle motion feel more "AI-random" — multiple sines combined per-host
+  const seed = host === "A" ? 0 : 1.7;
+  const idle = Math.sin(tick / 18 + seed) * 1.2 + Math.sin(tick / 7 + seed * 2) * 0.4;
+  const bob = active ? idle + level * 6 + Math.sin(tick / 5) * level * 2 : idle * 0.4;
+  const sway = active ? Math.sin(tick / 14 + seed) * 3 + level * 5 + Math.cos(tick / 9) * level * 2 : Math.sin(tick / 30 + seed) * 1.2;
+  const headTilt = active ? Math.sin(tick / 22 + seed) * 2 + level * 1.5 : 0;
 
-  // Mouth opens with level
-  const mouthOpen = active ? 3 + level * 14 : 1.5;
-  const mouthW = active ? 12 + level * 6 : 10;
+  const mouthOpen = active ? 2 + level * 16 + Math.abs(Math.sin(tick / 3)) * level * 4 : 1.5;
+  const mouthW = active ? 11 + level * 7 : 10;
   const eyeY = blink ? 0.05 : 1;
+
+  // ---- Feature renderers ----
+  const renderHair = () => {
+    switch (f.hairStyle) {
+      case "buzz":   return <path d={`M 30 38 Q 60 22 90 38 L 88 46 Q 60 38 32 46 Z`} fill={palette.hair} />;
+      case "wavy":   return <path d={`M 28 40 Q 38 18 60 22 Q 82 18 92 40 Q 80 28 60 30 Q 40 28 28 40 Z`} fill={palette.hair} />;
+      case "afro":   return <ellipse cx="60" cy="30" rx="40" ry="26" fill={palette.hair} />;
+      case "bun":    return <><ellipse cx="60" cy="42" rx="32" ry="22" fill={palette.hair} /><circle cx="60" cy="14" r="9" fill={palette.hair} /></>;
+      case "bald":   return null;
+      case "longstraight": return <><ellipse cx="60" cy="40" rx="36" ry="34" fill={palette.hair} /><rect x="24" y="40" width="72" height="38" fill={palette.hair} /></>;
+      case "swoop":  return <path d={`M 30 40 Q 50 14 90 28 Q 78 34 60 32 Q 44 32 30 40 Z`} fill={palette.hair} />;
+      default:       return <path d={`M 32 38 Q 60 18 88 38 Q 75 30 60 32 Q 45 30 32 38 Z`} fill={palette.hair} />;
+    }
+  };
+
+  const renderFacialHair = () => {
+    if (!f.facialHair) return null;
+    switch (f.facialHair) {
+      case "stubble":  return <ellipse cx="60" cy="72" rx="18" ry="6" fill={palette.hair} opacity="0.25" />;
+      case "goatee":   return <path d={`M 54 72 Q 60 86 66 72 Q 60 78 54 72 Z`} fill={palette.hair} />;
+      case "mustache": return <path d={`M 50 66 Q 60 70 70 66 Q 60 64 50 66 Z`} fill={palette.hair} />;
+      case "beard":    return <path d={`M 38 60 Q 40 90 60 92 Q 80 90 82 60 Q 70 80 60 80 Q 50 80 38 60 Z`} fill={palette.hair} opacity="0.9" />;
+    }
+  };
+
+  const renderGlasses = () => {
+    if (!f.glasses) return null;
+    const isShades = f.glasses === "shades";
+    const fill = isShades ? "#0a0a0a" : "none";
+    const stroke = "#1a1a1a";
+    switch (f.glasses) {
+      case "round":   return <g><circle cx="48" cy="50" r="7" fill={fill} stroke={stroke} strokeWidth="1.6" /><circle cx="72" cy="50" r="7" fill={fill} stroke={stroke} strokeWidth="1.6" /><line x1="55" y1="50" x2="65" y2="50" stroke={stroke} strokeWidth="1.6" /></g>;
+      case "aviator": return <g><ellipse cx="48" cy="51" rx="8" ry="6" fill={fill} stroke={stroke} strokeWidth="1.6" /><ellipse cx="72" cy="51" rx="8" ry="6" fill={fill} stroke={stroke} strokeWidth="1.6" /><line x1="56" y1="50" x2="64" y2="50" stroke={stroke} strokeWidth="1.6" /></g>;
+      case "shades":  return <g><rect x="40" y="46" width="16" height="8" rx="2" fill="#0a0a0a" /><rect x="64" y="46" width="16" height="8" rx="2" fill="#0a0a0a" /><line x1="56" y1="50" x2="64" y2="50" stroke="#0a0a0a" strokeWidth="2" /></g>;
+      case "rect":    return <g><rect x="40" y="46" width="16" height="9" rx="1.5" fill="none" stroke={stroke} strokeWidth="1.6" /><rect x="64" y="46" width="16" height="9" rx="1.5" fill="none" stroke={stroke} strokeWidth="1.6" /><line x1="56" y1="50" x2="64" y2="50" stroke={stroke} strokeWidth="1.6" /></g>;
+    }
+  };
+
+  const renderHat = () => {
+    if (!f.hat) return null;
+    switch (f.hat) {
+      case "fedora":  return <g><ellipse cx="60" cy="24" rx="40" ry="5" fill="#3a2418" /><path d={`M 32 22 Q 60 6 88 22 L 86 18 Q 60 4 34 18 Z`} fill="#3a2418" /></g>;
+      case "cowboy":  return <g><path d={`M 22 24 Q 60 12 98 24 Q 80 22 60 22 Q 40 22 22 24 Z`} fill="#5b3a1f" /><path d={`M 34 18 Q 60 0 86 18 Q 60 6 34 18 Z`} fill="#5b3a1f" /></g>;
+      case "cap":     return <g><path d={`M 30 30 Q 60 10 90 30 Q 90 20 60 16 Q 30 20 30 30 Z`} fill={palette.shirt} /><rect x="56" y="18" width="8" height="3" fill={palette.accent} /></g>;
+      case "beanie":  return <g><path d={`M 30 30 Q 60 8 90 30 Z`} fill={palette.shirt} /><rect x="30" y="28" width="60" height="6" fill={palette.accent} /></g>;
+      case "crown":   return <g><path d={`M 36 22 L 42 8 L 50 18 L 60 6 L 70 18 L 78 8 L 84 22 Z`} fill="#f4c84b" stroke="#b88a1a" strokeWidth="1" /><circle cx="60" cy="14" r="2" fill="#ef4444" /></g>;
+    }
+  };
 
   return (
     <div className="flex flex-col items-center gap-2">
       <div className="relative" style={{ filter: active ? "none" : "saturate(0.55) brightness(0.75)" }}>
-        {/* Pulse rings when speaking */}
         {active && (
-          <>
-            <div
-              className="absolute inset-0 rounded-full"
-              style={{
-                boxShadow: `0 0 0 ${4 + level * 12}px ${palette.shirt}33`,
-                transition: "box-shadow 80ms linear",
-              }}
-            />
-          </>
+          <div
+            className="absolute inset-0 rounded-full"
+            style={{ boxShadow: `0 0 0 ${4 + level * 12}px ${palette.shirt}33`, transition: "box-shadow 80ms linear" }}
+          />
         )}
-
         <svg
           width="120"
           height="140"
@@ -406,52 +554,29 @@ function HostAvatar({ name, host, active, level }: { name: string; host: "A" | "
           className="drop-shadow-2xl"
           style={{ transform: `translateY(${-bob * 0.4}px) rotate(${sway * 0.3}deg)`, transition: "transform 60ms linear" }}
         >
-          {/* Body / shirt */}
-          <path
-            d={`M 20 140 Q 20 95 60 92 Q 100 95 100 140 Z`}
-            fill={palette.shirt}
-          />
-          {/* Neck */}
+          <path d={`M 20 140 Q 20 95 60 92 Q 100 95 100 140 Z`} fill={palette.shirt} />
           <rect x="52" y="78" width="16" height="14" fill={palette.skinShade} rx="3" />
-          {/* Head group (bobs with audio) */}
-          <g style={{ transform: `translateY(${-bob}px) rotate(${sway * 0.5}deg)`, transformOrigin: "60px 60px", transition: "transform 60ms linear" }}>
-            {/* Hair back */}
-            <ellipse cx="60" cy="40" rx="34" ry="32" fill={palette.hair} />
-            {/* Face */}
+          <g style={{ transform: `translateY(${-bob}px) rotate(${sway * 0.5 + headTilt}deg)`, transformOrigin: "60px 60px", transition: "transform 60ms linear" }}>
             <ellipse cx="60" cy="50" rx="28" ry="32" fill={palette.skin} />
-            {/* Hair front fringe */}
-            {host === "A" ? (
-              <path d={`M 32 38 Q 60 18 88 38 Q 75 30 60 32 Q 45 30 32 38 Z`} fill={palette.hair} />
-            ) : (
-              <path d={`M 34 36 Q 60 14 86 36 Q 78 26 60 28 Q 42 26 34 36 Z M 84 36 Q 90 50 88 60 L 84 56 Z`} fill={palette.hair} />
-            )}
-            {/* Cheeks */}
+            {renderHair()}
             <circle cx="44" cy="58" r="4" fill={palette.shirt} opacity="0.22" />
             <circle cx="76" cy="58" r="4" fill={palette.shirt} opacity="0.22" />
-            {/* Eyes (blink by scaling Y) */}
             <g style={{ transform: `scaleY(${eyeY})`, transformOrigin: "60px 50px", transition: "transform 70ms" }}>
               <ellipse cx="48" cy="50" rx="3.2" ry="4" fill="#1a1a1a" />
               <ellipse cx="72" cy="50" rx="3.2" ry="4" fill="#1a1a1a" />
               <circle cx="49" cy="49" r="1" fill="#fff" />
               <circle cx="73" cy="49" r="1" fill="#fff" />
             </g>
-            {/* Brows raise slightly when speaking */}
             <path d={`M 42 ${42 - level * 2} Q 48 ${39 - level * 2} 54 ${42 - level * 2}`} stroke={palette.hair} strokeWidth="2" fill="none" strokeLinecap="round" />
             <path d={`M 66 ${42 - level * 2} Q 72 ${39 - level * 2} 78 ${42 - level * 2}`} stroke={palette.hair} strokeWidth="2" fill="none" strokeLinecap="round" />
-            {/* Mouth — lip syncs */}
-            <ellipse
-              cx="60"
-              cy={68 + mouthOpen / 4}
-              rx={mouthW / 2}
-              ry={mouthOpen / 2}
-              fill="#2a1018"
-            />
-            {/* Tongue hint when wide open */}
+            {renderGlasses()}
+            {renderFacialHair()}
+            <ellipse cx="60" cy={68 + mouthOpen / 4} rx={mouthW / 2} ry={mouthOpen / 2} fill="#2a1018" />
             {mouthOpen > 8 && (
               <ellipse cx="60" cy={70 + mouthOpen / 4} rx={mouthW / 3} ry={mouthOpen / 4} fill="#d6566a" opacity="0.7" />
             )}
+            {renderHat()}
           </g>
-          {/* Mic */}
           <g style={{ transform: `translate(${74 + sway * 0.3}px, ${88 + bob * 0.2}px)`, transition: "transform 60ms linear" }}>
             <rect x="0" y="0" width="10" height="16" rx="5" fill="#1a1a1a" />
             <rect x="-2" y="14" width="14" height="3" rx="1.5" fill="#1a1a1a" />
@@ -466,6 +591,7 @@ function HostAvatar({ name, host, active, level }: { name: string; host: "A" | "
     </div>
   );
 }
+
 
 function Waveform({ level, accent, active }: { level: number; accent: string; active: boolean }) {
   const bars = 32;
