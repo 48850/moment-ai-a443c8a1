@@ -81,6 +81,25 @@ const PLAN_TOOL = {
   },
 };
 
+function renderPortfolio(p: any): string {
+  if (!p) return "";
+  const ls = p.lifetime_stats ?? {};
+  const lines: string[] = [];
+  lines.push(`LEARNING PORTFOLIO (the user's progressive record — build the plan ON TOP of this, not from scratch):`);
+  lines.push(`- Lifetime: ${ls.days_active ?? 0} active days · ${ls.tasks_completed ?? 0}/${ls.tasks_total ?? 0} tasks done (${Math.round((ls.completion_rate ?? 0) * 100)}%) · streak ${ls.streak_days ?? 0}d · ${ls.notes_written ?? 0} notes`);
+  if (p.milestones?.length) lines.push(`- Milestones reached: ${p.milestones.join(" · ")}`);
+  if (p.completed_work?.length) lines.push(`- Already completed (do NOT duplicate): ${p.completed_work.slice(0, 12).map((c: any) => `"${c.title}"`).join(" | ")}`);
+  if (p.mini_lessons_learned?.length) {
+    lines.push(`- Mini-lessons already taught (build on, don't repeat):`);
+    for (const l of p.mini_lessons_learned.slice(0, 5)) lines.push(`  · ${l.title}: ${(l.body ?? "").slice(0, 180)}`);
+  }
+  if (p.recurring_patterns?.common_struggles?.length) lines.push(`- Recurring struggles to address head-on: ${p.recurring_patterns.common_struggles.join("; ")}`);
+  if (p.recurring_patterns?.common_feedback?.length) lines.push(`- Feedback patterns: ${p.recurring_patterns.common_feedback.map((f: any) => `${f.label}×${f.count}`).join(", ")}`);
+  if (p.capability_evolution?.length) lines.push(`- Current capabilities: ${p.capability_evolution.map((c: any) => `${c.name}=${c.status}`).join(", ")}`);
+  if (p.open_threads?.length) lines.push(`- In-flight tasks: ${p.open_threads.slice(0, 8).map((t: any) => t.text).join(" | ")}`);
+  return lines.join("\n");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
