@@ -1,6 +1,6 @@
-// Forge Context Video Generator
-// Body: { snapshot, format, tone?, with_voiceover?: boolean, voice_id? }
-// Returns: { result: ContextVideo } — scenes optionally include audio_base64 if with_voiceover=true.
+// Forge Context Reel — celebrity-podcast style two-host clip about the user's day.
+// Body: { snapshot, format, tone?, with_voiceover?: boolean (default true) }
+// Returns: { result: ContextReel }
 import { MOMENT_AI_DOCTRINE } from "../_shared/moment-ai-doctrine.ts";
 import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
@@ -10,25 +10,26 @@ const corsHeaders = {
 };
 
 const MODEL = "google/gemini-3-flash-preview";
-const DEFAULT_VOICE_ID = "IKne3meq5aSn9XLyUdCD"; // Charlie
+
+// Two hosts — energetic male hype friend + warm female co-host.
+const HOSTS = {
+  A: { name: "Bridge",  voice_id: "nPczCjzI2devNBz1zQrb", role: "hype-friend, loud, gassed-up, calls the plays" }, // Brian
+  B: { name: "Sasha",   voice_id: "EXAVITQu4vr4xnSDxMaL", role: "warm co-host, dry-funny, lands the real talk gently" }, // Sarah
+} as const;
 
 type Snapshot = Record<string, any>;
 
 function renderPortfolio(p: any): string {
   if (!p) return "(no portfolio yet)";
   const s = p.lifetime_stats ?? {};
-  const completed = (p.completed_work ?? []).slice(-8).map((c: any) => `• ${c.title}${c.proof ? ` (${c.proof})` : ""}`).join("\n");
-  const lessons = (p.mini_lessons_learned ?? []).slice(-5).map((l: any) => `• ${l.title}: ${l.body}`).join("\n");
-  const struggles = (p.recurring_patterns?.common_struggles ?? []).slice(0, 5).join(", ");
-  const wins = (p.recurring_patterns?.common_wins ?? []).slice(0, 5).join(", ");
-  const feedback = (p.recurring_patterns?.common_feedback ?? []).slice(0, 5).map((f: any) => `${f.label}×${f.count}`).join(", ");
+  const completed = (p.completed_work ?? []).slice(-6).map((c: any) => `• ${c.title}`).join("\n");
+  const struggles = (p.recurring_patterns?.common_struggles ?? []).slice(0, 4).join(", ");
+  const wins = (p.recurring_patterns?.common_wins ?? []).slice(0, 4).join(", ");
   return [
-    `Lifetime: ${s.tasks_completed ?? 0}/${s.tasks_total ?? 0} tasks · streak ${s.streak_days ?? 0}d · ${s.notes_written ?? 0} notes · ${s.reflections_logged ?? 0} reflections.`,
-    completed && `Recent completed:\n${completed}`,
-    lessons && `Mini-lessons taught (DO NOT RE-TEACH):\n${lessons}`,
+    `Lifetime: ${s.tasks_completed ?? 0}/${s.tasks_total ?? 0} tasks · streak ${s.streak_days ?? 0}d.`,
+    completed && `Recent wins:\n${completed}`,
     struggles && `Recurring struggles: ${struggles}`,
     wins && `Recurring wins: ${wins}`,
-    feedback && `Feedback pattern: ${feedback}`,
   ].filter(Boolean).join("\n");
 }
 
@@ -36,84 +37,81 @@ function renderContext(snap: Snapshot): string {
   const u = snap?.user ?? {};
   const g = snap?.active_goal ?? {};
   const r = snap?.current_reality ?? {};
-  const pending = (snap?.signals?.task_notes_context ?? []).map((t: any) => `- "${t.task_title}" (${t.task_status})`).slice(0, 8).join("\n");
+  const pending = (snap?.signals?.task_notes_context ?? []).map((t: any) => `- "${t.task_title}" (${t.task_status})`).slice(0, 6).join("\n");
   return `
-USER: ${u.display_name ?? "the user"} · age ${u.age ?? "?"} · ${u.school_year ?? ""} · ${u.academic_context ?? ""}.
-
-GOAL TRIO:
-- Long-term anchor: ${g.long_term_goal || g.statement || "(unset)"}
-- Medium-term milestone: ${g.medium_term_goal || "(unset)"}
-- Short-term proof: ${g.short_term_goal || "(unset)"}
-Why it matters: ${g.why_it_matters || "(unset)"}
-Identity: ${g.desired_identity || "(unset)"} · Current stage: ${g.current_stage || "(unset)"} → target: ${g.target_stage || "(unset)"}
-Reality gap: ${g.reality_gap || "(unset)"}
-
-TODAY: energy ${r.today_energy ?? "?"} · ${r.available_study_minutes ?? 0} study minutes available · ${r.pending_tasks_count ?? 0} pending tasks.
-Stall pattern: ${r.stall_pattern?.label ?? "none"} (${(r.stall_pattern?.evidence_chips ?? []).join(", ")})
-First high-priority pending: ${r.first_pending_high_priority ? `"${r.first_pending_high_priority.title}" (${r.first_pending_high_priority.estimated_minutes}min, id=${r.first_pending_high_priority.id})` : "none"}
-
-TASK SIGNALS:
+USER: ${u.display_name ?? "the user"} · age ${u.age ?? "?"} · ${u.school_year ?? ""}.
+GOAL: ${g.long_term_goal || g.statement || "(unset)"} → milestone: ${g.medium_term_goal || "(unset)"} → proof: ${g.short_term_goal || "(unset)"}
+Why: ${g.why_it_matters || "(unset)"}  Identity: ${g.desired_identity || "(unset)"}
+TODAY: energy ${r.today_energy ?? "?"} · ${r.available_study_minutes ?? 0} min available · ${r.pending_tasks_count ?? 0} pending.
+Stall pattern: ${r.stall_pattern?.label ?? "none"}
+NEXT MOVE CANDIDATE: ${r.first_pending_high_priority ? `"${r.first_pending_high_priority.title}" (${r.first_pending_high_priority.estimated_minutes}min, id=${r.first_pending_high_priority.id})` : "none"}
+PENDING:
 ${pending || "(none)"}
-
-LEARNING PORTFOLIO:
+PORTFOLIO:
 ${renderPortfolio(snap?.learning_portfolio)}
 `.trim();
 }
 
 const FORMAT_BRIEFS: Record<string, string> = {
-  pov: "Short POV mini-story (4-6 scenes, 3-5s each). Funny, observational, teen-native. Caption like a TikTok. Each scene names something the user actually did or didn't do today.",
-  roast: "Playful roast (4-5 scenes, 3-5s each). Roast the BEHAVIOUR (avoidance, rescheduling, opening Spotify) — NEVER the user's intelligence, body, identity, family, mental health, or worth. End warm with a tiny launch step.",
-  trailer: "Cinematic goal trailer (5-6 scenes, 4-7s each). Dramatic VO. Connect the goal trio. Treat their long-term anchor as the destination, medium milestone as the rising stake, short-term proof as the next move. Stylised, not corny.",
-  recap: "Weekly recap (5-6 scenes, 4-6s each). Real numbers from the portfolio. Name one win, one escape, one pattern, one upgrade for next week.",
-  mission_briefing: "Pre-block mission briefing (4-5 scenes, 3-5s each). Agent-style. Name the enemy (avoidance / specific task / time pressure), the weakness (starting), the first move (3-minute launch step).",
-  mockumentary: "Mockumentary documentary clip (5-6 scenes, 4-6s each). Deadpan narrator observing the user's habits in third person. Subtle humour, ends with the next concrete move.",
-  motivational_edit: "Short motivational edit (4-5 scenes, 3-5s each). Crisp, not cringe. No 'follow your dreams'. Concrete, identity-grounded.",
+  pov:                "POV podcast clip — two hosts react to the user's day so far like sports commentators calling a game. Hype, specific, observational. End by hyping the next move.",
+  roast:              "Roast-the-CALENDAR clip — two hosts roast the AVOIDANCE (Spotify, scrolling, the 11pm self-pep-talk) as if it's a character that keeps stealing time. The user is the hero being ambushed. NEVER roast the user. End by gassing them up for the comeback move.",
+  trailer:            "Movie-trailer podcast cold open — Host A does cinematic narration about the long-term goal, Host B grounds it with the actual next move. Big stakes, real action.",
+  recap:              "Weekly recap podcast — two hosts review the user's week with real numbers, give them a 'play of the week', and tee up next week's first move.",
+  mission_briefing:   "Mission control podcast briefing — Host A is mission commander, Host B is co-pilot. Name the target, the obstacle, the 3-minute launch step.",
+  mockumentary:       "Mockumentary podcast — deadpan narrators observing the user's habits with affection. Funny, never mean. End on the next move.",
+  motivational_edit:  "Hype-edit podcast — pure 'let's GO' energy. Two hosts pump up the user for ONE specific action right now.",
 };
 
-function buildVideoPrompt(snap: Snapshot, format: string, tone?: string): string {
+function buildPrompt(snap: Snapshot, format: string, tone?: string): string {
   const brief = FORMAT_BRIEFS[format] ?? FORMAT_BRIEFS.pov;
   return `${renderContext(snap)}
 
 GENERATION BRIEF
+You are scripting a short PODCAST REEL — like a viral 30-second clip of two podcast hosts talking about the user's actual day. Conversational, fast, overlapping energy. The two hosts have NAMES and ALTERNATE turns naturally.
+
+HOSTS:
+- Host A — "${HOSTS.A.name}" — ${HOSTS.A.role}
+- Host B — "${HOSTS.B.name}" — ${HOSTS.B.role}
+
 Format: ${format}
-Tone: ${tone || "playful, teen-native, specific"}
+Tone: ${tone || "hype friend / coach"}
 Spec: ${brief}
 
-OUTPUT — return ONLY this JSON shape, no prose:
+OUTPUT — return ONLY this JSON, no prose:
 {
-  "title": "Short cinematic title (≤8 words)",
+  "title": "Episode title (≤8 words, podcast-style)",
   "format": "${format}",
-  "tone": "string",
-  "hook": "One-line hook the video opens on",
-  "scenes": [
+  "show_name": "Moment Daily — short tagline",
+  "hook": "Cold-open line Host A says first (≤12 words)",
+  "segments": [
     {
-      "scene_number": 1,
-      "visual_prompt": "Vivid one-sentence visual description (will be rendered as typography + animated gradient — keep it about mood, colour, and motion)",
-      "voiceover": "What the narrator says (one sentence per scene, max 18 words)",
-      "on_screen_text": "BIG on-screen text (≤8 words, kinetic-typography style)",
-      "duration_seconds": 5,
-      "palette": { "bg": "#hex", "fg": "#hex", "accent": "#hex" }
+      "host": "A" | "B",
+      "line": "What this host actually says — natural, spoken, one short sentence, max 22 words. References REAL things from the snapshot (real task title, real number, real pattern).",
+      "emotion": "hype | deadpan | warm | mock-shock | conspiratorial | celebrating"
     }
   ],
-  "caption": "TikTok-style caption with 1-2 emojis",
+  "caption": "TikTok caption with 1-2 emojis",
+  "palette": { "bg": "#hex (deep, podcasty)", "fg": "#hex (text)", "accent": "#hex (bold)" },
   "call_to_action": {
     "kind": "start_task | break_down | reform_plan | schedule | reflect | open_node | rescue",
     "label": "Tappable button label (≤4 words)",
-    "task_id": "REQUIRED if kind is start_task or break_down — must be a real task id from the snapshot if available",
-    "prompt": "REQUIRED if kind is reflect — a one-line reflection prompt"
+    "task_id": "REQUIRED if start_task or break_down — use a real id from the snapshot",
+    "prompt": "REQUIRED if reflect — one-line reflection"
   }
 }
 
 HARD RULES:
-- ALWAYS use real specifics from the snapshot above (real task titles, real numbers, real stall pattern). No generic productivity talk.
-- Each scene's palette must be coherent with the format (roast = warm orange/red, trailer = cinematic deep blue/gold, recap = soft pastels, mission_briefing = high-contrast black/yellow, pov = whatever fits the moment).
-- 4-6 scenes total. Total duration 15-30s.
-- call_to_action is MANDATORY. Prefer start_task on the first_pending_high_priority task if it exists.
-- NEVER attack the user's intelligence, body, identity, family, mental health, or worth — roast behaviour only.
-- Never include "as an AI", "stay motivated", "follow your dreams", "SMART goals", or "just be consistent".`;
+- 6–10 segments total. Hosts alternate but can do 2 in a row for comedic timing. Aim for ~25–40s spoken.
+- Each line MUST sound spoken aloud — contractions, interjections ("yo", "okay listen", "no but-"), natural rhythm. NOT written.
+- ALWAYS use real specifics from the snapshot (real task titles, real numbers, real stall pattern).
+- HYPE THE USER. Roast the avoidance / calendar / 11pm self, NEVER the user.
+- NEVER reference the user's intelligence, body, identity, family, mental health, neurotype, or worth.
+- call_to_action is MANDATORY. Prefer start_task on the first_pending_high_priority if it exists.
+- Last 1–2 segments must directly tee up the CTA (e.g. "...so the play is: 6 minutes, right now, on that biology essay.").
+- Never include "as an AI", "stay motivated", "follow your dreams", "SMART goals", "just be consistent".`;
 }
 
-async function generateConcept(snap: Snapshot, format: string, tone?: string) {
+async function generateScript(snap: Snapshot, format: string, tone?: string) {
   const KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!KEY) throw new Error("LOVABLE_API_KEY not configured");
 
@@ -125,7 +123,7 @@ async function generateConcept(snap: Snapshot, format: string, tone?: string) {
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: MOMENT_AI_DOCTRINE },
-        { role: "user", content: buildVideoPrompt(snap, format, tone) },
+        { role: "user", content: buildPrompt(snap, format, tone) },
       ],
     }),
   });
@@ -141,88 +139,92 @@ async function generateConcept(snap: Snapshot, format: string, tone?: string) {
   const cleaned = String(content).trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
   const parsed = JSON.parse(cleaned);
 
-  // Normalise / defaults
   parsed.id = crypto.randomUUID();
   parsed.created_at = new Date().toISOString();
   parsed.format = format;
-  parsed.scenes = (parsed.scenes ?? []).map((s: any, i: number) => ({
-    scene_number: s.scene_number ?? i + 1,
-    visual_prompt: s.visual_prompt ?? "",
-    voiceover: s.voiceover ?? "",
-    on_screen_text: s.on_screen_text ?? "",
-    duration_seconds: Math.max(2, Math.min(10, Number(s.duration_seconds) || 5)),
-    palette: {
-      bg: s.palette?.bg ?? "#0a0a14",
-      fg: s.palette?.fg ?? "#ffffff",
-      accent: s.palette?.accent ?? "#ff5a36",
-    },
-  }));
-  parsed.has_voiceover = false;
+  parsed.show_name = parsed.show_name || "Moment Daily";
+  parsed.hosts = {
+    A: { name: HOSTS.A.name },
+    B: { name: HOSTS.B.name },
+  };
+  parsed.palette = {
+    bg: parsed.palette?.bg ?? "#0a0a14",
+    fg: parsed.palette?.fg ?? "#ffffff",
+    accent: parsed.palette?.accent ?? "#ff5a36",
+  };
+  parsed.segments = (parsed.segments ?? []).map((s: any, i: number) => ({
+    idx: i,
+    host: (s.host === "B" ? "B" : "A") as "A" | "B",
+    line: String(s.line ?? "").trim(),
+    emotion: s.emotion ?? "hype",
+  })).filter((s: any) => s.line);
 
-  if (!parsed.call_to_action || !parsed.call_to_action.kind) {
+  if (!parsed.call_to_action?.kind) {
     parsed.call_to_action = {
       kind: snap?.current_reality?.first_pending_high_priority ? "start_task" : "reform_plan",
       label: snap?.current_reality?.first_pending_high_priority ? "Start it now" : "Reform the plan",
       task_id: snap?.current_reality?.first_pending_high_priority?.id,
     };
   }
-
+  parsed.has_voiceover = false;
   return parsed;
 }
 
-async function generateVoiceover(scenes: any[], voiceId: string) {
+async function tts(text: string, voiceId: string, prev?: string, next?: string): Promise<string> {
   const KEY = Deno.env.get("ELEVENLABS_API_KEY");
   if (!KEY) throw new Error("ELEVENLABS_API_KEY not configured");
-
-  const out: any[] = [];
-  for (let i = 0; i < scenes.length; i++) {
-    const s = scenes[i];
-    const text = (s.voiceover || s.on_screen_text || "").trim();
-    if (!text) { out.push({ ...s }); continue; }
-    const prev = scenes[i - 1]?.voiceover;
-    const next = scenes[i + 1]?.voiceover;
-
-    const resp = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
-      {
-        method: "POST",
-        headers: { "xi-api-key": KEY, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text,
-          model_id: "eleven_turbo_v2_5",
-          previous_text: prev,
-          next_text: next,
-          voice_settings: { stability: 0.45, similarity_boost: 0.75, style: 0.4, use_speaker_boost: true, speed: 1.0 },
-        }),
-      },
-    );
-    if (!resp.ok) {
-      const errText = await resp.text();
-      console.error("elevenlabs", resp.status, errText);
-      throw new Error(`Voiceover failed (${resp.status})`);
-    }
-    const buf = await resp.arrayBuffer();
-    out.push({ ...s, audio_base64: base64Encode(new Uint8Array(buf)) });
+  const resp = await fetch(
+    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
+    {
+      method: "POST",
+      headers: { "xi-api-key": KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        model_id: "eleven_turbo_v2_5",
+        previous_text: prev,
+        next_text: next,
+        voice_settings: { stability: 0.4, similarity_boost: 0.8, style: 0.55, use_speaker_boost: true, speed: 1.05 },
+      }),
+    },
+  );
+  if (!resp.ok) {
+    const t = await resp.text();
+    console.error("elevenlabs", resp.status, t);
+    throw new Error(`Voiceover failed (${resp.status})`);
   }
-  return out;
+  const buf = await resp.arrayBuffer();
+  return base64Encode(new Uint8Array(buf));
+}
+
+async function attachVoiceover(segments: any[]) {
+  // Generate audio in parallel for speed (capped to 8 concurrent).
+  const results = await Promise.all(
+    segments.map((s, i) => {
+      const voiceId = s.host === "B" ? HOSTS.B.voice_id : HOSTS.A.voice_id;
+      const prev = segments[i - 1]?.host === s.host ? segments[i - 1]?.line : undefined;
+      const next = segments[i + 1]?.host === s.host ? segments[i + 1]?.line : undefined;
+      return tts(s.line, voiceId, prev, next).then((audio_base64) => ({ ...s, audio_base64 }));
+    }),
+  );
+  return results;
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
     const body = await req.json();
-    const { snapshot = {}, format = "pov", tone, with_voiceover = false, voice_id = DEFAULT_VOICE_ID } = body ?? {};
-    if (!["pov", "roast", "trailer", "recap", "mission_briefing", "mockumentary", "motivational_edit"].includes(format)) {
+    const { snapshot = {}, format = "pov", tone, with_voiceover = true } = body ?? {};
+    if (!Object.keys(FORMAT_BRIEFS).includes(format)) {
       return new Response(JSON.stringify({ error: "Unknown format" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const concept = await generateConcept(snapshot, format, tone);
-    if (with_voiceover) {
-      concept.scenes = await generateVoiceover(concept.scenes, voice_id);
-      concept.has_voiceover = true;
+    const reel = await generateScript(snapshot, format, tone);
+    if (with_voiceover && reel.segments?.length) {
+      reel.segments = await attachVoiceover(reel.segments);
+      reel.has_voiceover = true;
     }
 
-    return new Response(JSON.stringify({ result: concept }), {
+    return new Response(JSON.stringify({ result: reel }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
