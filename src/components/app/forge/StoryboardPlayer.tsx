@@ -77,6 +77,32 @@ function diceBearUrl(c: CharacterPreset): string {
   return `https://api.dicebear.com/9.x/avataaars/svg?${params.toString()}`;
 }
 
+function makeLocalAvatarSvg(c: CharacterPreset): string {
+  const skin = `#${c.dice.skinColor ?? "edb98a"}`;
+  const hair = `#${c.dice.hairColor ?? "2c1b18"}`;
+  const shirt = c.shirt;
+  const hat = c.dice.top?.includes("Caesar") || c.id === "cowboy";
+  const bald = c.dice.top === "noHair";
+  const glasses = Boolean(c.dice.accessories);
+  const beard = Boolean(c.dice.facialHair);
+  const smile = c.dice.mouth === "smile";
+  return `data:image/svg+xml;utf8,${encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">
+      <defs><radialGradient id="g" cx="50%" cy="35%" r="65%"><stop stop-color="${c.accent}" stop-opacity=".34"/><stop offset="1" stop-color="#10131f" stop-opacity=".08"/></radialGradient></defs>
+      <circle cx="80" cy="80" r="72" fill="url(#g)"/>
+      <path d="M35 148c7-31 83-31 90 0" fill="${shirt}"/>
+      <circle cx="80" cy="72" r="39" fill="${skin}"/>
+      ${bald ? "" : `<path d="M43 69c2-31 22-47 43-43 25 5 33 25 31 43-17-12-50-19-74 0z" fill="${hair}"/>`}
+      ${hat ? `<path d="M39 46c18-13 62-16 82 0l-7 13H46z" fill="${hair}"/><path d="M26 59h108" stroke="${c.accent}" stroke-width="8" stroke-linecap="round"/>` : ""}
+      <circle cx="66" cy="72" r="4" fill="#141414"/><circle cx="94" cy="72" r="4" fill="#141414"/>
+      ${glasses ? `<path d="M54 70h24v14H54zM84 70h24v14H84z" fill="none" stroke="#151515" stroke-width="4"/><path d="M78 77h6" stroke="#151515" stroke-width="4"/>` : ""}
+      <path d="M72 86c4 3 12 3 16 0" stroke="#9b5b43" stroke-width="3" fill="none" stroke-linecap="round"/>
+      ${beard ? `<path d="M55 93c13 23 39 23 50 0-4 31-45 34-50 0z" fill="${hair}" opacity=".72"/>` : ""}
+      <path d="M64 104 ${smile ? "q16 16 32 0" : "q16 6 32 0"}" stroke="#161616" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <circle cx="50" cy="88" r="8" fill="#ff7b7b" opacity=".28"/><circle cx="110" cy="88" r="8" fill="#ff7b7b" opacity=".28"/>
+    </svg>`)} `;
+}
+
 
 
 
