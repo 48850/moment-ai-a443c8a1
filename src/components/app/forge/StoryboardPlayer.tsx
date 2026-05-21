@@ -3,9 +3,9 @@ import { Play, Pause, RotateCcw, Volume2, VolumeX, Mic, Sparkles, Pencil } from 
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
-// ---------- Ghibli-inspired podcaster cast ----------
-// Painterly, niche archetypes (no celebrity look-alikes). Each one binds to a
-// real ElevenLabs voice so swapped hosts sound human, not robotic.
+// ---------- Niche podcaster cast ----------
+// Grounded, specific archetypes — each binds to a real ElevenLabs voice so
+// swapped hosts sound human, not robotic. No fanfic energy.
 type GhibliFace = {
   // sky / scene
   sky: [string, string];        // background gradient
