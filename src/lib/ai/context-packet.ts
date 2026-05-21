@@ -255,5 +255,6 @@ export function buildContextPacket(s: MomentState | null): MomentContextPacket |
       .slice(-10)
       .filter((m) => m.role === "user" || m.role === "assistant")
       .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+    learning_portfolio: buildLearningPortfolio(s),
   };
 }
