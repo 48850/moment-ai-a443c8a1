@@ -11,6 +11,12 @@ type CharacterPreset = {
   vibe: string;
   accent: string;
   shirt: string;
+  voice: {
+    pitch: number;
+    rate: number;
+    volume: number;
+    hints: string[];
+  };
   // DiceBear `avataaars` options (https://www.dicebear.com/styles/avataaars/)
   dice: {
     seed: string;
@@ -29,33 +35,43 @@ type CharacterPreset = {
 
 const CHARACTERS: CharacterPreset[] = [
   { id: "ranger", name: "Ranger Harrison", vibe: "Rugged action-hero dad", accent: "#e8b04a", shirt: "#7b4a2a",
+    voice: { pitch: 0.72, rate: 0.86, volume: 1, hints: ["Daniel", "George", "Google UK English Male", "Microsoft David", "Alex"] },
     dice: { seed: "harrison", top: "shortHairShortFlat", hairColor: "724133", facialHair: "beardLight", skinColor: "edb98a",
             clothing: "collarAndSweater", clothesColor: "a55728", eyebrows: "default", mouth: "serious" } },
   { id: "rogue", name: "Rogue MC", vibe: "Hyped MMA podcast bro", accent: "#22d3a0", shirt: "#0b0b0b",
+    voice: { pitch: 0.78, rate: 1.08, volume: 1, hints: ["Google US English", "Microsoft Mark", "Microsoft David", "Alex"] },
     dice: { seed: "rogan", top: "noHair", facialHair: "beardMedium", hairColor: "2c1b18", skinColor: "edb98a",
             accessories: "sunglasses", clothing: "hoodie", clothesColor: "262e33", mouth: "default" } },
   { id: "diva", name: "Pop Diva", vibe: "Chart-topper hype queen", accent: "#ffd166", shirt: "#ff4fa3",
+    voice: { pitch: 1.2, rate: 1.02, volume: 1, hints: ["Samantha", "Google US English", "Microsoft Zira", "Karen"] },
     dice: { seed: "beyonce", top: "longHairBigHair", hairColor: "f59797", skinColor: "fd9841",
             clothing: "blazerAndShirt", clothesColor: "ff488e", eyebrows: "raisedExcited", mouth: "smile" } },
   { id: "mogul", name: "Mogul Talk", vibe: "Daytime mentor", accent: "#f4c75b", shirt: "#7c3aed",
+    voice: { pitch: 1.06, rate: 0.92, volume: 1, hints: ["Samantha", "Microsoft Zira", "Google UK English Female", "Karen"] },
     dice: { seed: "oprah", top: "longHairCurly", hairColor: "2c1b18", skinColor: "ae5d29",
             accessories: "prescription02", clothing: "blazerAndShirt", clothesColor: "65c9ff", mouth: "smile" } },
   { id: "tech", name: "Tech Bro CEO", vibe: "Keynote, black turtleneck", accent: "#5ad1ff", shirt: "#111111",
+    voice: { pitch: 0.9, rate: 0.96, volume: 1, hints: ["Daniel", "Google UK English Male", "Microsoft Mark", "Alex"] },
     dice: { seed: "ceo", top: "shortHairShortFlat", hairColor: "2c1b18", skinColor: "edb98a",
             accessories: "round", clothing: "shirtCrewNeck", clothesColor: "262e33", mouth: "default" } },
   { id: "chill", name: "Chill Legend", vibe: "Smooth West-coast narrator", accent: "#22d3a0", shirt: "#1e3a8a",
+    voice: { pitch: 0.74, rate: 0.82, volume: 1, hints: ["Google US English", "Microsoft David", "Microsoft Mark", "Alex"] },
     dice: { seed: "snoop", top: "longHairStraight", hairColor: "0e0e0e", skinColor: "8d5524", facialHair: "moustacheFancy",
             clothing: "graphicShirt", clothesColor: "3c4f5c", mouth: "smile" } },
   { id: "cowboy", name: "Cowboy Storyteller", vibe: "Wise drawl, rodeo dad", accent: "#f4a261", shirt: "#9a3324",
+    voice: { pitch: 0.82, rate: 0.84, volume: 1, hints: ["Fred", "Daniel", "Microsoft David", "Google UK English Male"] },
     dice: { seed: "cowboy", top: "shortHairTheCaesar", hairColor: "a55728", skinColor: "f8d25c", facialHair: "beardMedium",
             clothing: "shirtScoopNeck", clothesColor: "ff5c5c", mouth: "default" } },
   { id: "indie", name: "Indie Director", vibe: "Whispery A24 voiceover", accent: "#e8b04a", shirt: "#3b3b3b",
+    voice: { pitch: 0.92, rate: 0.78, volume: 0.82, hints: ["Daniel", "Google UK English Male", "Alex", "Microsoft David"] },
     dice: { seed: "indie", top: "shortHairTheCaesarSidePart", hairColor: "2c1b18", skinColor: "edb98a", facialHair: "beardLight",
             accessories: "round", clothing: "hoodie", clothesColor: "3c4f5c", mouth: "serious" } },
   { id: "anchor", name: "News Anchor", vibe: "Breaking-news urgency", accent: "#ef4444", shirt: "#1d4ed8",
+    voice: { pitch: 0.86, rate: 1.12, volume: 1, hints: ["Microsoft Mark", "Google US English", "Daniel", "Alex"] },
     dice: { seed: "anchor", top: "shortHairFrizzle", hairColor: "2c1b18", skinColor: "edb98a",
             clothing: "blazerAndShirt", clothesColor: "3c4f5c", mouth: "default" } },
   { id: "diva2", name: "Soul Queen", vibe: "Gospel hype, big love", accent: "#fcd34d", shirt: "#c026d3",
+    voice: { pitch: 1.14, rate: 0.88, volume: 1, hints: ["Google UK English Female", "Samantha", "Microsoft Zira", "Karen"] },
     dice: { seed: "soulqueen", top: "longHairCurvy", hairColor: "0e0e0e", skinColor: "614335",
             clothing: "blazerAndShirt", clothesColor: "ff488e", eyebrows: "raisedExcited", mouth: "smile" } },
 ];
