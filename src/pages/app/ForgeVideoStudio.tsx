@@ -34,7 +34,7 @@ export default function ForgeVideoStudio() {
     try {
       const snapshot = buildContextPacket(state);
       const { data, error } = await supabase.functions.invoke("forge-context-video", {
-        body: { snapshot, format, with_voiceover: true },
+        body: { snapshot, format, with_voiceover: false },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
