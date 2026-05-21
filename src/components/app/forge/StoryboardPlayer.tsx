@@ -136,7 +136,9 @@ export function StoryboardPlayer({
   const hostBName = video.hosts?.B?.name ?? "Sasha";
   const palette = video.palette ?? { bg: "#0b0612", fg: "#ffffff", accent: "#ff5a36" };
 
-  const [playing, setPlaying] = useState(true);
+  // Start paused — autoplay is blocked by the browser until a user gesture.
+  const [started, setStarted] = useState(false);
+  const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [segIdx, setSegIdx] = useState(0);
   const [segDuration, setSegDuration] = useState(2500);
@@ -148,29 +150,39 @@ export function StoryboardPlayer({
   // Play current segment audio
   useEffect(() => {
     if (!playing || !seg) return;
+    const BREATH_MS = 380; // small pause between segments so it doesn't feel rushed
+
+    const advance = () => {
+      if (segIdx + 1 < segments.length) {
+        setTimeout(() => setSegIdx((i) => i + 1), BREATH_MS);
+      } else {
+        setPlaying(false);
+      }
+    };
 
     if (!seg.audio_base64) {
-      // No audio — estimate read time from word count
-      const ms = Math.max(1800, seg.line.split(/\s+/).length * 220);
+      // No audio — estimate read time from word count, but slower so captions are legible
+      const ms = Math.max(2400, seg.line.split(/\s+/).length * 280);
       setSegDuration(ms);
-      const t = setTimeout(() => {
-        setSegIdx((i) => (i + 1 < segments.length ? i + 1 : i));
-        if (segIdx + 1 >= segments.length) setPlaying(false);
-      }, ms);
+      const t = setTimeout(advance, ms);
       return () => clearTimeout(t);
     }
 
     const audio = new Audio(`data:audio/mpeg;base64,${seg.audio_base64}`);
     audio.muted = muted;
+    audio.volume = 1;
     setAudioEl(audio);
-    const onLoaded = () => setSegDuration(Math.max(800, audio.duration * 1000));
-    const onEnded = () => {
-      if (segIdx + 1 < segments.length) setSegIdx((i) => i + 1);
-      else setPlaying(false);
-    };
+    const onLoaded = () => setSegDuration(Math.max(1200, audio.duration * 1000));
+    const onEnded = () => advance();
     audio.addEventListener("loadedmetadata", onLoaded);
     audio.addEventListener("ended", onEnded);
-    audio.play().catch(() => { /* user gesture may be needed */ });
+    audio.play().catch((e) => {
+      console.warn("audio play blocked, advancing on timer", e);
+      // Fallback: advance after estimated read time
+      const ms = Math.max(2400, seg.line.split(/\s+/).length * 280);
+      setSegDuration(ms);
+      setTimeout(advance, ms);
+    });
     return () => {
       audio.removeEventListener("loadedmetadata", onLoaded);
       audio.removeEventListener("ended", onEnded);
@@ -185,9 +197,16 @@ export function StoryboardPlayer({
 
   const revealed = useWordReveal(seg?.line ?? "", segDuration, playing && !!seg, segIdx);
 
+  const start = () => {
+    setStarted(true);
+    setSegIdx(0);
+    setPlaying(true);
+  };
+
   const replay = () => {
     setSegIdx(0);
     setPlaying(true);
+    setStarted(true);
     onReplay?.();
   };
 
@@ -273,6 +292,25 @@ export function StoryboardPlayer({
           <div className="h-full" style={{ width: `${progressPct}%`, background: palette.accent, transition: "width 200ms linear" }} />
         </div>
 
+        {/* Bottom progress bar */}
+        <div className="absolute inset-x-0 bottom-0 h-1 bg-black/40">
+          <div className="h-full" style={{ width: `${progressPct}%`, background: palette.accent, transition: "width 200ms linear" }} />
+        </div>
+
+        {/* Tap-to-start overlay (required to unlock autoplay) */}
+        {!started && (
+          <button
+            onClick={start}
+            className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-black/55 backdrop-blur-sm"
+          >
+            <div className="grid h-20 w-20 place-items-center rounded-full bg-white/95 shadow-2xl transition-transform hover:scale-105">
+              <Play className="h-8 w-8 translate-x-0.5 fill-black text-black" />
+            </div>
+            <div className="text-sm font-semibold uppercase tracking-[0.25em]">Tap to play</div>
+            <div className="text-xs opacity-70">With sound · {segments.length} segments</div>
+          </button>
+        )}
+
         {/* Side controls — TikTok style */}
         <div className="absolute right-3 top-1/2 z-20 flex -translate-y-1/2 flex-col items-center gap-3">
           <button onClick={() => setPlaying((p) => !p)} className="rounded-full bg-white/15 p-3 backdrop-blur-sm hover:bg-white/25">
@@ -306,36 +344,123 @@ export function StoryboardPlayer({
 }
 
 function HostAvatar({ name, host, active, level }: { name: string; host: "A" | "B"; active: boolean; level: number }) {
-  const style = HOST_STYLE[host];
-  const scale = 1 + (active ? level * 0.18 : 0);
+  // Cartoon-style talking head, lip-syncs to audio level.
+  // Host A — warm/orange. Host B — cool/violet.
+  const palette = host === "A"
+    ? { skin: "#f9c89b", skinShade: "#e0a37a", hair: "#3a1f12", shirt: "#ff5a36", accent: "#ffd166" }
+    : { skin: "#f4d3b5", skinShade: "#d9b08b", hair: "#1f2540", shirt: "#7c5cff", accent: "#5ad1ff" };
+
+  // Blink every ~3.5s
+  const [blink, setBlink] = useState(false);
+  useEffect(() => {
+    let t: any;
+    const loop = () => {
+      const next = 2500 + Math.random() * 2500;
+      t = setTimeout(() => {
+        setBlink(true);
+        setTimeout(() => setBlink(false), 130);
+        loop();
+      }, next);
+    };
+    loop();
+    return () => clearTimeout(t);
+  }, []);
+
+  // Head bob & body sway driven by audio level + a constant idle sine
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    let raf: number;
+    const loop = () => { setTick((t) => t + 1); raf = requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  const idle = Math.sin(tick / 18) * 1.5;
+  const bob = active ? idle + level * 5 : idle * 0.4;
+  const sway = active ? Math.sin(tick / 14) * 3 + level * 4 : Math.sin(tick / 30) * 1.2;
+
+  // Mouth opens with level
+  const mouthOpen = active ? 3 + level * 14 : 1.5;
+  const mouthW = active ? 12 + level * 6 : 10;
+  const eyeY = blink ? 0.05 : 1;
+
   return (
     <div className="flex flex-col items-center gap-2">
-      <div className="relative">
-        {/* Pulsing rings */}
+      <div className="relative" style={{ filter: active ? "none" : "saturate(0.55) brightness(0.75)" }}>
+        {/* Pulse rings when speaking */}
         {active && (
           <>
             <div
-              className={`absolute inset-0 rounded-full ring-4 ${style.ring}`}
-              style={{ transform: `scale(${1 + level * 0.55})`, opacity: 0.55 - level * 0.3, transition: "transform 80ms linear" }}
-            />
-            <div
-              className={`absolute inset-0 rounded-full ring-2 ${style.ring}`}
-              style={{ transform: `scale(${1 + level * 0.9})`, opacity: 0.3 - level * 0.2, transition: "transform 80ms linear" }}
+              className="absolute inset-0 rounded-full"
+              style={{
+                boxShadow: `0 0 0 ${4 + level * 12}px ${palette.shirt}33`,
+                transition: "box-shadow 80ms linear",
+              }}
             />
           </>
         )}
-        <div
-          className={`relative grid h-24 w-24 place-items-center rounded-full bg-gradient-to-br ${style.gradient} text-3xl font-black text-white shadow-2xl md:h-28 md:w-28`}
-          style={{ transform: `scale(${scale})`, transition: "transform 80ms linear", filter: active ? "none" : "grayscale(0.4) brightness(0.7)" }}
+
+        <svg
+          width="120"
+          height="140"
+          viewBox="0 0 120 140"
+          className="drop-shadow-2xl"
+          style={{ transform: `translateY(${-bob * 0.4}px) rotate(${sway * 0.3}deg)`, transition: "transform 60ms linear" }}
         >
-          {name[0]}
-          {/* Mic badge */}
-          <div className="absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center rounded-full bg-black/80 ring-2 ring-white/30">
-            <Mic className={`h-3.5 w-3.5 ${active ? "text-red-400" : "text-white/60"}`} />
-          </div>
-        </div>
+          {/* Body / shirt */}
+          <path
+            d={`M 20 140 Q 20 95 60 92 Q 100 95 100 140 Z`}
+            fill={palette.shirt}
+          />
+          {/* Neck */}
+          <rect x="52" y="78" width="16" height="14" fill={palette.skinShade} rx="3" />
+          {/* Head group (bobs with audio) */}
+          <g style={{ transform: `translateY(${-bob}px) rotate(${sway * 0.5}deg)`, transformOrigin: "60px 60px", transition: "transform 60ms linear" }}>
+            {/* Hair back */}
+            <ellipse cx="60" cy="40" rx="34" ry="32" fill={palette.hair} />
+            {/* Face */}
+            <ellipse cx="60" cy="50" rx="28" ry="32" fill={palette.skin} />
+            {/* Hair front fringe */}
+            {host === "A" ? (
+              <path d={`M 32 38 Q 60 18 88 38 Q 75 30 60 32 Q 45 30 32 38 Z`} fill={palette.hair} />
+            ) : (
+              <path d={`M 34 36 Q 60 14 86 36 Q 78 26 60 28 Q 42 26 34 36 Z M 84 36 Q 90 50 88 60 L 84 56 Z`} fill={palette.hair} />
+            )}
+            {/* Cheeks */}
+            <circle cx="44" cy="58" r="4" fill={palette.shirt} opacity="0.22" />
+            <circle cx="76" cy="58" r="4" fill={palette.shirt} opacity="0.22" />
+            {/* Eyes (blink by scaling Y) */}
+            <g style={{ transform: `scaleY(${eyeY})`, transformOrigin: "60px 50px", transition: "transform 70ms" }}>
+              <ellipse cx="48" cy="50" rx="3.2" ry="4" fill="#1a1a1a" />
+              <ellipse cx="72" cy="50" rx="3.2" ry="4" fill="#1a1a1a" />
+              <circle cx="49" cy="49" r="1" fill="#fff" />
+              <circle cx="73" cy="49" r="1" fill="#fff" />
+            </g>
+            {/* Brows raise slightly when speaking */}
+            <path d={`M 42 ${42 - level * 2} Q 48 ${39 - level * 2} 54 ${42 - level * 2}`} stroke={palette.hair} strokeWidth="2" fill="none" strokeLinecap="round" />
+            <path d={`M 66 ${42 - level * 2} Q 72 ${39 - level * 2} 78 ${42 - level * 2}`} stroke={palette.hair} strokeWidth="2" fill="none" strokeLinecap="round" />
+            {/* Mouth — lip syncs */}
+            <ellipse
+              cx="60"
+              cy={68 + mouthOpen / 4}
+              rx={mouthW / 2}
+              ry={mouthOpen / 2}
+              fill="#2a1018"
+            />
+            {/* Tongue hint when wide open */}
+            {mouthOpen > 8 && (
+              <ellipse cx="60" cy={70 + mouthOpen / 4} rx={mouthW / 3} ry={mouthOpen / 4} fill="#d6566a" opacity="0.7" />
+            )}
+          </g>
+          {/* Mic */}
+          <g style={{ transform: `translate(${74 + sway * 0.3}px, ${88 + bob * 0.2}px)`, transition: "transform 60ms linear" }}>
+            <rect x="0" y="0" width="10" height="16" rx="5" fill="#1a1a1a" />
+            <rect x="-2" y="14" width="14" height="3" rx="1.5" fill="#1a1a1a" />
+            <rect x="3" y="17" width="4" height="10" fill="#1a1a1a" />
+            {active && <circle cx="5" cy="6" r="2" fill="#ff4444" />}
+          </g>
+        </svg>
       </div>
-      <div className={`text-xs font-semibold uppercase tracking-wider ${active ? "opacity-100" : "opacity-50"}`}>
+      <div className={`text-[11px] font-bold uppercase tracking-wider ${active ? "opacity-100" : "opacity-50"}`}>
         {name}
       </div>
     </div>
