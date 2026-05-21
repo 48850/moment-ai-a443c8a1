@@ -101,8 +101,8 @@ export default function ForgeVideoStudio() {
   return (
     <div className="mx-auto max-w-4xl p-4 md:p-8 space-y-6">
       <div className="flex items-center justify-between">
-        <Link to="/app/forge" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ChevronLeft className="h-4 w-4" /> Forge
+        <Link to="/app/mission" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ChevronLeft className="h-4 w-4" /> Mission
         </Link>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Sparkles className="h-3.5 w-3.5" /> Summary Clip Studio
