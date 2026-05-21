@@ -590,7 +590,40 @@ Risk of bad advice: ${risk}${risk === "high" ? `\n⚠️ HIGH RISK: Do NOT gener
 Pursuit assumptions: ${assumptions || "none"}
 Capabilities: ${capabilities || "not assessed"}
 
-Signals — Feedback: ${fb} | Reflections: ${JSON.stringify(reflections)}${notesBlock}${chatBlock}`.trim();
+Signals — Feedback: ${fb} | Reflections: ${JSON.stringify(reflections)}${notesBlock}${chatBlock}
+
+${renderPortfolio(snapshot?.learning_portfolio)}`.trim();
+}
+
+function renderPortfolio(p: any): string {
+  if (!p) return "";
+  const ls = p.lifetime_stats ?? {};
+  const lines: string[] = [];
+  lines.push(`LEARNING PORTFOLIO (the user's progressive record — always reference; never plan as if this is day one):`);
+  lines.push(`- Lifetime: ${ls.days_active ?? 0} active days · ${ls.tasks_completed ?? 0}/${ls.tasks_total ?? 0} tasks done (${Math.round((ls.completion_rate ?? 0) * 100)}%) · ${ls.notes_written ?? 0} notes · ${ls.reflections_logged ?? 0} reflections · streak ${ls.streak_days ?? 0}d`);
+  if (p.milestones?.length) lines.push(`- Milestones: ${p.milestones.join(" · ")}`);
+  if (p.decisions_made?.length) lines.push(`- Standing decisions: ${p.decisions_made.join(" · ")}`);
+  if (p.completed_work?.length) {
+    lines.push(`- Recently completed: ${p.completed_work.slice(0, 10).map((c: any) => `"${c.title}"${c.proof ? ` → ${c.proof}` : ""}`).join(" | ")}`);
+  }
+  if (p.mini_lessons_learned?.length) {
+    lines.push(`- Mini-lessons already taught (do NOT repeat — build on them):`);
+    for (const l of p.mini_lessons_learned.slice(0, 6)) {
+      lines.push(`  · ${l.title} (from "${l.from_task}"): ${(l.body ?? "").slice(0, 220)}`);
+    }
+  }
+  if (p.recurring_patterns?.common_feedback?.length) {
+    lines.push(`- Recurring task feedback: ${p.recurring_patterns.common_feedback.map((f: any) => `${f.label}×${f.count}`).join(", ")}`);
+  }
+  if (p.recurring_patterns?.common_struggles?.length) lines.push(`- Recurring struggles: ${p.recurring_patterns.common_struggles.join("; ")}`);
+  if (p.recurring_patterns?.common_wins?.length) lines.push(`- Recurring wins: ${p.recurring_patterns.common_wins.join("; ")}`);
+  const e = p.recurring_patterns?.energy_profile;
+  if (e && (e.high || e.ok || e.low)) lines.push(`- Energy profile: high=${e.high}, ok=${e.ok}, low=${e.low}`);
+  if (p.capability_evolution?.length) lines.push(`- Capability state: ${p.capability_evolution.map((c: any) => `${c.name}=${c.status}`).join(", ")}`);
+  if (p.open_threads?.length) lines.push(`- Open threads: ${p.open_threads.slice(0, 8).map((t: any) => t.text).join(" | ")}`);
+  if (p.forge_progress?.length) lines.push(`- Forge guidebooks in use: ${p.forge_progress.map((g: any) => `${g.guidebook}(${g.signal_count} signals)`).join(", ")}`);
+  lines.push(`RULE: Tailor output to this portfolio. Acknowledge progress. Avoid re-teaching past lessons. Build on completed work. Address recurring struggles head-on.`);
+  return lines.join("\n");
 }
 
 function userPrompt(intent: string, snapshot: any, payload: any): string {

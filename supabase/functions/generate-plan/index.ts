@@ -81,6 +81,25 @@ const PLAN_TOOL = {
   },
 };
 
+function renderPortfolio(p: any): string {
+  if (!p) return "";
+  const ls = p.lifetime_stats ?? {};
+  const lines: string[] = [];
+  lines.push(`LEARNING PORTFOLIO (the user's progressive record — build the plan ON TOP of this, not from scratch):`);
+  lines.push(`- Lifetime: ${ls.days_active ?? 0} active days · ${ls.tasks_completed ?? 0}/${ls.tasks_total ?? 0} tasks done (${Math.round((ls.completion_rate ?? 0) * 100)}%) · streak ${ls.streak_days ?? 0}d · ${ls.notes_written ?? 0} notes`);
+  if (p.milestones?.length) lines.push(`- Milestones reached: ${p.milestones.join(" · ")}`);
+  if (p.completed_work?.length) lines.push(`- Already completed (do NOT duplicate): ${p.completed_work.slice(0, 12).map((c: any) => `"${c.title}"`).join(" | ")}`);
+  if (p.mini_lessons_learned?.length) {
+    lines.push(`- Mini-lessons already taught (build on, don't repeat):`);
+    for (const l of p.mini_lessons_learned.slice(0, 5)) lines.push(`  · ${l.title}: ${(l.body ?? "").slice(0, 180)}`);
+  }
+  if (p.recurring_patterns?.common_struggles?.length) lines.push(`- Recurring struggles to address head-on: ${p.recurring_patterns.common_struggles.join("; ")}`);
+  if (p.recurring_patterns?.common_feedback?.length) lines.push(`- Feedback patterns: ${p.recurring_patterns.common_feedback.map((f: any) => `${f.label}×${f.count}`).join(", ")}`);
+  if (p.capability_evolution?.length) lines.push(`- Current capabilities: ${p.capability_evolution.map((c: any) => `${c.name}=${c.status}`).join(", ")}`);
+  if (p.open_threads?.length) lines.push(`- In-flight tasks: ${p.open_threads.slice(0, 8).map((t: any) => t.text).join(" | ")}`);
+  return lines.join("\n");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -124,6 +143,8 @@ Deno.serve(async (req) => {
 
     const system = `You are an elite life-design coach for ambitious teenagers. You translate a goal trio into a phased plan across four horizons: days, weeks, months, years. Be concrete, specific, age-appropriate, energising, never preachy. Every item should be doable and unmistakably move the goal forward. Avoid generic productivity fluff. ALWAYS calibrate to the user profile provided — never propose actions that conflict with their age, schedule, or onboarding-confirmed reality. Use short-term as the main source for days/weeks, medium-term for month-level milestones, and long-term only as the anchor/why. HARD CAP: the days array is today's work and must contain no more than 3 tasks.`;
 
+    const portfolioBlock = renderPortfolio(snapshot?.learning_portfolio);
+
     const user = `${userBlock}
 
 Goal horizons:
@@ -134,7 +155,9 @@ Why it matters: ${why || "(not provided)"}
 Context: ${context || "(not provided)"}
 ${notesBlock}
 
-Produce a complete multi-horizon plan that fits the person above. Each horizon must contain DIFFERENT actions — days are tactical from the short-term goal, weeks are outcomes toward the short-term proof, months ladder into the medium-term milestone, and years stay anchored to the long-term direction.`;
+${portfolioBlock}
+
+Produce a complete multi-horizon plan that fits the person above and BUILDS ON their portfolio. Days/weeks/months must not duplicate completed work or re-teach lessons already in the portfolio. If they have a streak, protect it. If they have recurring struggles, address them. Each horizon must contain DIFFERENT actions — days are tactical from the short-term goal, weeks are outcomes toward the short-term proof, months ladder into the medium-term milestone, and years stay anchored to the long-term direction.`;
 
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

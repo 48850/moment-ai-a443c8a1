@@ -5,6 +5,7 @@
  */
 import type { MomentState, ChatMessage } from "@/lib/types";
 import { selectNextBestTask } from "@/lib/engine/next-best-task";
+import { buildLearningPortfolio } from "@/lib/ai/learning-portfolio";
 
 function horizonFromState(state: MomentState, key: "long" | "medium" | "short") {
   const answers = state.onboarding?.answers ?? {};
@@ -71,6 +72,7 @@ export interface ChatSnapshot {
   // ─── Omnipotent chat: lets the model target real entities ─────────────────
   pending_tasks: Array<{ id: string; title: string; minutes: number; priority: string }>;
   week_blocks: Array<{ id: string; day_index: number; start_time: string; end_time: string; title: string; category: string; is_locked: boolean }>;
+  learning_portfolio: ReturnType<typeof buildLearningPortfolio>;
 }
 
 const SCHEDULE_FIELD_MAP: Array<[keyof MomentState["constraints"], string]> = [
@@ -246,5 +248,6 @@ export function selectChatSnapshot(state: MomentState): ChatSnapshot {
       category: b.category,
       is_locked: !!b.is_locked,
     })),
+    learning_portfolio: buildLearningPortfolio(state),
   };
 }

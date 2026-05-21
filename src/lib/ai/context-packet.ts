@@ -1,5 +1,6 @@
 import type { MomentState, GoalFeasibilityReport } from "@/lib/types";
 import { computeStallPattern } from "@/lib/selectors/audit";
+import { buildLearningPortfolio, type LearningPortfolio } from "@/lib/ai/learning-portfolio";
 
 export interface MomentContextPacket {
   user: {
@@ -90,6 +91,7 @@ export interface MomentContextPacket {
     recent_signals: Array<{ feature: string; key: string; value: string }>;
   };
   recent_chat: Array<{ role: "user" | "assistant"; content: string }>;
+  learning_portfolio: LearningPortfolio;
 }
 
 function horizonFromState(s: MomentState, key: "long" | "medium" | "short") {
@@ -253,5 +255,6 @@ export function buildContextPacket(s: MomentState | null): MomentContextPacket |
       .slice(-10)
       .filter((m) => m.role === "user" || m.role === "assistant")
       .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+    learning_portfolio: buildLearningPortfolio(s),
   };
 }
