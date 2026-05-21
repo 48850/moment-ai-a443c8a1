@@ -251,6 +251,7 @@ export function StoryboardPlayer({
   const [editing, setEditing] = useState<"A" | "B" | null>(null);
   const [customA, setCustomA] = useState(hostAName);
   const [customB, setCustomB] = useState(hostBName);
+  const [castVersion, setCastVersion] = useState(0);
 
   // Start paused — autoplay is blocked by the browser until a user gesture.
   const [started, setStarted] = useState(false);
@@ -263,6 +264,8 @@ export function StoryboardPlayer({
 
 
   const seg = segments[segIdx];
+  const activeCharacter = seg?.host === "B" ? charB : charA;
+  const activeAudioBase64 = castVersion === 0 ? seg?.audio_base64 : undefined;
   const audioLevel = useAudioLevel(audioEl);
   const [fallbackTick, setFallbackTick] = useState(0);
   useEffect(() => {
@@ -287,16 +290,17 @@ export function StoryboardPlayer({
       }
     };
 
-    if (!seg.audio_base64) {
+    if (!activeAudioBase64) {
       // No generated voiceover — use browser speech so the reel still has sound.
-      const ms = Math.max(2400, seg.line.split(/\s+/).length * 280);
+      const ms = Math.max(2400, seg.line.split(/\s+/).length * (290 / activeCharacter.voice.rate));
       setSegDuration(ms);
       if ("speechSynthesis" in window) {
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(seg.line);
-        utterance.rate = 0.88;
-        utterance.pitch = seg.host === "A" ? 0.88 : 1.08;
-        utterance.volume = muted ? 0 : 1;
+        utterance.voice = pickSpeechVoice(activeCharacter) ?? null;
+        utterance.rate = activeCharacter.voice.rate;
+        utterance.pitch = activeCharacter.voice.pitch;
+        utterance.volume = muted ? 0 : activeCharacter.voice.volume;
         utterance.onstart = () => setSyntheticSpeaking(true);
         utterance.onend = () => { setSyntheticSpeaking(false); advance(); };
         utterance.onerror = () => { setSyntheticSpeaking(false); advance(); };
@@ -307,7 +311,7 @@ export function StoryboardPlayer({
       return () => { clearTimeout(t); setSyntheticSpeaking(false); };
     }
 
-    const audio = new Audio(`data:audio/mpeg;base64,${seg.audio_base64}`);
+    const audio = new Audio(`data:audio/mpeg;base64,${activeAudioBase64}`);
     audio.muted = muted;
     audio.volume = 1;
     setAudioEl(audio);
@@ -330,7 +334,7 @@ export function StoryboardPlayer({
       setSyntheticSpeaking(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segIdx, playing, muted]);
+  }, [segIdx, playing, muted, activeAudioBase64, activeCharacter]);
 
   // Mute toggle propagation
   useEffect(() => { if (audioEl) audioEl.muted = muted; }, [muted, audioEl]);
