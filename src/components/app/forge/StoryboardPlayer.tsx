@@ -114,6 +114,12 @@ interface Segment {
   audio_base64?: string;
 }
 
+interface LegacyScene {
+  voiceover?: string;
+  on_screen_text?: string;
+  audio_base64?: string;
+}
+
 interface CallToAction {
   kind: string;
   label: string;
@@ -130,25 +136,12 @@ interface ContextReel {
   hook?: string;
   segments?: Segment[];
   // legacy fallback
-  scenes?: any[];
+  scenes?: LegacyScene[];
   hosts?: { A?: { name: string }; B?: { name: string } };
   palette?: { bg: string; fg: string; accent: string };
   call_to_action: CallToAction;
   has_voiceover?: boolean;
 }
-
-const HOST_STYLE = {
-  A: {
-    gradient: "from-orange-400 via-rose-500 to-fuchsia-600",
-    ring: "ring-orange-300/60",
-    initial: "B",
-  },
-  B: {
-    gradient: "from-sky-400 via-violet-500 to-indigo-600",
-    ring: "ring-sky-300/60",
-    initial: "S",
-  },
-};
 
 // Word-by-word reveal so captions feel like spoken speech.
 function useWordReveal(text: string, durationMs: number, playing: boolean, key: number) {
@@ -184,7 +177,9 @@ function useAudioLevel(audio: HTMLAudioElement | null) {
     let raf = 0;
     let buf: Uint8Array | null = null;
     try {
-      ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioContextCtor = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextCtor) throw new Error("AudioContext unavailable");
+      ctx = new AudioContextCtor();
       src = ctx.createMediaElementSource(audio);
       analyser = ctx.createAnalyser();
       analyser.fftSize = 64;
@@ -226,7 +221,7 @@ export function StoryboardPlayer({
   const segments: Segment[] = useMemo(() => {
     if (video.segments?.length) return video.segments;
     if (video.scenes?.length) {
-      return video.scenes.map((s: any, i: number) => ({
+      return video.scenes.map((s, i: number) => ({
         idx: i,
         host: (i % 2 === 0 ? "A" : "B") as "A" | "B",
         line: s.voiceover || s.on_screen_text || "",
