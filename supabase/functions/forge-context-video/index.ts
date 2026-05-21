@@ -196,17 +196,22 @@ async function tts(text: string, voiceId: string, prev?: string, next?: string):
   return base64Encode(new Uint8Array(buf));
 }
 
-async function attachVoiceover(segments: any[]) {
-  // Generate audio in parallel for speed (capped to 8 concurrent).
-  const results = await Promise.all(
-    segments.map((s, i) => {
-      const voiceId = s.host === "B" ? HOSTS.B.voice_id : HOSTS.A.voice_id;
-      const prev = segments[i - 1]?.host === s.host ? segments[i - 1]?.line : undefined;
-      const next = segments[i + 1]?.host === s.host ? segments[i + 1]?.line : undefined;
-      return tts(s.line, voiceId, prev, next).then((audio_base64) => ({ ...s, audio_base64 }));
-    }),
-  );
-  return results;
+async function attachVoiceover(segments: any[]): Promise<{ segments: any[]; ok: boolean; error?: string }> {
+  try {
+    const results = await Promise.all(
+      segments.map((s, i) => {
+        const voiceId = s.host === "B" ? HOSTS.B.voice_id : HOSTS.A.voice_id;
+        const prev = segments[i - 1]?.host === s.host ? segments[i - 1]?.line : undefined;
+        const next = segments[i + 1]?.host === s.host ? segments[i + 1]?.line : undefined;
+        return tts(s.line, voiceId, prev, next).then((audio_base64) => ({ ...s, audio_base64 }));
+      }),
+    );
+    return { segments: results, ok: true };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "voiceover unavailable";
+    console.error("voiceover skipped:", msg);
+    return { segments, ok: false, error: msg };
+  }
 }
 
 Deno.serve(async (req) => {
