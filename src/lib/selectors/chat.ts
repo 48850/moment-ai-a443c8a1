@@ -247,5 +247,6 @@ export function selectChatSnapshot(state: MomentState): ChatSnapshot {
       category: b.category,
       is_locked: !!b.is_locked,
     })),
+    learning_portfolio: buildLearningPortfolio(state),
   };
 }
