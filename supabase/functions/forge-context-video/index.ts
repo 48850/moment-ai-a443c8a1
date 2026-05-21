@@ -201,7 +201,7 @@ async function generateScript(snap: Snapshot, format: string, tone?: string) {
 
 async function tts(text: string, voiceId: string, prev?: string, next?: string): Promise<string> {
   const KEY = Deno.env.get("ELEVENLABS_API_KEY");
-  if (!KEY) throw new Error("ELEVENLABS_API_KEY not configured");
+  if (!KEY) throw new Error("fallbackable voice provider unavailable");
   const resp = await fetch(
     `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
     {
@@ -219,7 +219,7 @@ async function tts(text: string, voiceId: string, prev?: string, next?: string):
   if (!resp.ok) {
     const t = await resp.text();
     console.error("elevenlabs", resp.status, t);
-    throw new Error(`Voiceover failed (${resp.status})`);
+    throw new Error(`fallbackable voiceover failed (${resp.status})`);
   }
   const buf = await resp.arrayBuffer();
   return base64Encode(new Uint8Array(buf));
@@ -282,9 +282,11 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    const msg = e instanceof Error ? e.message : "Unknown";
     console.error("forge-context-video error", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return new Response(JSON.stringify({ error: msg, fallback: /fallbackable|voice/i.test(msg) }), {
+      status: /fallbackable|voice/i.test(msg) ? 200 : 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
