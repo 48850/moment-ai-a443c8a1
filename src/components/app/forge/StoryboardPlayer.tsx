@@ -402,7 +402,9 @@ export function StoryboardPlayer({
   // for the swapped character. Otherwise use the original generated audio.
   const cacheKey = seg ? `${segIdx}::${activeCharacter.id}` : "";
   const cached = cacheKey ? ttsCacheRef.current.get(cacheKey) : undefined;
-  const activeAudioBase64 = castVersion === 0 ? seg?.audio_base64 : cached;
+  // Always use per-character ElevenLabs voice — the pre-baked audio only has
+  // two generic host voices and doesn't match the Ghibli cast.
+  const activeAudioBase64 = cached;
 
   const audioLevel = useAudioLevel(audioEl);
   const [fallbackTick, setFallbackTick] = useState(0);
@@ -418,7 +420,6 @@ export function StoryboardPlayer({
   // Fetch ElevenLabs audio for the swapped character if we don't have it cached yet.
   useEffect(() => {
     if (!playing || !seg) return;
-    if (castVersion === 0) return; // original audio is fine
     if (cached) return; // already have it
     let cancelled = false;
     (async () => {
