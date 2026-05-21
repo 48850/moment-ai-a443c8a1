@@ -11,7 +11,16 @@ import { DoneCheckIn } from "@/components/app/DoneCheckIn";
 import { COMPLIMENTS } from "@/components/app/StreakFlame";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { toast } from "sonner";
+import { QuickReviewNotes } from "@/components/app/QuickReviewNotes";
 import type { Task } from "@/lib/types";
+
+type SavedNoteReview = {
+  headline: string;
+  key_insights: string[];
+  gaps?: string[];
+  mini_lesson: { title: string; body: string };
+  next_step: string;
+};
 
 const Dashboard = () => {
   const state = useStateStore((s) => s.state);
