@@ -76,76 +76,7 @@ function layoutNodes(nodes: ConstellationNode[], canvasW: number, canvasH: numbe
   });
 }
 
-/* -------------------------------------------------------------------------- */
-/* Background starfield                                                         */
-/* -------------------------------------------------------------------------- */
-
-const Starfield = () => {
-  const ref = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = ref.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    let raf = 0;
-    let stars: { x: number; y: number; r: number; a: number; s: number; tw: number }[] = [];
-    let shooting: { x: number; y: number; vx: number; vy: number; life: number } | null = null;
-    let w = 0, h = 0;
-
-    const resize = () => {
-      const dpr = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
-      w = rect.width; h = rect.height;
-      canvas.width = w * dpr; canvas.height = h * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const count = Math.floor((w * h) / 2200);
-      stars = Array.from({ length: count }, () => ({
-        x: Math.random() * w, y: Math.random() * h,
-        r: Math.random() * 1.2 + 0.2, a: Math.random() * 0.8 + 0.2,
-        s: Math.random() * 0.02 + 0.005, tw: Math.random() * Math.PI * 2,
-      }));
-    };
-    resize();
-    window.addEventListener("resize", resize);
-
-    const draw = () => {
-      ctx.clearRect(0, 0, w, h);
-      const g = ctx.createRadialGradient(w * 0.7, h * 0.3, 0, w * 0.7, h * 0.3, Math.max(w, h) * 0.7);
-      g.addColorStop(0, "rgba(99,102,241,0.12)");
-      g.addColorStop(0.5, "rgba(168,85,247,0.05)");
-      g.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-
-      for (const st of stars) {
-        st.tw += st.s;
-        const alpha = st.a * (0.55 + 0.45 * Math.sin(st.tw));
-        ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${alpha})`; ctx.fill();
-      }
-
-      if (!shooting && Math.random() < 0.003) {
-        shooting = { x: Math.random() * w * 0.5, y: Math.random() * h * 0.5, vx: 6 + Math.random() * 4, vy: 2 + Math.random() * 2, life: 1 };
-      }
-      if (shooting) {
-        const s = shooting;
-        const tailX = s.x - s.vx * 12; const tailY = s.y - s.vy * 12;
-        const grad = ctx.createLinearGradient(tailX, tailY, s.x, s.y);
-        grad.addColorStop(0, "rgba(255,255,255,0)"); grad.addColorStop(1, `rgba(255,255,255,${s.life})`);
-        ctx.strokeStyle = grad; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(tailX, tailY); ctx.lineTo(s.x, s.y); ctx.stroke();
-        s.x += s.vx; s.y += s.vy; s.life -= 0.012;
-        if (s.life <= 0 || s.x > w || s.y > h) shooting = null;
-      }
-      raf = requestAnimationFrame(draw);
-    };
-    draw();
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
-  }, []);
-
-  return <canvas ref={ref} className="pointer-events-none absolute inset-0 h-full w-full" />;
-};
+/* Background starfield is shared — imported from constellation/Starfield. */
 
 /* -------------------------------------------------------------------------- */
 /* Drawer content per node type                                                 */
