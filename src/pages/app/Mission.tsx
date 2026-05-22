@@ -556,6 +556,100 @@ const Mission = () => {
 
       <PatternBanner />
 
+      {/* ── PORTFOLIO · concrete evidence of progress ──────────────────────── */}
+      {(portfolio.lifetime_stats.tasks_completed > 0 ||
+        portfolio.mini_lessons_learned.length > 0 ||
+        portfolio.milestones.length > 0) && (
+        <section>
+          <SectionLabel>Your portfolio · concrete evidence</SectionLabel>
+
+          {/* Lifetime stats strip */}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 mb-4">
+            {[
+              { label: "active days", value: portfolio.lifetime_stats.days_active },
+              { label: "proofs done", value: portfolio.lifetime_stats.tasks_completed },
+              { label: "notes written", value: portfolio.lifetime_stats.notes_written },
+              { label: "reflections", value: portfolio.lifetime_stats.reflections_logged },
+              { label: "lessons banked", value: portfolio.mini_lessons_learned.length },
+            ].map((s) => (
+              <div key={s.label} className="rounded-xl border border-border bg-card px-4 py-3">
+                <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{s.label}</div>
+                <div className="mt-1 text-2xl font-bold text-foreground">{s.value}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Recently completed proofs */}
+            {portfolio.completed_work.length > 0 && (
+              <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+                <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <Trophy className="h-3.5 w-3.5 text-emerald-400/70" /> proofs delivered
+                </div>
+                <ul className="space-y-2.5">
+                  {portfolio.completed_work.slice(0, 6).map((c, i) => (
+                    <li key={i} className="flex items-start gap-2.5 border-l-2 border-emerald-500/30 pl-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13px] font-medium text-foreground leading-snug">{c.title}</div>
+                        {c.proof && (
+                          <div className="mt-0.5 text-[11px] text-emerald-300/80 leading-snug">→ {c.proof}</div>
+                        )}
+                        <div className="mt-0.5 flex items-center gap-2 text-[10px] text-muted-foreground">
+                          {c.completed_at && <span>{new Date(c.completed_at).toLocaleDateString()}</span>}
+                          {c.workstream && wsNameById.get(c.workstream) && (
+                            <span>· {wsNameById.get(c.workstream)}</span>
+                          )}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                {portfolio.completed_work.length > 6 && (
+                  <button onClick={() => navigate("/app/tasks")} className="text-[11px] text-primary hover:underline">
+                    + {portfolio.completed_work.length - 6} more →
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Mini-lessons banked + milestones */}
+            <div className="space-y-4">
+              {portfolio.mini_lessons_learned.length > 0 && (
+                <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+                  <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                    <Lightbulb className="h-3.5 w-3.5 text-amber-300/80" /> lessons banked
+                  </div>
+                  <ul className="space-y-3">
+                    {portfolio.mini_lessons_learned.slice(0, 4).map((l, i) => (
+                      <li key={i} className="border-l-2 border-amber-400/30 pl-3">
+                        <div className="text-[13px] font-medium text-foreground">{l.title}</div>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground leading-snug line-clamp-2">{l.body}</p>
+                        <div className="mt-0.5 text-[10px] text-muted-foreground/70">from "{l.from_task}"</div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {portfolio.milestones.length > 0 && (
+                <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+                  <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                    <Award className="h-3.5 w-3.5 text-primary/80" /> milestones
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {portfolio.milestones.map((mi, i) => (
+                      <span key={i} className="rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-[11px] text-primary">
+                        {mi.replace(/_/g, " ")}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ── 4. WHAT MATTERS NOW ──────────────────────────────────────────────── */}
       {analytics && analytics.needsAttention.length > 0 && (
         <section>
