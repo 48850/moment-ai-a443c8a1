@@ -73,6 +73,24 @@ export interface ChatSnapshot {
   pending_tasks: Array<{ id: string; title: string; minutes: number; priority: string }>;
   week_blocks: Array<{ id: string; day_index: number; start_time: string; end_time: string; title: string; category: string; is_locked: boolean }>;
   learning_portfolio: ReturnType<typeof buildLearningPortfolio>;
+  // ─── Portfolio snapshot: state-aware coaching context ─────────────────────
+  portfolio: {
+    completed_today: Array<{ id: string; title: string; at: string }>;
+    completed_today_count: number;
+    pending_today_count: number;
+    overdue_tasks: Array<{ id: string; title: string; due_date: string; minutes: number }>;
+    missed_tasks_recent: Array<{ id: string; title: string }>;
+    current_block: { id: string; title: string; start_time: string; end_time: string; status: string } | null;
+    next_block: { id: string; title: string; start_time: string; end_time: string } | null;
+    schedule_pressure: "low" | "moderate" | "high" | "critical";
+    pressure_reason: string;
+    top_pressure_task: { id: string; title: string; minutes: number; priority: string } | null;
+    repeated_friction_tags: Array<{ tag: string; count: number }>;
+    alignment_status: string;
+    drift_score: number;
+    constellation_status: { current_bottleneck: string; decisive_move: string } | null;
+    recommended_next_move: { id: string; title: string; minutes: number } | null;
+  };
 }
 
 const SCHEDULE_FIELD_MAP: Array<[keyof MomentState["constraints"], string]> = [
@@ -90,6 +108,12 @@ function isAnswered(value: unknown): boolean {
   if (typeof value === "string") return value.trim() !== "" && value !== "unknown";
   if (Array.isArray(value)) return value.length > 0;
   return Boolean(value);
+}
+
+function timeToMinutes(hhmm: string): number {
+  if (!hhmm || !hhmm.includes(":")) return 0;
+  const [h, m] = hhmm.split(":").map(Number);
+  return (h ?? 0) * 60 + (m ?? 0);
 }
 
 export function selectChatSnapshot(state: MomentState): ChatSnapshot {
@@ -249,5 +273,151 @@ export function selectChatSnapshot(state: MomentState): ChatSnapshot {
       is_locked: !!b.is_locked,
     })),
     learning_portfolio: buildLearningPortfolio(state),
+    portfolio: buildPortfolioSnapshot(state, today, next),
+  };
+}
+
+// ─── Portfolio snapshot: state-aware coaching context ────────────────────────
+function buildPortfolioSnapshot(
+  state: MomentState,
+  today: string,
+  nextMove: ReturnType<typeof selectNextBestTask>["best"],
+): ChatSnapshot["portfolio"] {
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const tasks = state.tasks ?? [];
+  const feedback = state.execution_feedback ?? [];
+  const dayPlan = state.schedule_state?.day_plan ?? [];
+
+  // Completed today
+  const completedTodayList = tasks
+    .filter((t) => t.status === "done" && t.completed_at && t.completed_at.slice(0, 10) === today)
+    .map((t) => ({ id: t.id, title: t.title, at: t.completed_at }));
+
+  // Pending today
+  const pendingToday = tasks.filter(
+    (t) => t.status !== "done" && t.status !== "skipped" && (!t.due_date || t.due_date.slice(0, 10) === today),
+  );
+
+  // Overdue tasks (pending with due_date in past)
+  const overdue = tasks
+    .filter(
+      (t) =>
+        t.status !== "done" &&
+        t.status !== "skipped" &&
+        t.due_date &&
+        t.due_date.slice(0, 10) < today,
+    )
+    .slice(0, 8)
+    .map((t) => ({
+      id: t.id,
+      title: t.title,
+      due_date: t.due_date,
+      minutes: t.estimated_minutes ?? 30,
+    }));
+
+  // Missed-recent: prior days that have been skipped or expired without completion
+  const missedRecent = tasks
+    .filter((t) => t.status === "skipped" || (t.status !== "done" && t.due_date && t.due_date.slice(0, 10) < today))
+    .slice(-6)
+    .map((t) => ({ id: t.id, title: t.title }));
+
+  // Current and next block
+  const currentBlock =
+    dayPlan.find((b) => {
+      const start = timeToMinutes(b.start_time);
+      const end = timeToMinutes(b.end_time);
+      return currentMinutes >= start && currentMinutes < end;
+    }) ?? null;
+  const nextBlock = dayPlan.find((b) => timeToMinutes(b.start_time) > currentMinutes) ?? null;
+
+  // Schedule pressure
+  const totalPendingMinutes = pendingToday.reduce(
+    (sum, t) => sum + (t.estimated_minutes ?? 30),
+    0,
+  );
+  const remainingMinutesToday = Math.max(0, 22 * 60 - currentMinutes);
+  let pressure: ChatSnapshot["portfolio"]["schedule_pressure"] = "low";
+  if (totalPendingMinutes > remainingMinutesToday * 1.5) pressure = "critical";
+  else if (totalPendingMinutes > remainingMinutesToday) pressure = "high";
+  else if (totalPendingMinutes > remainingMinutesToday * 0.7) pressure = "moderate";
+
+  const pressureReason =
+    pressure === "low"
+      ? "plan fits in remaining time"
+      : `${pendingToday.length} pending · ~${totalPendingMinutes}m work vs ~${remainingMinutesToday}m left`;
+
+  // Top pressure task: highest priority + closest deadline
+  const priorityRank: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  const topPressure = [...pendingToday]
+    .sort((a, b) => {
+      const pa = priorityRank[a.priority] ?? 3;
+      const pb = priorityRank[b.priority] ?? 3;
+      if (pa !== pb) return pa - pb;
+      return (a.due_date || "9999").localeCompare(b.due_date || "9999");
+    })[0];
+  const topPressureTask = topPressure
+    ? {
+        id: topPressure.id,
+        title: topPressure.title,
+        minutes: topPressure.estimated_minutes ?? 30,
+        priority: topPressure.priority ?? "medium",
+      }
+    : null;
+
+  // Repeated friction tags (aggregate execution_feedback)
+  const tagCounts: Record<string, number> = {};
+  for (const f of feedback) {
+    if (!f.feedback) continue;
+    tagCounts[f.feedback] = (tagCounts[f.feedback] ?? 0) + 1;
+  }
+  const repeatedFrictionTags = Object.entries(tagCounts)
+    .filter(([, count]) => count >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([tag, count]) => ({ tag, count }));
+
+  return {
+    completed_today: completedTodayList,
+    completed_today_count: completedTodayList.length,
+    pending_today_count: pendingToday.length,
+    overdue_tasks: overdue,
+    missed_tasks_recent: missedRecent,
+    current_block: currentBlock
+      ? {
+          id: currentBlock.id,
+          title: currentBlock.title,
+          start_time: currentBlock.start_time,
+          end_time: currentBlock.end_time,
+          status: currentBlock.status ?? "active",
+        }
+      : null,
+    next_block: nextBlock
+      ? {
+          id: nextBlock.id,
+          title: nextBlock.title,
+          start_time: nextBlock.start_time,
+          end_time: nextBlock.end_time,
+        }
+      : null,
+    schedule_pressure: pressure,
+    pressure_reason: pressureReason,
+    top_pressure_task: topPressureTask,
+    repeated_friction_tags: repeatedFrictionTags,
+    alignment_status: state.alignment?.status ?? "unknown",
+    drift_score: state.alignment?.drift_score ?? 0,
+    constellation_status: state.today_state
+      ? {
+          current_bottleneck: state.today_state.current_bottleneck ?? "",
+          decisive_move: state.today_state.decisive_move ?? "",
+        }
+      : null,
+    recommended_next_move: nextMove
+      ? {
+          id: nextMove.id,
+          title: nextMove.title,
+          minutes: nextMove.estimated_minutes,
+        }
+      : null,
   };
 }
