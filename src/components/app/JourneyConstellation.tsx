@@ -1,182 +1,47 @@
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
-import { Star, CheckCircle2, Circle, Lock, Zap, AlertTriangle, X, Sparkles, Target, Calendar } from "lucide-react";
+import { CheckCircle2, Circle, Lock, Zap, AlertTriangle, X, Sparkles, Target, Calendar, Star } from "lucide-react";
 import type { MomentState } from "@/lib/types";
 import { computeConstellationNodes, type ConstellationNode, type ConstellationNodeType } from "@/lib/selectors/constellation";
-import { Starfield } from "@/components/app/constellation/Starfield";
+import { Starfield, DEEP_SPACE_BG, ConstellationHud } from "@/components/app/constellation/Starfield";
 
 interface Props {
   state: MomentState;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Visual config per node type                                                  */
-/* -------------------------------------------------------------------------- */
-
-const NODE_VISUAL: Record<ConstellationNodeType, {
-  color: string;
-  glowColor: string;
-  icon: React.ComponentType<{ className?: string }>;
-  size: "lg" | "md" | "sm";
-  pulseSpeed: number;
+const NODE_META: Record<ConstellationNodeType, {
+  label: string;
+  Icon: React.ComponentType<{ className?: string }>;
+  tone: string;
+  dot: string;
 }> = {
-  NORTH_STAR:      { color: "#ffd28a", glowColor: "255,210,138", icon: Star,         size: "lg", pulseSpeed: 2.5 },
-  IDENTITY_STAR:   { color: "#f5f5f5", glowColor: "245,245,245", icon: Target,       size: "md", pulseSpeed: 3.0 },
-  TODAY_STAR:      { color: "#fbbf24", glowColor: "251,191,36",  icon: Zap,          size: "md", pulseSpeed: 1.8 },
-  WORKSTREAM_STAR: { color: "#a78bfa", glowColor: "167,139,250", icon: Circle,       size: "md", pulseSpeed: 3.5 },
-  TASK_STAR:       { color: "#e8ecff", glowColor: "232,236,255", icon: Circle,       size: "sm", pulseSpeed: 4.0 },
-  PROOF_STAR:      { color: "#34d399", glowColor: "52,211,153",  icon: CheckCircle2, size: "sm", pulseSpeed: 4.5 },
-  GATE_STAR:       { color: "#6b7280", glowColor: "107,114,128", icon: Lock,         size: "sm", pulseSpeed: 6.0 },
-  FRICTION_STAR:   { color: "#f59e0b", glowColor: "245,158,11",  icon: AlertTriangle, size: "sm", pulseSpeed: 2.0 },
-  SCHEDULE_STAR:   { color: "#60a5fa", glowColor: "96,165,250",  icon: Calendar,     size: "sm", pulseSpeed: 3.8 },
+  NORTH_STAR: { label: "north star", Icon: Star, tone: "border-amber-200/35 bg-amber-200/10 text-amber-100", dot: "bg-amber-200" },
+  IDENTITY_STAR: { label: "identity", Icon: Target, tone: "border-white/20 bg-white/[0.06] text-white", dot: "bg-white/80" },
+  TODAY_STAR: { label: "today", Icon: Zap, tone: "border-amber-300/45 bg-amber-300/10 text-amber-100", dot: "bg-amber-300" },
+  WORKSTREAM_STAR: { label: "lane", Icon: Circle, tone: "border-violet-200/30 bg-violet-200/10 text-violet-100", dot: "bg-violet-200" },
+  TASK_STAR: { label: "task", Icon: Circle, tone: "border-blue-200/25 bg-blue-200/10 text-blue-100", dot: "bg-blue-200" },
+  PROOF_STAR: { label: "proof", Icon: CheckCircle2, tone: "border-emerald-200/30 bg-emerald-200/10 text-emerald-100", dot: "bg-emerald-200" },
+  GATE_STAR: { label: "locked", Icon: Lock, tone: "border-white/10 bg-white/[0.035] text-white/55", dot: "bg-white/35" },
+  FRICTION_STAR: { label: "signal", Icon: AlertTriangle, tone: "border-orange-200/30 bg-orange-200/10 text-orange-100", dot: "bg-orange-200" },
+  SCHEDULE_STAR: { label: "scheduled", Icon: Calendar, tone: "border-sky-200/25 bg-sky-200/10 text-sky-100", dot: "bg-sky-200" },
 };
 
-const SIZE_PX: Record<"lg" | "md" | "sm", number> = { lg: 22, md: 15, sm: 10 };
+const ORDER: ConstellationNodeType[] = [
+  "NORTH_STAR",
+  "IDENTITY_STAR",
+  "TODAY_STAR",
+  "WORKSTREAM_STAR",
+  "TASK_STAR",
+  "SCHEDULE_STAR",
+  "PROOF_STAR",
+  "FRICTION_STAR",
+  "GATE_STAR",
+];
 
-/* -------------------------------------------------------------------------- */
-/* Layout                                                                       */
-/* -------------------------------------------------------------------------- */
-
-interface PositionedNode extends ConstellationNode {
-  x: number;
-  y: number;
-  progress: number;
+function compactText(text?: string, fallback = "No detail logged yet.") {
+  const value = text?.trim() || fallback;
+  return value.length > 138 ? `${value.slice(0, 135)}…` : value;
 }
-
-function layoutNodes(nodes: ConstellationNode[], canvasW: number, canvasH: number): PositionedNode[] {
-  if (nodes.length === 0) return [];
-
-  const total = nodes.length;
-  const paddingX = 100;
-  const paddingY = 100;
-  const usableW = canvasW - paddingX * 2;
-  const usableH = canvasH - paddingY * 2;
-
-  // Priority order for positioning
-  const ORDER: ConstellationNodeType[] = [
-    "NORTH_STAR", "TODAY_STAR", "IDENTITY_STAR",
-    "WORKSTREAM_STAR", "TASK_STAR", "PROOF_STAR",
-    "FRICTION_STAR", "GATE_STAR",
-  ];
-
-  const sorted = [...nodes].sort((a, b) => {
-    const ai = ORDER.indexOf(a.type);
-    const bi = ORDER.indexOf(b.type);
-    return ai - bi;
-  });
-
-  return sorted.map((node, i): PositionedNode => {
-    const progress = total <= 1 ? 0.5 : i / (total - 1);
-    const x = paddingX + usableW * progress;
-    const waveCount = Math.max(2, total / 10);
-    const yOff = Math.sin(progress * Math.PI * 2 * waveCount) * (usableH * 0.38);
-    const y = canvasH / 2 + yOff;
-    return { ...node, x, y, progress };
-  });
-}
-
-/* Background starfield is shared — imported from constellation/Starfield. */
-
-/* -------------------------------------------------------------------------- */
-/* Drawer content per node type                                                 */
-/* -------------------------------------------------------------------------- */
-
-function DrawerContent({ node }: { node: ConstellationNode }) {
-  switch (node.type) {
-    case "NORTH_STAR":
-      return (
-        <div className="space-y-3">
-          <p className="text-sm text-white/80 leading-relaxed">{node.why_it_matters}</p>
-          {node.next_action && (
-            <div className="rounded-lg border border-amber-400/20 bg-amber-400/5 px-3 py-2">
-              <p className="text-xs text-amber-400/70 uppercase tracking-wider mb-1">Next move</p>
-              <p className="text-sm text-white/80">{node.next_action}</p>
-            </div>
-          )}
-        </div>
-      );
-    case "IDENTITY_STAR":
-      return <p className="text-sm text-white/70 leading-relaxed">Who you're becoming: <span className="text-white">{node.title}</span></p>;
-    case "TODAY_STAR":
-      return (
-        <div className="space-y-3">
-          <p className="text-sm text-white/80 leading-relaxed">{node.why_it_matters}</p>
-          <p className="text-xs text-amber-300/70 uppercase tracking-wider">This is your move today.</p>
-        </div>
-      );
-    case "WORKSTREAM_STAR":
-      return (
-        <div className="space-y-2 text-xs text-white/60">
-          {node.subtitle && <div>Status · <span className="text-white/80">{node.subtitle}</span></div>}
-          <p className="text-sm text-white/70">{node.why_it_matters}</p>
-          {node.next_action && <div>Next proof · <span className="text-white/80">{node.next_action}</span></div>}
-        </div>
-      );
-    case "TASK_STAR":
-      return (
-        <div className="space-y-2 text-xs text-white/60">
-          {node.why_it_matters && <p className="text-sm text-white/70">{node.why_it_matters}</p>}
-          {node.subtitle && <div>Priority · <span className="text-white/80">{node.subtitle}</span></div>}
-          {node.stage_fit && (
-            <div>Stage fit · <span className={
-              node.stage_fit === "strong" ? "text-emerald-400" :
-              node.stage_fit === "okay" ? "text-amber-400" : "text-white/50"
-            }>{node.stage_fit}</span></div>
-          )}
-        </div>
-      );
-    case "PROOF_STAR":
-      return (
-        <div className="space-y-2">
-          <p className="text-sm text-emerald-400/80">You advanced the pathway.</p>
-          {node.subtitle && <p className="text-xs text-white/40">Completed {node.subtitle}</p>}
-        </div>
-      );
-    case "GATE_STAR":
-      return (
-        <div className="space-y-3">
-          <p className="text-sm text-white/50 leading-relaxed">{node.why_it_matters}</p>
-          {node.unlock_condition && (
-            <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
-              <p className="text-xs text-white/30 uppercase tracking-wider mb-1">🔒 Unlocks when</p>
-              <p className="text-xs text-white/50">{node.unlock_condition}</p>
-            </div>
-          )}
-        </div>
-      );
-    case "FRICTION_STAR":
-      return (
-        <div className="space-y-2">
-          <p className="text-sm text-white/70">{node.why_it_matters}</p>
-          {node.evidence && node.evidence.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {node.evidence.map((e, i) => (
-                <span key={i} className="px-2 py-0.5 rounded-full text-xs bg-amber-400/10 border border-amber-400/20 text-amber-300/70">{e}</span>
-              ))}
-            </div>
-          )}
-          <p className="text-xs text-white/30">Consider shrinking or clarifying this area.</p>
-        </div>
-      );
-    case "SCHEDULE_STAR":
-      return (
-        <div className="space-y-2 text-xs text-white/60">
-          {node.subtitle && <div>When · <span className="text-white/80">{node.subtitle}</span></div>}
-          <p className="text-sm text-white/70">{node.why_it_matters}</p>
-          {node.status === "locked" && (
-            <div className="text-[11px] text-white/40">Locked block — protected from reform.</div>
-          )}
-        </div>
-      );
-    default:
-      return <p className="text-sm text-white/60">{node.why_it_matters}</p>;
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-/* Component                                                                    */
-/* -------------------------------------------------------------------------- */
 
 export const JourneyConstellation = ({ state }: Props) => {
   const [focused, setFocused] = useState<ConstellationNode | null>(null);
@@ -187,181 +52,115 @@ export const JourneyConstellation = ({ state }: Props) => {
     state.schedule_state?.week_plan, state.schedule_state?.week_plan_generated_at,
   ]);
 
-  const { positioned, canvasWidth, canvasHeight } = useMemo(() => {
-    const total = nodes.length;
-    const widthPerNode = total > 20 ? 140 : 200;
-    const canvasWidth = Math.max(900, total * widthPerNode);
-    const canvasHeight = 520;
-    const positioned = layoutNodes(nodes, canvasWidth, canvasHeight);
-    return { positioned, canvasWidth, canvasHeight };
+  const { route, overflow, counts, nextFocus } = useMemo(() => {
+    const sorted = [...nodes].sort((a, b) => {
+      const byType = ORDER.indexOf(a.type) - ORDER.indexOf(b.type);
+      if (byType !== 0) return byType;
+      if (a.status === "active" && b.status !== "active") return -1;
+      if (b.status === "active" && a.status !== "active") return 1;
+      return a.title.localeCompare(b.title);
+    });
+
+    const primary = sorted.filter((node) => {
+      if (["NORTH_STAR", "IDENTITY_STAR", "TODAY_STAR"].includes(node.type)) return true;
+      if (node.type === "WORKSTREAM_STAR") return true;
+      if (node.type === "TASK_STAR" && node.status === "active") return true;
+      if (node.type === "PROOF_STAR") return true;
+      if (node.type === "FRICTION_STAR") return true;
+      return false;
+    }).slice(0, 12);
+
+    const primaryIds = new Set(primary.map((n) => n.id));
+    const hidden = sorted.filter((n) => !primaryIds.has(n.id));
+    const active = sorted.find((n) => n.type === "TODAY_STAR" || (n.type === "TASK_STAR" && n.status === "active"));
+
+    return {
+      route: primary,
+      overflow: hidden,
+      nextFocus: active,
+      counts: {
+        proofs: nodes.filter((n) => n.type === "PROOF_STAR").length,
+        locked: nodes.filter((n) => n.type === "GATE_STAR").length,
+        active: nodes.filter((n) => n.status === "active").length,
+      },
+    };
   }, [nodes]);
 
-  // Empty state — no filler stars
   if (nodes.length === 0) {
     return (
-      <section
-        className="relative overflow-hidden rounded-2xl border border-border/40 flex items-center justify-center"
-        style={{
-          background: "radial-gradient(ellipse at 30% 20%, #1a1d3d 0%, #0a0d24 45%, #03051a 100%)",
-          minHeight: 280,
-        }}
-      >
-        <Starfield />
-        <div className="relative z-10 text-center space-y-2 px-8">
-          <Sparkles className="w-6 h-6 text-white/20 mx-auto" />
-          <p className="text-white/40 text-sm">
-            Once you set your goal, Moment will map the pathway here.
-          </p>
+      <section className="relative flex min-h-72 items-center justify-center overflow-hidden rounded-2xl border border-border/40" style={{ background: DEEP_SPACE_BG }}>
+        <Starfield density={4200} showShootingStars={false} />
+        <div className="relative z-10 px-8 text-center">
+          <Sparkles className="mx-auto h-6 w-6 text-white/20" />
+          <p className="mt-2 text-sm text-white/40">Once you set your goal, Moment will map the pathway here.</p>
         </div>
       </section>
     );
   }
 
-  const links = positioned.slice(0, -1).map((n, i) => ({ from: n, to: positioned[i + 1] }));
-
   return (
-    <section
-      className="relative overflow-hidden rounded-2xl border border-border/40 shadow-[0_0_40px_-10px_rgba(99,102,241,0.4)]"
-      style={{ background: "radial-gradient(ellipse at 30% 20%, #1a1d3d 0%, #0a0d24 45%, #03051a 100%)" }}
-    >
-      {/* HUD header */}
-      <div className="relative z-10 flex items-center justify-between border-b border-white/10 bg-black/30 px-4 py-2 backdrop-blur">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-3.5 w-3.5 animate-pulse text-amber-200" />
-          <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/60">
-            pathway map · evidence only
-          </span>
-        </div>
-        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/60">
-          {nodes.filter((n) => n.type === "PROOF_STAR").length} proven ·{" "}
-          {nodes.filter((n) => n.type === "GATE_STAR").length} locked
-        </span>
-      </div>
+    <section className="relative overflow-hidden rounded-2xl border border-border/40 shadow-[0_0_40px_-10px_rgba(99,102,241,0.4)]" style={{ background: DEEP_SPACE_BG }}>
+      <ConstellationHud
+        label="journey pathway"
+        meta={`${counts.active} active · ${counts.proofs} proven · ${counts.locked} locked`}
+      />
 
-      <div className="relative h-[420px] w-full">
-        <Starfield />
-        <TransformWrapper
-          minScale={0.4}
-          maxScale={3}
-          initialScale={Math.min(1, 900 / canvasWidth)}
-          centerOnInit
-          wheel={{ step: 0.1 }}
-          doubleClick={{ disabled: true }}
-        >
-          <TransformComponent
-            wrapperStyle={{ width: "100%", height: "100%", position: "relative", zIndex: 1 }}
-            contentStyle={{ width: canvasWidth, height: canvasHeight }}
+      <div className="relative p-4 sm:p-5">
+        <Starfield density={4400} showShootingStars={false} />
+
+        {nextFocus && (
+          <button
+            type="button"
+            onClick={() => setFocused(nextFocus)}
+            className="relative z-10 mb-4 w-full rounded-xl border border-amber-200/25 bg-amber-200/[0.07] p-4 text-left backdrop-blur transition hover:border-amber-100/40"
           >
-            <div className="relative" style={{ width: canvasWidth, height: canvasHeight }}>
-              {/* SVG links */}
-              <svg className="pointer-events-none absolute inset-0" width={canvasWidth} height={canvasHeight}>
-                <defs>
-                  <linearGradient id="trail" x1="0" x2="1" y1="0" y2="0">
-                    <stop offset="0%" stopColor="rgba(163,201,255,0.05)" />
-                    <stop offset="50%" stopColor="rgba(163,201,255,0.4)" />
-                    <stop offset="100%" stopColor="rgba(255,210,138,0.3)" />
-                  </linearGradient>
-                </defs>
-                {links.map((l, i) => {
-                  const dx = l.to.x - l.from.x;
-                  const dy = l.to.y - l.from.y;
-                  const cx = l.from.x + dx / 2;
-                  const cy = l.from.y + dy / 2 - 25;
-                  const path = `M ${l.from.x} ${l.from.y} Q ${cx} ${cy} ${l.to.x} ${l.to.y}`;
-                  return (
-                    <motion.path
-                      key={i}
-                      d={path}
-                      fill="none"
-                      stroke="url(#trail)"
-                      strokeWidth={1}
-                      strokeDasharray="2 5"
-                      initial={{ pathLength: 0, opacity: 0 }}
-                      animate={{ pathLength: 1, opacity: 0.7 }}
-                      transition={{ duration: 1.2, delay: i * 0.04 }}
-                    />
-                  );
-                })}
-              </svg>
+            <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-amber-100/55">what to move next</div>
+            <div className="mt-1 text-sm font-semibold leading-snug text-white">{nextFocus.title}</div>
+            <div className="mt-1 text-xs leading-relaxed text-white/55">{compactText(nextFocus.next_action || nextFocus.why_it_matters)}</div>
+          </button>
+        )}
 
-              {/* Nodes */}
-              <AnimatePresence>
-                {positioned.map((n, i) => {
-                  const visual = NODE_VISUAL[n.type];
-                  const radius = SIZE_PX[visual.size];
-                  const Icon = visual.icon;
-                  const isLocked = n.status === "locked";
-                  const isDimmed = n.status === "dimmed";
-                  const labelAbove = i % 2 === 0;
-                  const opacity = isLocked ? 0.45 : isDimmed ? 0.55 : 1;
+        <div className="relative z-10 grid gap-3">
+          {route.map((node, index) => {
+            const meta = NODE_META[node.type];
+            const Icon = meta.Icon;
+            return (
+              <motion.button
+                key={node.id}
+                type="button"
+                onClick={() => setFocused(node)}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: node.status === "locked" ? 0.58 : 1, y: 0 }}
+                transition={{ delay: index * 0.035 }}
+                className={`relative grid grid-cols-[34px_1fr] gap-3 rounded-xl border p-4 text-left backdrop-blur transition hover:border-white/35 hover:bg-white/[0.075] ${meta.tone}`}
+              >
+                {index < route.length - 1 && (
+                  <span className="absolute left-[31px] top-[52px] h-[calc(100%-16px)] w-px bg-gradient-to-b from-blue-200/35 to-transparent" />
+                )}
+                <span className="relative flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-black/25">
+                  <span className={`absolute h-2.5 w-2.5 rounded-full ${meta.dot} shadow-[0_0_14px_currentColor]`} />
+                  <Icon className="relative h-3.5 w-3.5 opacity-55" />
+                </span>
+                <span className="min-w-0">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="truncate text-sm font-semibold text-current">{node.title}</span>
+                    <span className="rounded-full border border-white/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-white/35">{meta.label}</span>
+                    {node.subtitle && <span className="rounded-full border border-white/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-white/35">{node.subtitle}</span>}
+                  </span>
+                  <span className="mt-1 block text-xs leading-relaxed text-white/55">{compactText(node.next_action || node.why_it_matters)}</span>
+                </span>
+              </motion.button>
+            );
+          })}
+        </div>
 
-                  return (
-                    <motion.button
-                      key={n.id}
-                      type="button"
-                      onClick={() => setFocused(n)}
-                      initial={{ opacity: 0, scale: 0.2 }}
-                      animate={{ opacity, scale: 1 }}
-                      transition={{ delay: i * 0.04, type: "spring", stiffness: 180, damping: 14 }}
-                      className="absolute flex items-center justify-center rounded-full transition-transform hover:scale-125"
-                      style={{
-                        width: radius * 2,
-                        height: radius * 2,
-                        left: n.x - radius,
-                        top: n.y - radius,
-                        background: `radial-gradient(circle, ${visual.color} 0%, rgba(${visual.glowColor},0.5) 55%, transparent 75%)`,
-                        boxShadow: isLocked
-                          ? `0 0 ${radius}px rgba(${visual.glowColor},0.2)`
-                          : `0 0 ${radius * 2}px rgba(${visual.glowColor},0.7), 0 0 ${radius * 4}px rgba(${visual.glowColor},0.3)`,
-                        filter: isDimmed ? "grayscale(0.5)" : "none",
-                      }}
-                      aria-label={n.title}
-                    >
-                      <motion.span
-                        className="absolute inset-0 rounded-full"
-                        animate={{
-                          opacity: [0.5, 1, 0.5],
-                          scale: [1, 1.12, 1],
-                        }}
-                        transition={{
-                          duration: visual.pulseSpeed,
-                          repeat: Infinity,
-                          ease: "easeInOut",
-                        }}
-                        style={{ background: `radial-gradient(circle, rgba(${visual.glowColor},0.4) 0%, transparent 70%)` }}
-                      />
-                      {visual.size !== "sm" && (
-                        <Icon className="relative h-3 w-3 text-black/50" />
-                      )}
-                      <span
-                        className={`pointer-events-none absolute left-1/2 w-28 -translate-x-1/2 text-center font-mono text-[9px] leading-tight ${
-                          isLocked ? "text-white/30" : "text-white/65"
-                        } ${labelAbove ? "bottom-full mb-1.5" : "top-full mt-1.5"}`}
-                        style={{ textShadow: "0 0 6px rgba(0,0,0,0.9)" }}
-                      >
-                        {n.title.length > 28 ? `${n.title.slice(0, 27)}…` : n.title}
-                        {isLocked && " 🔒"}
-                      </span>
-                    </motion.button>
-                  );
-                })}
-              </AnimatePresence>
-            </div>
-          </TransformComponent>
-        </TransformWrapper>
+        {overflow.length > 0 && (
+          <div className="relative z-10 mt-3 rounded-xl border border-white/10 bg-black/20 p-3 font-mono text-[10px] uppercase tracking-[0.18em] text-white/35">
+            + {overflow.length} background signal{overflow.length === 1 ? "" : "s"} hidden to keep the route readable
+          </div>
+        )}
       </div>
 
-      {/* Footer */}
-      <div className="relative z-10 flex items-center justify-between border-t border-white/10 bg-black/30 px-4 py-2 backdrop-blur">
-        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/50">
-          pinch · scroll · drag
-        </span>
-        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/50">
-          {nodes.length} stars mapped
-        </span>
-      </div>
-
-      {/* Focus drawer */}
       <AnimatePresence>
         {focused && (
           <motion.aside
@@ -369,22 +168,31 @@ export const JourneyConstellation = ({ state }: Props) => {
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", stiffness: 260, damping: 28 }}
-            className="absolute right-0 top-0 z-20 flex h-full w-72 flex-col gap-3 border-l border-white/10 bg-black/80 p-5 backdrop-blur-xl"
+            className="absolute right-0 top-0 z-20 flex h-full w-full max-w-sm flex-col gap-3 border-l border-white/10 bg-black/85 p-5 backdrop-blur-xl"
           >
-            <div className="flex items-start justify-between">
-              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/50">
-                {focused.type.replace(/_/g, " ").toLowerCase()}
+            <div className="flex items-start justify-between gap-3">
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">
+                {NODE_META[focused.type].label}
               </span>
-              <button
-                onClick={() => setFocused(null)}
-                className="rounded-full p-1 text-white/70 hover:bg-white/10"
-                aria-label="Close"
-              >
+              <button onClick={() => setFocused(null)} className="rounded-full p-1 text-white/70 hover:bg-white/10" aria-label="Close">
                 <X className="h-4 w-4" />
               </button>
             </div>
             <h3 className="text-base font-semibold leading-snug text-white">{focused.title}</h3>
-            <DrawerContent node={focused} />
+            <p className="text-sm leading-relaxed text-white/65">{focused.why_it_matters}</p>
+            {focused.next_action && (
+              <div className="rounded-lg border border-amber-200/20 bg-amber-200/5 px-3 py-2">
+                <div className="font-mono text-[10px] uppercase tracking-wider text-amber-100/55">next action</div>
+                <div className="mt-1 text-sm text-white/80">{focused.next_action}</div>
+              </div>
+            )}
+            {focused.evidence && focused.evidence.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {focused.evidence.slice(0, 5).map((item, i) => (
+                  <span key={`${item}-${i}`} className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-xs text-white/45">{item}</span>
+                ))}
+              </div>
+            )}
           </motion.aside>
         )}
       </AnimatePresence>
