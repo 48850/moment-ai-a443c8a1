@@ -197,7 +197,7 @@ export function Constellation({
 
   if (blocks.length === 0) return null;
 
-  const doneCount = blocks.filter((b) => b.status === "completed" || b.status === "done").length;
+  const doneCount = blocks.filter((b) => b.status === "completed").length;
 
   return (
     <div
