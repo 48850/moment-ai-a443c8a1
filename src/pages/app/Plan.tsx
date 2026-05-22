@@ -209,10 +209,9 @@ function MonthConstellation({ state, milestone }: { state: MomentState; mileston
   return (
     <div
       className="relative overflow-hidden rounded-2xl border border-white/10 p-5 space-y-4 shadow-[0_0_40px_-15px_rgba(99,102,241,0.4)]"
-      style={{ background: "radial-gradient(ellipse at 30% 15%, #1a1d3d 0%, #0a0e24 50%, #03051a 100%)" }}
+      style={{ background: DEEP_SPACE_BG }}
     >
-      {/* starfield bg */}
-      <MonthStarfield />
+      <Starfield density={5600} nebulaHue="indigo" showShootingStars={false} />
 
       <div className="relative z-10 flex items-baseline justify-between">
         <div>
@@ -249,48 +248,21 @@ function MonthConstellation({ state, milestone }: { state: MomentState; mileston
           const isScheduled = scheduledDays.has(dow);
           const intensity = maxCount > 0 ? count / maxCount : 0;
 
-          // Visual: star brightness scales with completions. Empty past days = dim point.
-          const starSize = count > 0 ? 6 + intensity * 8 : 2;
-          const starColor = count > 0
-            ? `rgba(255, 230, 170, ${0.55 + intensity * 0.45})`
-            : isFuture && isScheduled
-              ? "rgba(180,210,255,0.45)"
-              : "rgba(255,255,255,0.18)";
-          const starGlow = count > 0
-            ? `0 0 ${8 + intensity * 16}px rgba(255,210,138,${0.4 + intensity * 0.5})`
-            : isFuture && isScheduled
-              ? "0 0 6px rgba(180,210,255,0.35)"
-              : "none";
-
           return (
             <div
               key={c.key}
               title={`${monthLabel.split(" ")[0]} ${c.day} · ${count} completed${isScheduled ? " · scheduled" : ""}`}
-              className={`group relative aspect-square rounded-md flex items-center justify-center transition-all ${
-                isToday ? "ring-1 ring-amber-200/60 ring-offset-1 ring-offset-[#0a0e24]" : ""
-              } ${count > 0 ? "border border-amber-200/15" : "border border-white/5"} hover:border-white/30`}
+              className={`group relative aspect-square rounded-lg border p-1 transition-all ${
+                isToday ? "border-amber-200/55 bg-amber-200/10 ring-1 ring-amber-200/45 ring-offset-1 ring-offset-[#0a0e24]" :
+                count > 0 ? "border-emerald-200/30 bg-emerald-200/10" :
+                isFuture && isScheduled ? "border-blue-200/20 bg-blue-200/10" : "border-white/8 bg-white/[0.025]"
+              } hover:border-white/30`}
             >
-              {/* The "star" */}
-              <span
-                className="absolute rounded-full"
-                style={{
-                  width: starSize,
-                  height: starSize,
-                  background: starColor,
-                  boxShadow: starGlow,
-                  animation: count > 0 ? `month-twinkle ${2 + (c.day % 4) * 0.4}s ease-in-out infinite` : undefined,
-                }}
-              />
-              <span className={`relative z-10 font-mono text-[9px] ${
-                isToday ? "text-amber-200" : count > 0 ? "text-white/85" : "text-white/30"
-              }`}>
-                {c.day}
-              </span>
-              {count > 1 && (
-                <span className="absolute bottom-0.5 right-0.5 z-10 rounded-full bg-black/60 px-1 font-mono text-[8px] font-medium text-amber-200">
-                  {count}
-                </span>
-              )}
+              <div className="flex h-full flex-col justify-between">
+                <span className={`font-mono text-[9px] ${isToday ? "text-amber-100" : count > 0 ? "text-white/80" : "text-white/30"}`}>{c.day}</span>
+                <span className={`h-1.5 rounded-full ${count > 0 ? "bg-emerald-200" : isFuture && isScheduled ? "bg-blue-200/55" : "bg-white/15"}`} style={{ width: count > 0 ? `${35 + intensity * 65}%` : isFuture && isScheduled ? "45%" : "20%" }} />
+                <span className="font-mono text-[8px] text-white/35">{count > 0 ? `${count} done` : isFuture && isScheduled ? "set" : ""}</span>
+              </div>
             </div>
           );
         })}
@@ -310,41 +282,6 @@ function MonthConstellation({ state, milestone }: { state: MomentState; mileston
         <div>resets on the 1st</div>
       </div>
 
-      <style>{`
-        @keyframes month-twinkle {
-          0%, 100% { opacity: 0.7; transform: scale(1); }
-          50%      { opacity: 1;   transform: scale(1.18); }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-/** Tiny starfield used inside the MonthConstellation card. */
-function MonthStarfield() {
-  return (
-    <div className="pointer-events-none absolute inset-0">
-      {Array.from({ length: 28 }).map((_, i) => {
-        const left = (i * 37) % 100;
-        const top = (i * 53) % 100;
-        const size = 1 + (i % 3) * 0.5;
-        const delay = (i * 0.13) % 3;
-        return (
-          <span
-            key={i}
-            className="absolute rounded-full bg-white"
-            style={{
-              left: `${left}%`,
-              top: `${top}%`,
-              width: size,
-              height: size,
-              opacity: 0.3 + ((i % 4) * 0.15),
-              animation: `month-twinkle ${2 + (i % 3) * 0.6}s ease-in-out infinite`,
-              animationDelay: `${delay}s`,
-            }}
-          />
-        );
-      })}
     </div>
   );
 }
