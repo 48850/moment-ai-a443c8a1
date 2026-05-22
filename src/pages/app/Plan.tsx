@@ -131,30 +131,37 @@ function WeekConstellation({ state }: { state: MomentState }) {
   const totalDone = days.reduce((s, d) => s + d.completed, 0);
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">This week's shape</div>
-        <div className="text-xs text-muted-foreground">
+    <div className="relative overflow-hidden rounded-2xl border border-white/10 p-4" style={{ background: DEEP_SPACE_BG }}>
+      <Starfield density={5200} nebulaHue="teal" showShootingStars={false} />
+      <div className="relative z-10 mb-4 flex items-center justify-between">
+        <div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/45">week pathway</div>
+          <div className="mt-1 text-sm font-semibold text-white">Seven-day route</div>
+        </div>
+        <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/45">
           {totalBlocks} block{totalBlocks === 1 ? "" : "s"} · {totalDone} done
         </div>
       </div>
       {totalBlocks === 0 ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="relative z-10 text-xs text-white/50">
           No week plan yet. Use the grid below to seed one.
         </p>
       ) : (
-        <div className="flex items-end gap-2 h-16">
+        <div className="relative z-10 grid gap-2 sm:grid-cols-7">
           {days.map((d) => (
-            <div key={d.label} className="flex flex-1 flex-col items-center gap-1">
-              <div
-                className={`w-full rounded-sm transition-all ${
-                  d.blocks > 0 ? "bg-primary/40" : "bg-border"
-                } ${d.isToday ? "ring-1 ring-primary" : ""}`}
-                style={{ height: `${Math.max(8, Math.min(56, d.blocks * 10))}px` }}
-                title={`${d.blocks} block${d.blocks === 1 ? "" : "s"}`}
-              />
-              <div className="text-[9px] text-muted-foreground">{d.label}</div>
-              {d.completed > 0 && <div className="text-[9px] font-medium text-emerald-400">✓{d.completed}</div>}
+            <div
+              key={d.label}
+              className={`relative rounded-xl border p-3 transition ${
+                d.isToday ? "border-amber-200/40 bg-amber-200/10" : d.blocks > 0 ? "border-blue-200/20 bg-blue-200/10" : "border-white/10 bg-white/[0.035]"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/50">{d.label}</div>
+                <span className={`h-2.5 w-2.5 rounded-full ${d.completed > 0 ? "bg-emerald-200" : d.blocks > 0 ? "bg-blue-200/70" : "bg-white/25"}`} />
+              </div>
+              <div className="mt-3 text-lg font-semibold text-white">{d.blocks}</div>
+              <div className="mt-1 text-[11px] text-white/45">planned block{d.blocks === 1 ? "" : "s"}</div>
+              {d.completed > 0 && <div className="mt-2 text-[11px] font-medium text-emerald-200">{d.completed} proof{d.completed === 1 ? "" : "s"} done</div>}
             </div>
           ))}
         </div>
