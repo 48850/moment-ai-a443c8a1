@@ -406,6 +406,8 @@ const Mission = () => {
   const forgeSignals = (state.forge_state?.forge_signals ?? []) as Array<Record<string, string>>;
   const recentReflections = [...(state.reflections ?? [])].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
   const hasAnyEvidence = doneTasks.length > 0 || forgeSignals.length > 0 || recentReflections.length > 0;
+  const portfolio = buildLearningPortfolio(state);
+  const wsNameById = new Map((m.workstreams ?? []).map((w) => [w.id, w.name]));
 
   /* Trend delta vs yesterday */
   const trendDelta = missionHistory.length >= 2 && analytics
