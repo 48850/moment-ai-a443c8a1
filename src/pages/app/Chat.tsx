@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { selectChatSnapshot } from "@/lib/selectors/chat";
 import { buildContextPacket } from "@/lib/ai/context-packet";
+import { ChatContextBanner } from "@/components/app/chat/ChatContextBanner";
 import type { ChatMessage } from "@/lib/types";
 
 const SCHEDULE_FIELDS: { key: string; label: string }[] = [
@@ -554,8 +555,12 @@ const Chat = () => {
         </section>
       )}
 
-      {/* Schedule Info status — only shown in default mode */}
-      {!isSpecialisation && (
+      {/* Default mode: show portfolio context banner when schedule is complete, schedule-info checklist while still missing fields */}
+      {!isSpecialisation && state && missing.length === 0 && (
+        <ChatContextBanner snapshot={selectChatSnapshot(state)} />
+      )}
+
+      {!isSpecialisation && missing.length > 0 && (
         <section className="mb-3 rounded-xl border border-border bg-card p-3">
           <div className="mb-2 flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
             <Sparkles className="h-3 w-3 text-primary" /> schedule info

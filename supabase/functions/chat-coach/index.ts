@@ -594,6 +594,69 @@ function systemPrompt(snap: ChatSnapshot): string {
       ? "Tone: be more direct. The user wants sharper, less hedged answers."
       : "Tone: warm but unsentimental. Sound like a thoughtful older friend.";
 
+  // Portfolio snapshot — state-aware coaching block
+  const portfolio = (snap as any).portfolio ?? null;
+  const portfolioBlock = portfolio
+    ? `PORTFOLIO SNAPSHOT (state-aware — reference these specifics, do not be generic):
+- Completed today: ${portfolio.completed_today_count} (${
+        portfolio.completed_today?.length
+          ? portfolio.completed_today.map((t: any) => `"${t.title}"`).join(", ")
+          : "nothing yet today"
+      })
+- Pending today: ${portfolio.pending_today_count}
+- Overdue: ${portfolio.overdue_tasks?.length ?? 0}${
+        portfolio.overdue_tasks?.length
+          ? ` (${portfolio.overdue_tasks
+              .slice(0, 3)
+              .map((t: any) => `"${t.title}" due ${t.due_date.slice(0, 10)}`)
+              .join("; ")})`
+          : ""
+      }
+- Missed recent: ${portfolio.missed_tasks_recent?.length ?? 0}${
+        portfolio.missed_tasks_recent?.length
+          ? ` (${portfolio.missed_tasks_recent.slice(0, 3).map((t: any) => `"${t.title}"`).join(", ")})`
+          : ""
+      }
+- Current block: ${
+        portfolio.current_block
+          ? `${portfolio.current_block.start_time}–${portfolio.current_block.end_time} "${portfolio.current_block.title}" [${portfolio.current_block.status}]`
+          : "(none active right now)"
+      }
+- Next block: ${
+        portfolio.next_block
+          ? `${portfolio.next_block.start_time} "${portfolio.next_block.title}"`
+          : "(nothing scheduled after this)"
+      }
+- Schedule pressure: ${portfolio.schedule_pressure} (${portfolio.pressure_reason})
+- Top pressure task: ${
+        portfolio.top_pressure_task
+          ? `"${portfolio.top_pressure_task.title}" (~${portfolio.top_pressure_task.minutes}m, ${portfolio.top_pressure_task.priority})`
+          : "(none)"
+      }
+- Recommended next move: ${
+        portfolio.recommended_next_move
+          ? `"${portfolio.recommended_next_move.title}" (~${portfolio.recommended_next_move.minutes}m)`
+          : "(unset)"
+      }
+- Repeated friction tags: ${
+        portfolio.repeated_friction_tags?.length
+          ? portfolio.repeated_friction_tags.map((t: any) => `${t.tag} (${t.count}×)`).join(", ")
+          : "none"
+      }
+- Alignment: ${portfolio.alignment_status} (drift ${portfolio.drift_score})
+- Today's bottleneck: ${portfolio.constellation_status?.current_bottleneck || "(unset)"}
+- Today's decisive move: ${portfolio.constellation_status?.decisive_move || "(unset)"}
+
+PORTFOLIO-AWARE COACHING RULES:
+- Reference the portfolio specifics by name (task title, block name, exact counts) — never paraphrase generically.
+- If schedule_pressure is "high" or "critical", name the math directly: "${portfolio.pending_today_count} tasks, ~${portfolio.recommended_next_move?.minutes ?? 0}m on the top one, remaining time is short." Then protect the one task that matters most.
+- If completed_today_count > 0, name a real completion before suggesting more work.
+- If repeated_friction_tags has entries, acknowledge the pattern by name (e.g. "you've marked things too_big 3×") and shrink, don't push.
+- If alignment_status is "drifting" or "overwhelmed", soften and narrow to one tiny next step — do not pile on tasks.
+- If overdue_tasks exist, name the top one and suggest one small action on it (break_down, start_task), not a status report.
+- Never say "you got this" or any motivational filler. Connect every line to a real portfolio entry above.`
+    : "";
+
   return `You are Moment — a calm, sharp coach for an ambitious person named ${name}. Talk like a thoughtful older friend, never like a productivity app. ${toneLine}
 
 STYLE — STRICT
@@ -638,6 +701,8 @@ TODAY'S PLAN:
 ${plan}
 
 NEXT MOVE: ${next}
+
+${portfolioBlock}
 
 RECENTLY COMPLETED (${completedCount} total):
 ${completed}
