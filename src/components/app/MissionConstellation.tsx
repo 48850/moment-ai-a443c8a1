@@ -2,12 +2,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
 import type { CompiledPursuitModel } from "@/lib/types";
 import type { WorkstreamAnalytics } from "@/lib/selectors/mission-analytics";
+import { Starfield, DEEP_SPACE_BG, ConstellationHud } from "@/components/app/constellation/Starfield";
 
 interface Node extends d3.SimulationNodeDatum {
   id: string;
   label: string;
   kind: "goal" | "workstream" | "capability" | "signal";
-  health?: number; // 0-100
+  health?: number;
   status?: string;
   meta?: string;
 }
@@ -23,11 +24,18 @@ interface Props {
   onWorkstreamClick?: (id: string) => void;
 }
 
-/**
- * Mission Constellation — same force-directed visual language as Plan's
- * constellation map. Nodes = goal core, workstreams (sized by health),
- * capabilities, signals. Links carry the relationship semantics.
- */
+/* Deep-space themed colors */
+const HEALTHY_COLOR  = "rgb(180,210,255)"; // blue-white star
+const SLIPPING_COLOR = "rgb(251,191,36)";  // amber
+const STALLED_COLOR  = "rgb(248,113,113)"; // red
+const GOAL_COLOR     = "rgb(255,225,170)"; // warm north-star
+const CAP_COLOR      = "rgb(167,139,250)"; // violet
+const SIG_COLOR      = "rgb(110,231,183)"; // green
+const LINK_COLOR     = "rgba(163,201,255,0.5)";
+
+const healthColor = (h: number) =>
+  h >= 70 ? HEALTHY_COLOR : h >= 45 ? SLIPPING_COLOR : STALLED_COLOR;
+
 export function MissionConstellation({ model, analytics, onWorkstreamClick }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hovered, setHovered] = useState<Node | null>(null);
@@ -56,7 +64,6 @@ export function MissionConstellation({ model, analytics, onWorkstreamClick }: Pr
 
     for (const cap of model.capability_clusters) {
       nodes.push({ id: cap.id, label: cap.name, kind: "capability", status: cap.status });
-      // attach to two nearest workstreams by name token overlap
       const capTokens = new Set(cap.name.toLowerCase().split(/\W+/).filter((x) => x.length > 3));
       const scored = model.workstreams.map((w) => {
         const wt = w.name.toLowerCase().split(/\W+/);
@@ -71,7 +78,6 @@ export function MissionConstellation({ model, analytics, onWorkstreamClick }: Pr
 
     for (const sig of model.evidence_signals) {
       nodes.push({ id: sig.id, label: sig.name, kind: "signal", meta: sig.last_value });
-      // attach to first workstream containing a token
       const sigTokens = sig.name.toLowerCase().split(/\W+/).filter((x) => x.length > 3);
       const w = model.workstreams.find((ws) => {
         const wt = ws.name.toLowerCase();
@@ -83,6 +89,13 @@ export function MissionConstellation({ model, analytics, onWorkstreamClick }: Pr
     return { nodes, links };
   }, [model, analytics]);
 
+  // Quick intelligence summary for HUD
+  const intel = useMemo(() => {
+    const healthy = analytics.filter((a) => a.health >= 70).length;
+    const stalled = analytics.filter((a) => a.health < 45).length;
+    return { total: analytics.length, healthy, stalled };
+  }, [analytics]);
+
   useEffect(() => {
     if (!svgRef.current || data.nodes.length === 0) return;
     const width = svgRef.current.clientWidth;
@@ -90,46 +103,38 @@ export function MissionConstellation({ model, analytics, onWorkstreamClick }: Pr
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
-    const css = getComputedStyle(svgRef.current);
-    const tok = (n: string) => `hsl(${css.getPropertyValue(n).trim()})`;
-    const primary = tok("--primary");
-    const border = tok("--border");
-    const muted = tok("--muted-foreground");
-    const card = tok("--card");
-    const fg = tok("--foreground");
-
-    const healthColor = (h: number) =>
-      h >= 70 ? primary : h >= 45 ? "hsl(38 92% 60%)" : "hsl(0 72% 60%)";
-
-    const linkColor: Record<Link["kind"], string> = {
-      anchors: primary,
-      supports: border,
-      evidences: muted,
-    };
+    // SVG defs: glow filter + gradient for pathway lines
+    const defs = svg.append("defs");
+    const glow = defs.append("filter").attr("id", "star-glow").attr("x", "-100%").attr("y", "-100%").attr("width", "300%").attr("height", "300%");
+    glow.append("feGaussianBlur").attr("stdDeviation", "3").attr("result", "blur");
+    const merge = glow.append("feMerge");
+    merge.append("feMergeNode").attr("in", "blur");
+    merge.append("feMergeNode").attr("in", "SourceGraphic");
 
     const sim = d3
       .forceSimulation<Node>(data.nodes)
       .force("link", d3.forceLink<Node, Link>(data.links).id((d) => d.id)
-        .distance((l) => l.kind === "anchors" ? 110 : 70).strength((l) => l.weight))
-      .force("charge", d3.forceManyBody().strength((d: any) => d.kind === "goal" ? -600 : -180))
+        .distance((l) => l.kind === "anchors" ? 120 : 75).strength((l) => l.weight))
+      .force("charge", d3.forceManyBody().strength((d: any) => d.kind === "goal" ? -700 : -200))
       .force("center", d3.forceCenter(width / 2, height / 2))
       .force("collision", d3.forceCollide().radius((d: any) =>
-        d.kind === "goal" ? 32 : d.kind === "workstream" ? 22 : 14));
+        d.kind === "goal" ? 36 : d.kind === "workstream" ? 24 : 14));
 
-    // pin goal to center
     const goalNode = data.nodes.find((n) => n.kind === "goal");
     if (goalNode) { goalNode.fx = width / 2; goalNode.fy = height / 2; }
 
     const g = svg.append("g");
 
+    // Pathway links — bright trails from goal to workstreams, faint dashes elsewhere
     const link = g.append("g")
       .selectAll("line")
       .data(data.links)
       .join("line")
-      .attr("stroke", (d) => linkColor[d.kind])
-      .attr("stroke-opacity", (d) => d.kind === "anchors" ? 0.5 : 0.25)
-      .attr("stroke-width", (d) => d.kind === "anchors" ? 1.5 : 1)
-      .attr("stroke-dasharray", (d) => d.kind === "supports" ? "3 3" : "none");
+      .attr("stroke", (d) => d.kind === "anchors" ? LINK_COLOR : "rgba(255,255,255,0.18)")
+      .attr("stroke-opacity", (d) => d.kind === "anchors" ? 0.7 : 0.35)
+      .attr("stroke-width", (d) => d.kind === "anchors" ? 1.5 : 0.8)
+      .attr("stroke-dasharray", (d) => d.kind === "anchors" ? "none" : "2 4")
+      .attr("filter", (d) => d.kind === "anchors" ? "url(#star-glow)" : null);
 
     const node = g.append("g")
       .selectAll("g")
@@ -144,44 +149,61 @@ export function MissionConstellation({ model, analytics, onWorkstreamClick }: Pr
         .on("drag", (event) => { event.subject.fx = event.x; event.subject.fy = event.y; })
         .on("end", (event) => { if (!event.active) sim.alphaTarget(0); if (event.subject.kind !== "goal") { event.subject.fx = null; event.subject.fy = null; } }) as any);
 
-    // glow ring for workstreams
-    node.filter((d) => d.kind === "workstream")
-      .append("circle")
-      .attr("r", (d) => 14 + ((d.health ?? 0) / 100) * 8)
-      .attr("fill", "none")
-      .attr("stroke", (d) => healthColor(d.health ?? 0))
-      .attr("stroke-opacity", 0.18)
-      .attr("stroke-width", 8);
-
+    // Outer glow halo
     node.append("circle")
-      .attr("r", (d) => d.kind === "goal" ? 22 : d.kind === "workstream" ? 10 + ((d.health ?? 0) / 100) * 5 : d.kind === "capability" ? 5 : 4)
+      .attr("r", (d) => d.kind === "goal" ? 32 : d.kind === "workstream" ? 18 + ((d.health ?? 0) / 100) * 8 : d.kind === "capability" ? 10 : 8)
       .attr("fill", (d) => {
-        if (d.kind === "goal") return primary;
+        if (d.kind === "goal") return GOAL_COLOR;
         if (d.kind === "workstream") return healthColor(d.health ?? 0);
-        return card;
+        if (d.kind === "capability") return CAP_COLOR;
+        return SIG_COLOR;
       })
-      .attr("stroke", (d) => d.kind === "workstream" ? "hsl(var(--background))" : border)
-      .attr("stroke-width", (d) => d.kind === "workstream" ? 2 : 1);
+      .attr("opacity", 0.18)
+      .attr("filter", "url(#star-glow)");
 
+    // Core star
+    node.append("circle")
+      .attr("r", (d) => d.kind === "goal" ? 10 : d.kind === "workstream" ? 5 + ((d.health ?? 0) / 100) * 3 : d.kind === "capability" ? 3.5 : 3)
+      .attr("fill", (d) => {
+        if (d.kind === "goal") return GOAL_COLOR;
+        if (d.kind === "workstream") return healthColor(d.health ?? 0);
+        if (d.kind === "capability") return CAP_COLOR;
+        return SIG_COLOR;
+      })
+      .attr("filter", "url(#star-glow)");
+
+    // Twinkle pulse for goal + workstreams
+    node.filter((d) => d.kind === "goal" || d.kind === "workstream")
+      .append("circle")
+      .attr("r", (d) => d.kind === "goal" ? 10 : 5)
+      .attr("fill", "none")
+      .attr("stroke", (d) => d.kind === "goal" ? GOAL_COLOR : healthColor(d.health ?? 0))
+      .attr("stroke-opacity", 0.5)
+      .attr("stroke-width", 1)
+      .style("animation", "constellation-pulse 2.6s ease-in-out infinite");
+
+    // Goal label
     node.filter((d) => d.kind === "goal")
       .append("text")
-      .text("GOAL")
+      .text("NORTH STAR")
       .attr("text-anchor", "middle")
-      .attr("dy", 4)
-      .attr("font-size", "10px")
-      .attr("font-weight", "700")
-      .attr("letter-spacing", "1.5")
-      .attr("fill", "hsl(var(--primary-foreground))");
+      .attr("dy", -22)
+      .attr("font-size", "9px")
+      .attr("font-weight", "600")
+      .attr("letter-spacing", "2")
+      .attr("fill", "rgba(255,225,170,0.9)");
 
+    // Other labels
     node.filter((d) => d.kind !== "goal")
       .append("text")
-      .text((d) => d.label.length > 22 ? d.label.slice(0, 20) + "…" : d.label)
-      .attr("x", (d) => d.kind === "workstream" ? 18 : 10)
+      .text((d) => d.label.length > 24 ? d.label.slice(0, 22) + "…" : d.label)
+      .attr("x", (d) => d.kind === "workstream" ? 16 : 10)
       .attr("y", 4)
-      .attr("font-size", (d) => d.kind === "workstream" ? "11px" : "9px")
+      .attr("font-size", (d) => d.kind === "workstream" ? "11px" : "9.5px")
       .attr("font-weight", (d) => d.kind === "workstream" ? "600" : "400")
-      .attr("fill", (d) => d.kind === "workstream" ? fg : muted)
-      .attr("pointer-events", "none");
+      .attr("fill", (d) => d.kind === "workstream" ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.55)")
+      .attr("pointer-events", "none")
+      .attr("style", "text-shadow: 0 0 6px rgba(0,0,0,0.9)");
 
     sim.on("tick", () => {
       link
@@ -198,32 +220,47 @@ export function MissionConstellation({ model, analytics, onWorkstreamClick }: Pr
   if (data.nodes.length <= 1) return null;
 
   return (
-    <div className="relative h-[420px] w-full overflow-hidden rounded-2xl border border-border bg-card/50">
-      <div className="absolute left-3 top-3 z-10 flex flex-col gap-1">
-        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-          mission constellation
-        </span>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1"><div className="h-2 w-2 rounded-full bg-primary" /><span className="text-[9px] text-muted-foreground">healthy</span></div>
-          <div className="flex items-center gap-1"><div className="h-2 w-2 rounded-full" style={{ background: "hsl(38 92% 60%)" }} /><span className="text-[9px] text-muted-foreground">slipping</span></div>
-          <div className="flex items-center gap-1"><div className="h-2 w-2 rounded-full" style={{ background: "hsl(0 72% 60%)" }} /><span className="text-[9px] text-muted-foreground">stalled</span></div>
+    <div
+      className="relative h-[440px] w-full overflow-hidden rounded-2xl border border-white/10 shadow-[0_0_40px_-10px_rgba(99,102,241,0.4)]"
+      style={{ background: DEEP_SPACE_BG }}
+    >
+      <ConstellationHud
+        label="mission constellation"
+        meta={`${intel.healthy} bright · ${intel.stalled} dim · ${intel.total} lanes`}
+      />
+      <div className="relative h-[calc(100%-37px)] w-full">
+        <Starfield density={2800} nebulaHue="indigo" />
+        {/* Legend */}
+        <div className="absolute left-3 top-3 z-10 flex flex-col gap-1.5">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full" style={{ background: HEALTHY_COLOR, boxShadow: `0 0 6px ${HEALTHY_COLOR}` }} /><span className="text-[9px] uppercase tracking-wider text-white/60">healthy</span></div>
+            <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full" style={{ background: SLIPPING_COLOR, boxShadow: `0 0 6px ${SLIPPING_COLOR}` }} /><span className="text-[9px] uppercase tracking-wider text-white/60">slipping</span></div>
+            <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full" style={{ background: STALLED_COLOR, boxShadow: `0 0 6px ${STALLED_COLOR}` }} /><span className="text-[9px] uppercase tracking-wider text-white/60">dim</span></div>
+          </div>
         </div>
-      </div>
-      {hovered && hovered.kind === "workstream" && (
-        <div className="absolute right-3 top-3 z-10 max-w-[55%] rounded-xl border border-border bg-background/90 p-2.5 backdrop-blur">
-          <div className="text-xs font-semibold">{hovered.label}</div>
-          {hovered.meta && <div className="mt-0.5 text-[11px] text-muted-foreground">{hovered.meta}</div>}
-          {typeof hovered.health === "number" && (
-            <div className="mt-1.5 flex items-center gap-2">
-              <div className="h-1 flex-1 overflow-hidden rounded-full bg-secondary">
-                <div className="h-full rounded-full bg-primary" style={{ width: `${hovered.health}%` }} />
+        {hovered && hovered.kind === "workstream" && (
+          <div className="absolute right-3 top-3 z-10 max-w-[55%] rounded-xl border border-white/10 bg-black/70 p-2.5 backdrop-blur">
+            <div className="text-xs font-semibold text-white">{hovered.label}</div>
+            {hovered.meta && <div className="mt-0.5 text-[11px] text-white/60">{hovered.meta}</div>}
+            {typeof hovered.health === "number" && (
+              <div className="mt-1.5 flex items-center gap-2">
+                <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full rounded-full" style={{ width: `${hovered.health}%`, background: healthColor(hovered.health) }} />
+                </div>
+                <span className="font-mono text-[10px] text-white/60">{hovered.health}</span>
               </div>
-              <span className="font-mono text-[10px] text-muted-foreground">{hovered.health}</span>
-            </div>
-          )}
-        </div>
-      )}
-      <svg ref={svgRef} className="h-full w-full" />
+            )}
+          </div>
+        )}
+        <svg ref={svgRef} className="relative z-[1] h-full w-full" />
+      </div>
+      {/* keyframes */}
+      <style>{`
+        @keyframes constellation-pulse {
+          0%, 100% { opacity: 0.25; transform: scale(1); transform-box: fill-box; transform-origin: center; }
+          50%      { opacity: 0.7;  transform: scale(2.2); transform-box: fill-box; transform-origin: center; }
+        }
+      `}</style>
     </div>
   );
 }

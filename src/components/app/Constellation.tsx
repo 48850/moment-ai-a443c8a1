@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import * as d3 from "d3";
 import type { ScheduleBlock } from "@/lib/types";
+import { Starfield, DEEP_SPACE_BG, ConstellationHud } from "@/components/app/constellation/Starfield";
 
 interface Node extends d3.SimulationNodeDatum {
   id: string;
@@ -27,10 +28,19 @@ interface ConstellationProps {
   onNodeClick?: (id: string) => void;
 }
 
-/**
- * Force-directed constellation map of schedule blocks.
- * Themed with semantic tokens; colors resolved via CSS variables.
- */
+const DECISIVE = "rgb(255,225,170)";
+const ACTIVE   = "rgb(180,210,255)";
+const DONE     = "rgb(110,231,183)";
+const MISSED   = "rgb(248,113,113)";
+const ANCHOR   = "rgba(255,255,255,0.45)";
+
+const linkColor: Record<string, string> = {
+  support: "rgba(167,139,250,0.55)",
+  constraint: "rgba(248,113,113,0.55)",
+  protection: "rgba(110,231,183,0.55)",
+  sequential: "rgba(180,210,255,0.45)",
+};
+
 export function Constellation({
   blocks,
   relationships = [],
@@ -56,9 +66,6 @@ export function Constellation({
           nodes.find((n) => n.id === l.target),
       );
 
-    // Auto-link blocks that genuinely belong together:
-    //  - they share at least one linked task id (real plan dependency), or
-    //  - they're back-to-back in time (a real sequence in the day).
     for (let i = 0; i < blocks.length - 1; i++) {
       const a = blocks[i];
       const b = blocks[i + 1];
@@ -75,56 +82,51 @@ export function Constellation({
 
   useEffect(() => {
     if (!svgRef.current || data.nodes.length === 0) return;
-
     const width = svgRef.current.clientWidth;
     const height = svgRef.current.clientHeight;
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
-    // Resolve semantic tokens at runtime so theme switches apply.
-    const css = getComputedStyle(svgRef.current);
-    const tok = (name: string) => `hsl(${css.getPropertyValue(name).trim()})`;
-    const primary = tok("--primary");
-    const border = tok("--border");
-    const muted = tok("--muted-foreground");
-    const card = tok("--card");
-    const accent = tok("--accent");
-    const destructive = tok("--destructive");
+    const defs = svg.append("defs");
+    const glow = defs.append("filter").attr("id", "schedule-star-glow").attr("x", "-100%").attr("y", "-100%").attr("width", "300%").attr("height", "300%");
+    glow.append("feGaussianBlur").attr("stdDeviation", "2.5").attr("result", "blur");
+    const merge = glow.append("feMerge");
+    merge.append("feMergeNode").attr("in", "blur");
+    merge.append("feMergeNode").attr("in", "SourceGraphic");
 
-    const colorByLink: Record<string, string> = {
-      support: primary,
-      constraint: destructive,
-      protection: accent,
-      sequential: border,
+    const colorOf = (d: any): string => {
+      if (d.isDecisive) return DECISIVE;
+      if (d.status === "completed" || d.status === "done") return DONE;
+      if (d.status === "active") return ACTIVE;
+      if (d.status === "missed") return MISSED;
+      return ANCHOR;
     };
 
     const simulation = d3
       .forceSimulation<Node>(data.nodes)
-      .force("link", d3.forceLink<Node, Link>(data.links).id((d) => d.id).distance(80))
-      .force("charge", d3.forceManyBody().strength(-200))
+      .force("link", d3.forceLink<Node, Link>(data.links).id((d) => d.id).distance(90))
+      .force("charge", d3.forceManyBody().strength(-230))
       .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collision", d3.forceCollide().radius(40));
+      .force("collision", d3.forceCollide().radius(36));
 
     const g = svg.append("g");
 
-    const link = g
-      .append("g")
+    const link = g.append("g")
       .selectAll("line")
       .data(data.links)
       .join("line")
-      .attr("stroke", (d: any) => colorByLink[d.type] ?? border)
+      .attr("stroke", (d: any) => linkColor[d.type] ?? linkColor.sequential)
       .attr("stroke-opacity", 0.6)
-      .attr("stroke-width", (d: any) => (d.type === "sequential" ? 1 : 2))
-      .attr("stroke-dasharray", (d: any) => (d.type === "sequential" ? "4 2" : "none"));
+      .attr("stroke-width", (d: any) => (d.type === "sequential" ? 1 : 1.5))
+      .attr("stroke-dasharray", (d: any) => (d.type === "sequential" ? "3 4" : "none"))
+      .attr("filter", (d: any) => d.type === "support" ? "url(#schedule-star-glow)" : null);
 
-    const node = g
-      .append("g")
+    const node = g.append("g")
       .selectAll("g")
       .data(data.nodes)
       .join("g")
       .call(
-        d3
-          .drag<SVGGElement, Node>()
+        d3.drag<SVGGElement, Node>()
           .on("start", dragstarted)
           .on("drag", dragged)
           .on("end", dragended) as any,
@@ -134,32 +136,37 @@ export function Constellation({
       })
       .style("cursor", (d: Node) => (d.type === "fixed_commitment" ? "default" : "pointer"));
 
-    node
-      .append("circle")
-      .attr("r", (d: any) => (d.isDecisive ? 12 : 8))
-      .attr("fill", (d: any) => {
-        if (d.isDecisive) return primary;
-        if (d.status === "completed" || d.status === "done") return primary;
-        if (d.type === "fixed_commitment" || d.type === "commute" || d.type === "wind_down") return muted;
-        return card;
-      })
-      .attr("stroke", (d: any) => {
-        if (d.status === "completed" || d.status === "done") return primary;
-        if (d.status === "active") return accent;
-        if (d.status === "missed") return destructive;
-        return border;
-      })
-      .attr("stroke-width", 2);
+    // halo
+    node.append("circle")
+      .attr("r", (d: any) => (d.isDecisive ? 22 : 14))
+      .attr("fill", colorOf)
+      .attr("opacity", 0.2)
+      .attr("filter", "url(#schedule-star-glow)");
 
-    node
-      .append("text")
-      .text((d: any) => d.title)
+    // core
+    node.append("circle")
+      .attr("r", (d: any) => (d.isDecisive ? 7 : 4.5))
+      .attr("fill", colorOf)
+      .attr("filter", "url(#schedule-star-glow)");
+
+    // pulse on decisive
+    node.filter((d: any) => d.isDecisive)
+      .append("circle")
+      .attr("r", 7)
+      .attr("fill", "none")
+      .attr("stroke", DECISIVE)
+      .attr("stroke-opacity", 0.6)
+      .style("animation", "schedule-pulse 2.4s ease-in-out infinite");
+
+    node.append("text")
+      .text((d: any) => d.title.length > 26 ? d.title.slice(0, 24) + "…" : d.title)
       .attr("x", 14)
       .attr("y", 4)
       .attr("font-size", "10px")
       .attr("font-weight", (d: any) => (d.isDecisive ? "600" : "400"))
-      .attr("fill", muted)
-      .attr("pointer-events", "none");
+      .attr("fill", (d: any) => d.isDecisive ? "rgba(255,225,170,0.95)" : "rgba(255,255,255,0.7)")
+      .attr("pointer-events", "none")
+      .attr("style", "text-shadow: 0 0 5px rgba(0,0,0,0.9)");
 
     simulation.on("tick", () => {
       link
@@ -185,31 +192,37 @@ export function Constellation({
       event.subject.fy = null;
     }
 
-    return () => {
-      simulation.stop();
-    };
+    return () => { simulation.stop(); };
   }, [data, onNodeClick]);
 
   if (blocks.length === 0) return null;
 
+  const doneCount = blocks.filter((b) => b.status === "completed").length;
+
   return (
-    <div className="relative h-64 w-full overflow-hidden rounded-2xl border border-border bg-card/50">
-      <div className="absolute left-3 top-3 flex flex-col gap-1">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Constellation map
-        </span>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1">
-            <div className="h-2 w-2 rounded-full bg-primary" />
-            <span className="text-[9px] text-muted-foreground">Decisive</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="h-2 w-2 rounded-full bg-muted-foreground" />
-            <span className="text-[9px] text-muted-foreground">Anchor</span>
-          </div>
+    <div
+      className="relative h-72 w-full overflow-hidden rounded-2xl border border-white/10"
+      style={{ background: DEEP_SPACE_BG }}
+    >
+      <ConstellationHud
+        label="schedule constellation"
+        meta={`${doneCount}/${blocks.length} lit`}
+      />
+      <div className="relative h-[calc(100%-37px)] w-full">
+        <Starfield density={3200} nebulaHue="violet" showShootingStars={false} />
+        <div className="absolute left-3 top-3 z-10 flex items-center gap-3">
+          <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full" style={{ background: DECISIVE, boxShadow: `0 0 6px ${DECISIVE}` }} /><span className="text-[9px] uppercase tracking-wider text-white/60">decisive</span></div>
+          <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full" style={{ background: DONE, boxShadow: `0 0 6px ${DONE}` }} /><span className="text-[9px] uppercase tracking-wider text-white/60">lit</span></div>
+          <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-white/40" /><span className="text-[9px] uppercase tracking-wider text-white/60">anchor</span></div>
         </div>
+        <svg ref={svgRef} className="relative z-[1] h-full w-full" />
       </div>
-      <svg ref={svgRef} className="h-full w-full" />
+      <style>{`
+        @keyframes schedule-pulse {
+          0%, 100% { opacity: 0.3; r: 7; }
+          50%      { opacity: 0.7; r: 16; }
+        }
+      `}</style>
     </div>
   );
 }
