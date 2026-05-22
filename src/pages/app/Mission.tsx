@@ -17,6 +17,8 @@ import { PatternBanner } from "@/components/app/PatternBanner";
 import { AIInsight } from "@/components/app/AIInsight";
 import { useAI } from "@/lib/ai/useAI";
 import { FEEDBACK_LABELS } from "@/lib/feedback/labels";
+import { buildLearningPortfolio } from "@/lib/ai/learning-portfolio";
+import { Award, Lightbulb, Trophy } from "lucide-react";
 
 /* ─── Stage normalisation ──────────────────────────────────────────────────── */
 
