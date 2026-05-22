@@ -1,22 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import * as d3 from "d3";
+import { useMemo } from "react";
 import type { CompiledPursuitModel } from "@/lib/types";
 import type { WorkstreamAnalytics } from "@/lib/selectors/mission-analytics";
 import { Starfield, DEEP_SPACE_BG, ConstellationHud } from "@/components/app/constellation/Starfield";
-
-interface Node extends d3.SimulationNodeDatum {
-  id: string;
-  label: string;
-  kind: "goal" | "workstream" | "capability" | "signal";
-  health?: number;
-  status?: string;
-  meta?: string;
-}
-
-interface Link extends d3.SimulationLinkDatum<Node> {
-  kind: "supports" | "evidences" | "anchors";
-  weight: number;
-}
 
 interface Props {
   model: CompiledPursuitModel;
@@ -24,243 +9,156 @@ interface Props {
   onWorkstreamClick?: (id: string) => void;
 }
 
-/* Deep-space themed colors */
-const HEALTHY_COLOR  = "rgb(180,210,255)"; // blue-white star
-const SLIPPING_COLOR = "rgb(251,191,36)";  // amber
-const STALLED_COLOR  = "rgb(248,113,113)"; // red
-const GOAL_COLOR     = "rgb(255,225,170)"; // warm north-star
-const CAP_COLOR      = "rgb(167,139,250)"; // violet
-const SIG_COLOR      = "rgb(110,231,183)"; // green
-const LINK_COLOR     = "rgba(163,201,255,0.5)";
+const healthTone = (health: number) => {
+  if (health >= 70) return {
+    dot: "bg-blue-100",
+    border: "border-blue-200/35",
+    fill: "bg-blue-200",
+    label: "bright",
+  };
+  if (health >= 45) return {
+    dot: "bg-amber-200",
+    border: "border-amber-200/35",
+    fill: "bg-amber-200",
+    label: "needs push",
+  };
+  return {
+    dot: "bg-red-300",
+    border: "border-red-300/35",
+    fill: "bg-red-300",
+    label: "blocked",
+  };
+};
 
-const healthColor = (h: number) =>
-  h >= 70 ? HEALTHY_COLOR : h >= 45 ? SLIPPING_COLOR : STALLED_COLOR;
+const priorityRank: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
 export function MissionConstellation({ model, analytics, onWorkstreamClick }: Props) {
-  const svgRef = useRef<SVGSVGElement>(null);
-  const [hovered, setHovered] = useState<Node | null>(null);
-
-  const data = useMemo(() => {
-    const nodes: Node[] = [];
-    const links: Link[] = [];
-
-    nodes.push({ id: "__goal", label: "GOAL", kind: "goal" });
-
-    const wsById = new Map<string, WorkstreamAnalytics>();
-    analytics.forEach((a) => wsById.set(a.workstream.id, a));
-
-    for (const ws of model.workstreams) {
-      const a = wsById.get(ws.id);
-      nodes.push({
-        id: ws.id,
-        label: ws.name,
-        kind: "workstream",
-        health: a?.health ?? 50,
-        status: ws.status,
-        meta: a ? `${a.tasks.done}/${a.tasks.total} · ${a.headline}` : undefined,
+  const rows = useMemo(() => {
+    const analyticsById = new Map(analytics.map((a) => [a.workstream.id, a]));
+    return [...model.workstreams]
+      .sort((a, b) => (priorityRank[a.priority] ?? 9) - (priorityRank[b.priority] ?? 9))
+      .map((workstream, index) => {
+        const item = analyticsById.get(workstream.id);
+        const health = item?.health ?? (workstream.status === "complete" ? 100 : workstream.status === "stalled" ? 25 : 55);
+        return {
+          index,
+          workstream,
+          health,
+          analytics: item,
+          tone: healthTone(health),
+        };
       });
-      links.push({ source: "__goal", target: ws.id, kind: "anchors", weight: 1 });
-    }
+  }, [analytics, model.workstreams]);
 
-    for (const cap of model.capability_clusters) {
-      nodes.push({ id: cap.id, label: cap.name, kind: "capability", status: cap.status });
-      const capTokens = new Set(cap.name.toLowerCase().split(/\W+/).filter((x) => x.length > 3));
-      const scored = model.workstreams.map((w) => {
-        const wt = w.name.toLowerCase().split(/\W+/);
-        const overlap = wt.filter((t) => capTokens.has(t)).length;
-        return { id: w.id, overlap };
-      }).sort((a, b) => b.overlap - a.overlap);
-      const targets = scored.slice(0, Math.min(2, scored.length));
-      for (const t of targets) {
-        links.push({ source: cap.id, target: t.id, kind: "supports", weight: 0.5 });
-      }
-    }
-
-    for (const sig of model.evidence_signals) {
-      nodes.push({ id: sig.id, label: sig.name, kind: "signal", meta: sig.last_value });
-      const sigTokens = sig.name.toLowerCase().split(/\W+/).filter((x) => x.length > 3);
-      const w = model.workstreams.find((ws) => {
-        const wt = ws.name.toLowerCase();
-        return sigTokens.some((t) => wt.includes(t));
-      });
-      if (w) links.push({ source: sig.id, target: w.id, kind: "evidences", weight: 0.4 });
-    }
-
-    return { nodes, links };
-  }, [model, analytics]);
-
-  // Quick intelligence summary for HUD
   const intel = useMemo(() => {
-    const healthy = analytics.filter((a) => a.health >= 70).length;
-    const stalled = analytics.filter((a) => a.health < 45).length;
-    return { total: analytics.length, healthy, stalled };
-  }, [analytics]);
+    const firstBlocked = rows.find((r) => r.health < 45 || r.workstream.bottleneck)?.workstream;
+    const next = rows.find((r) => r.workstream.next_proof)?.workstream;
+    return {
+      bright: rows.filter((r) => r.health >= 70).length,
+      blocked: rows.filter((r) => r.health < 45).length,
+      focus: firstBlocked?.bottleneck || next?.next_proof || model.summary || "Choose the next proof to light the route.",
+    };
+  }, [model.summary, rows]);
 
-  useEffect(() => {
-    if (!svgRef.current || data.nodes.length === 0) return;
-    const width = svgRef.current.clientWidth;
-    const height = svgRef.current.clientHeight;
-    const svg = d3.select(svgRef.current);
-    svg.selectAll("*").remove();
-
-    // SVG defs: glow filter + gradient for pathway lines
-    const defs = svg.append("defs");
-    const glow = defs.append("filter").attr("id", "star-glow").attr("x", "-100%").attr("y", "-100%").attr("width", "300%").attr("height", "300%");
-    glow.append("feGaussianBlur").attr("stdDeviation", "3").attr("result", "blur");
-    const merge = glow.append("feMerge");
-    merge.append("feMergeNode").attr("in", "blur");
-    merge.append("feMergeNode").attr("in", "SourceGraphic");
-
-    const sim = d3
-      .forceSimulation<Node>(data.nodes)
-      .force("link", d3.forceLink<Node, Link>(data.links).id((d) => d.id)
-        .distance((l) => l.kind === "anchors" ? 120 : 75).strength((l) => l.weight))
-      .force("charge", d3.forceManyBody().strength((d: any) => d.kind === "goal" ? -700 : -200))
-      .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collision", d3.forceCollide().radius((d: any) =>
-        d.kind === "goal" ? 36 : d.kind === "workstream" ? 24 : 14));
-
-    const goalNode = data.nodes.find((n) => n.kind === "goal");
-    if (goalNode) { goalNode.fx = width / 2; goalNode.fy = height / 2; }
-
-    const g = svg.append("g");
-
-    // Pathway links — bright trails from goal to workstreams, faint dashes elsewhere
-    const link = g.append("g")
-      .selectAll("line")
-      .data(data.links)
-      .join("line")
-      .attr("stroke", (d) => d.kind === "anchors" ? LINK_COLOR : "rgba(255,255,255,0.18)")
-      .attr("stroke-opacity", (d) => d.kind === "anchors" ? 0.7 : 0.35)
-      .attr("stroke-width", (d) => d.kind === "anchors" ? 1.5 : 0.8)
-      .attr("stroke-dasharray", (d) => d.kind === "anchors" ? "none" : "2 4")
-      .attr("filter", (d) => d.kind === "anchors" ? "url(#star-glow)" : null);
-
-    const node = g.append("g")
-      .selectAll("g")
-      .data(data.nodes)
-      .join("g")
-      .style("cursor", (d) => d.kind === "workstream" ? "pointer" : "default")
-      .on("mouseenter", (_e, d) => setHovered(d))
-      .on("mouseleave", () => setHovered(null))
-      .on("click", (_e, d) => { if (d.kind === "workstream" && onWorkstreamClick) onWorkstreamClick(d.id); })
-      .call(d3.drag<SVGGElement, Node>()
-        .on("start", (event) => { if (!event.active) sim.alphaTarget(0.3).restart(); event.subject.fx = event.subject.x; event.subject.fy = event.subject.y; })
-        .on("drag", (event) => { event.subject.fx = event.x; event.subject.fy = event.y; })
-        .on("end", (event) => { if (!event.active) sim.alphaTarget(0); if (event.subject.kind !== "goal") { event.subject.fx = null; event.subject.fy = null; } }) as any);
-
-    // Outer glow halo
-    node.append("circle")
-      .attr("r", (d) => d.kind === "goal" ? 32 : d.kind === "workstream" ? 18 + ((d.health ?? 0) / 100) * 8 : d.kind === "capability" ? 10 : 8)
-      .attr("fill", (d) => {
-        if (d.kind === "goal") return GOAL_COLOR;
-        if (d.kind === "workstream") return healthColor(d.health ?? 0);
-        if (d.kind === "capability") return CAP_COLOR;
-        return SIG_COLOR;
-      })
-      .attr("opacity", 0.18)
-      .attr("filter", "url(#star-glow)");
-
-    // Core star
-    node.append("circle")
-      .attr("r", (d) => d.kind === "goal" ? 10 : d.kind === "workstream" ? 5 + ((d.health ?? 0) / 100) * 3 : d.kind === "capability" ? 3.5 : 3)
-      .attr("fill", (d) => {
-        if (d.kind === "goal") return GOAL_COLOR;
-        if (d.kind === "workstream") return healthColor(d.health ?? 0);
-        if (d.kind === "capability") return CAP_COLOR;
-        return SIG_COLOR;
-      })
-      .attr("filter", "url(#star-glow)");
-
-    // Twinkle pulse for goal + workstreams
-    node.filter((d) => d.kind === "goal" || d.kind === "workstream")
-      .append("circle")
-      .attr("r", (d) => d.kind === "goal" ? 10 : 5)
-      .attr("fill", "none")
-      .attr("stroke", (d) => d.kind === "goal" ? GOAL_COLOR : healthColor(d.health ?? 0))
-      .attr("stroke-opacity", 0.5)
-      .attr("stroke-width", 1)
-      .style("animation", "constellation-pulse 2.6s ease-in-out infinite");
-
-    // Goal label
-    node.filter((d) => d.kind === "goal")
-      .append("text")
-      .text("NORTH STAR")
-      .attr("text-anchor", "middle")
-      .attr("dy", -22)
-      .attr("font-size", "9px")
-      .attr("font-weight", "600")
-      .attr("letter-spacing", "2")
-      .attr("fill", "rgba(255,225,170,0.9)");
-
-    // Other labels
-    node.filter((d) => d.kind !== "goal")
-      .append("text")
-      .text((d) => d.label.length > 24 ? d.label.slice(0, 22) + "…" : d.label)
-      .attr("x", (d) => d.kind === "workstream" ? 16 : 10)
-      .attr("y", 4)
-      .attr("font-size", (d) => d.kind === "workstream" ? "11px" : "9.5px")
-      .attr("font-weight", (d) => d.kind === "workstream" ? "600" : "400")
-      .attr("fill", (d) => d.kind === "workstream" ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.55)")
-      .attr("pointer-events", "none")
-      .attr("style", "text-shadow: 0 0 6px rgba(0,0,0,0.9)");
-
-    sim.on("tick", () => {
-      link
-        .attr("x1", (d: any) => d.source.x)
-        .attr("y1", (d: any) => d.source.y)
-        .attr("x2", (d: any) => d.target.x)
-        .attr("y2", (d: any) => d.target.y);
-      node.attr("transform", (d: any) => `translate(${d.x},${d.y})`);
-    });
-
-    return () => { sim.stop(); };
-  }, [data, onWorkstreamClick]);
-
-  if (data.nodes.length <= 1) return null;
+  if (rows.length === 0) return null;
 
   return (
     <div
-      className="relative h-[440px] w-full overflow-hidden rounded-2xl border border-white/10 shadow-[0_0_40px_-10px_rgba(99,102,241,0.4)]"
+      className="relative w-full overflow-hidden rounded-2xl border border-white/10 shadow-[0_0_40px_-10px_rgba(99,102,241,0.4)]"
       style={{ background: DEEP_SPACE_BG }}
     >
       <ConstellationHud
-        label="mission constellation"
-        meta={`${intel.healthy} bright · ${intel.stalled} dim · ${intel.total} lanes`}
+        label="mission pathway"
+        meta={`${intel.bright} bright · ${intel.blocked} blocked · ${rows.length} lanes`}
       />
-      <div className="relative h-[calc(100%-37px)] w-full">
-        <Starfield density={2800} nebulaHue="indigo" />
-        {/* Legend */}
-        <div className="absolute left-3 top-3 z-10 flex flex-col gap-1.5">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full" style={{ background: HEALTHY_COLOR, boxShadow: `0 0 6px ${HEALTHY_COLOR}` }} /><span className="text-[9px] uppercase tracking-wider text-white/60">healthy</span></div>
-            <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full" style={{ background: SLIPPING_COLOR, boxShadow: `0 0 6px ${SLIPPING_COLOR}` }} /><span className="text-[9px] uppercase tracking-wider text-white/60">slipping</span></div>
-            <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full" style={{ background: STALLED_COLOR, boxShadow: `0 0 6px ${STALLED_COLOR}` }} /><span className="text-[9px] uppercase tracking-wider text-white/60">dim</span></div>
-          </div>
+      <div className="relative p-4 sm:p-5">
+        <Starfield density={4300} nebulaHue="indigo" showShootingStars={false} />
+
+        <div className="relative z-10 mb-4 rounded-xl border border-amber-200/20 bg-amber-200/[0.06] p-4">
+          <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-amber-100/60">next intelligent move</div>
+          <div className="mt-1 text-sm font-semibold leading-snug text-white">{intel.focus}</div>
         </div>
-        {hovered && hovered.kind === "workstream" && (
-          <div className="absolute right-3 top-3 z-10 max-w-[55%] rounded-xl border border-white/10 bg-black/70 p-2.5 backdrop-blur">
-            <div className="text-xs font-semibold text-white">{hovered.label}</div>
-            {hovered.meta && <div className="mt-0.5 text-[11px] text-white/60">{hovered.meta}</div>}
-            {typeof hovered.health === "number" && (
-              <div className="mt-1.5 flex items-center gap-2">
-                <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full rounded-full" style={{ width: `${hovered.health}%`, background: healthColor(hovered.health) }} />
+
+        <div className="relative z-10 grid gap-3">
+          {rows.map(({ workstream, health, analytics: item, tone }, index) => {
+            const canOpen = !!onWorkstreamClick;
+            return (
+              <button
+                key={workstream.id}
+                type="button"
+                onClick={() => canOpen && onWorkstreamClick?.(workstream.id)}
+                className={`group relative grid gap-3 rounded-xl border ${tone.border} bg-white/[0.045] p-4 text-left backdrop-blur transition ${canOpen ? "hover:border-white/35 hover:bg-white/[0.075]" : "cursor-default"}`}
+              >
+                {index < rows.length - 1 && (
+                  <span className="absolute left-6 top-[calc(100%-2px)] h-5 w-px bg-gradient-to-b from-blue-200/45 to-transparent" />
+                )}
+                <div className="flex items-start gap-3">
+                  <div className="mt-1 flex flex-col items-center gap-1.5">
+                    <span className={`h-3 w-3 rounded-full ${tone.dot} shadow-[0_0_16px_currentColor]`} />
+                    <span className="font-mono text-[9px] text-white/35">{String(index + 1).padStart(2, "0")}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="truncate text-base font-semibold text-white">{workstream.name}</h3>
+                      <span className="rounded-full border border-white/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-white/45">
+                        {workstream.priority}
+                      </span>
+                      <span className="rounded-full border border-white/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-white/45">
+                        {tone.label}
+                      </span>
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-white/55">
+                      {workstream.description || workstream.bottleneck || workstream.next_proof || "No pathway detail yet."}
+                    </p>
+                  </div>
+                  <div className="w-16 text-right font-mono text-xs text-white/55">{health}</div>
                 </div>
-                <span className="font-mono text-[10px] text-white/60">{hovered.health}</span>
+
+                <div className="ml-8 grid gap-2 sm:grid-cols-[1fr_1fr]">
+                  <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                    <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-white/35">next proof</div>
+                    <div className="mt-1 text-xs text-white/70">{workstream.next_proof || item?.headline || "Define the proof that shows progress."}</div>
+                  </div>
+                  <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+                    <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-white/35">bottleneck</div>
+                    <div className="mt-1 text-xs text-white/70">{workstream.bottleneck || "No blocker logged."}</div>
+                  </div>
+                </div>
+
+                <div className="ml-8 h-1.5 overflow-hidden rounded-full bg-white/10">
+                  <div className={`h-full rounded-full ${tone.fill}`} style={{ width: `${Math.max(8, Math.min(100, health))}%` }} />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {(model.capability_clusters.length > 0 || model.evidence_signals.length > 0) && (
+          <div className="relative z-10 mt-4 grid gap-3 md:grid-cols-2">
+            <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+              <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">capabilities</div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {model.capability_clusters.slice(0, 6).map((c) => (
+                  <span key={c.id} className="rounded-full border border-violet-200/20 bg-violet-200/10 px-2.5 py-1 text-[11px] text-violet-100/75">
+                    {c.name} · {c.status}
+                  </span>
+                ))}
               </div>
-            )}
+            </div>
+            <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+              <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">signals</div>
+              <div className="mt-3 grid gap-2">
+                {model.evidence_signals.slice(0, 3).map((s) => (
+                  <div key={s.id} className="flex items-center justify-between gap-3 text-xs text-white/60">
+                    <span className="truncate">{s.name}</span>
+                    <span className="shrink-0 font-mono text-white/35">{s.last_value || s.cadence || s.kind}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
-        <svg ref={svgRef} className="relative z-[1] h-full w-full" />
       </div>
-      {/* keyframes */}
-      <style>{`
-        @keyframes constellation-pulse {
-          0%, 100% { opacity: 0.25; transform: scale(1); transform-box: fill-box; transform-origin: center; }
-          50%      { opacity: 0.7;  transform: scale(2.2); transform-box: fill-box; transform-origin: center; }
-        }
-      `}</style>
     </div>
   );
 }
