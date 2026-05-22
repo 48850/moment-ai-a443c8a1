@@ -1,17 +1,19 @@
-import { useEffect, useMemo, useRef } from "react";
-import * as d3 from "d3";
+import { useMemo } from "react";
 import type { ScheduleBlock } from "@/lib/types";
 import { Starfield, DEEP_SPACE_BG, ConstellationHud } from "@/components/app/constellation/Starfield";
 
-interface Node extends d3.SimulationNodeDatum {
+interface Node {
   id: string;
   title: string;
   type: string;
   status: string;
   isDecisive?: boolean;
+  time: string;
 }
 
-interface Link extends d3.SimulationLinkDatum<Node> {
+interface Link {
+  source: string;
+  target: string;
   type: string;
 }
 
@@ -28,17 +30,12 @@ interface ConstellationProps {
   onNodeClick?: (id: string) => void;
 }
 
-const DECISIVE = "rgb(255,225,170)";
-const ACTIVE   = "rgb(180,210,255)";
-const DONE     = "rgb(110,231,183)";
-const MISSED   = "rgb(248,113,113)";
-const ANCHOR   = "rgba(255,255,255,0.45)";
-
-const linkColor: Record<string, string> = {
-  support: "rgba(167,139,250,0.55)",
-  constraint: "rgba(248,113,113,0.55)",
-  protection: "rgba(110,231,183,0.55)",
-  sequential: "rgba(180,210,255,0.45)",
+const toneFor = (node: Node) => {
+  if (node.isDecisive) return "border-amber-200/45 bg-amber-200/10 text-amber-100 shadow-[0_0_28px_-12px_rgba(251,191,36,0.9)]";
+  if (node.status === "completed" || node.status === "done") return "border-emerald-300/35 bg-emerald-300/10 text-emerald-100";
+  if (node.status === "active") return "border-blue-200/35 bg-blue-200/10 text-blue-100";
+  if (node.status === "missed") return "border-red-300/35 bg-red-300/10 text-red-100";
+  return "border-white/12 bg-white/[0.045] text-white/75";
 };
 
 export function Constellation({
