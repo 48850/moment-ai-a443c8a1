@@ -199,30 +199,38 @@ function MonthConstellation({ state, milestone }: { state: MomentState; mileston
   for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d, key: `d-${d}` });
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
-      <div className="flex items-baseline justify-between">
+    <div
+      className="relative overflow-hidden rounded-2xl border border-white/10 p-5 space-y-4 shadow-[0_0_40px_-15px_rgba(99,102,241,0.4)]"
+      style={{ background: "radial-gradient(ellipse at 30% 15%, #1a1d3d 0%, #0a0e24 50%, #03051a 100%)" }}
+    >
+      {/* starfield bg */}
+      <MonthStarfield />
+
+      <div className="relative z-10 flex items-baseline justify-between">
         <div>
-          <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Month constellation</div>
-          <div className="mt-0.5 text-lg font-semibold text-foreground">{monthLabel}</div>
+          <div className="font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-white/55">Month constellation</div>
+          <div className="mt-1 text-lg font-semibold text-white">{monthLabel}</div>
         </div>
-        <div className="text-xs text-muted-foreground">{totalDone} proof{totalDone === 1 ? "" : "s"} this month</div>
+        <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/55">
+          {totalDone} proof{totalDone === 1 ? "" : "s"} lit
+        </div>
       </div>
 
       {milestone && (
-        <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
-          <div className="text-[10px] uppercase tracking-wider text-primary/80">This month's milestone</div>
-          <div className="mt-1 text-sm font-medium text-foreground">{milestone.title}</div>
-          {milestone.milestone && <div className="mt-0.5 text-xs text-muted-foreground">🏁 {milestone.milestone}</div>}
+        <div className="relative z-10 rounded-lg border border-amber-300/25 bg-amber-300/5 p-3">
+          <div className="font-mono text-[10px] uppercase tracking-wider text-amber-200/80">This month's pathway</div>
+          <div className="mt-1 text-sm font-medium text-white">{milestone.title}</div>
+          {milestone.milestone && <div className="mt-0.5 text-xs text-white/60">→ {milestone.milestone}</div>}
         </div>
       )}
 
-      <div className="grid grid-cols-7 gap-1 text-center text-[9px] uppercase tracking-wider text-muted-foreground">
+      <div className="relative z-10 grid grid-cols-7 gap-1 text-center font-mono text-[9px] uppercase tracking-[0.18em] text-white/40">
         {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
           <div key={d}>{d}</div>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-1.5">
+      <div className="relative z-10 grid grid-cols-7 gap-1.5">
         {cells.map((c) => {
           if (c.day == null) return <div key={c.key} className="aspect-square" />;
           const key = localKey(year, monthIdx, c.day);
@@ -233,30 +241,45 @@ function MonthConstellation({ state, milestone }: { state: MomentState; mileston
           const isScheduled = scheduledDays.has(dow);
           const intensity = maxCount > 0 ? count / maxCount : 0;
 
+          // Visual: star brightness scales with completions. Empty past days = dim point.
+          const starSize = count > 0 ? 6 + intensity * 8 : 2;
+          const starColor = count > 0
+            ? `rgba(255, 230, 170, ${0.55 + intensity * 0.45})`
+            : isFuture && isScheduled
+              ? "rgba(180,210,255,0.45)"
+              : "rgba(255,255,255,0.18)";
+          const starGlow = count > 0
+            ? `0 0 ${8 + intensity * 16}px rgba(255,210,138,${0.4 + intensity * 0.5})`
+            : isFuture && isScheduled
+              ? "0 0 6px rgba(180,210,255,0.35)"
+              : "none";
+
           return (
             <div
               key={c.key}
               title={`${monthLabel.split(" ")[0]} ${c.day} · ${count} completed${isScheduled ? " · scheduled" : ""}`}
-              className={`relative aspect-square rounded-md flex items-center justify-center text-[10px] transition-all ${
-                isToday ? "ring-1 ring-primary" : ""
-              } ${
-                count > 0
-                  ? "border border-primary/30"
-                  : isFuture && isScheduled
-                    ? "border border-dashed border-primary/30 bg-primary/5"
-                    : "border border-border/60 bg-muted/20"
-              }`}
-              style={
-                count > 0
-                  ? { background: `hsl(var(--primary) / ${0.15 + intensity * 0.55})` }
-                  : undefined
-              }
+              className={`group relative aspect-square rounded-md flex items-center justify-center transition-all ${
+                isToday ? "ring-1 ring-amber-200/60 ring-offset-1 ring-offset-[#0a0e24]" : ""
+              } ${count > 0 ? "border border-amber-200/15" : "border border-white/5"} hover:border-white/30`}
             >
-              <span className={count > 0 ? "font-semibold text-foreground" : "text-muted-foreground/60"}>
+              {/* The "star" */}
+              <span
+                className="absolute rounded-full"
+                style={{
+                  width: starSize,
+                  height: starSize,
+                  background: starColor,
+                  boxShadow: starGlow,
+                  animation: count > 0 ? `month-twinkle ${2 + (c.day % 4) * 0.4}s ease-in-out infinite` : undefined,
+                }}
+              />
+              <span className={`relative z-10 font-mono text-[9px] ${
+                isToday ? "text-amber-200" : count > 0 ? "text-white/85" : "text-white/30"
+              }`}>
                 {c.day}
               </span>
               {count > 1 && (
-                <span className="absolute bottom-0.5 right-0.5 rounded-full bg-background/80 px-1 text-[8px] font-medium text-primary">
+                <span className="absolute bottom-0.5 right-0.5 z-10 rounded-full bg-black/60 px-1 font-mono text-[8px] font-medium text-amber-200">
                   {count}
                 </span>
               )}
@@ -265,15 +288,55 @@ function MonthConstellation({ state, milestone }: { state: MomentState; mileston
         })}
       </div>
 
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <span className="inline-block h-2 w-2 rounded-sm border border-primary/30" />
-          <span>completed</span>
-          <span className="inline-block h-2 w-2 rounded-sm border border-dashed border-primary/30 bg-primary/5 ml-2" />
-          <span>scheduled</span>
+      <div className="relative z-10 flex items-center justify-between font-mono text-[10px] uppercase tracking-wider text-white/45">
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-200" style={{ boxShadow: "0 0 6px rgba(255,210,138,0.6)" }} />
+            lit
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-300/50" style={{ boxShadow: "0 0 4px rgba(180,210,255,0.4)" }} />
+            scheduled
+          </span>
         </div>
-        <div>Resets on the 1st</div>
+        <div>resets on the 1st</div>
       </div>
+
+      <style>{`
+        @keyframes month-twinkle {
+          0%, 100% { opacity: 0.7; transform: scale(1); }
+          50%      { opacity: 1;   transform: scale(1.18); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/** Tiny starfield used inside the MonthConstellation card. */
+function MonthStarfield() {
+  return (
+    <div className="pointer-events-none absolute inset-0">
+      {Array.from({ length: 28 }).map((_, i) => {
+        const left = (i * 37) % 100;
+        const top = (i * 53) % 100;
+        const size = 1 + (i % 3) * 0.5;
+        const delay = (i * 0.13) % 3;
+        return (
+          <span
+            key={i}
+            className="absolute rounded-full bg-white"
+            style={{
+              left: `${left}%`,
+              top: `${top}%`,
+              width: size,
+              height: size,
+              opacity: 0.3 + ((i % 4) * 0.15),
+              animation: `month-twinkle ${2 + (i % 3) * 0.6}s ease-in-out infinite`,
+              animationDelay: `${delay}s`,
+            }}
+          />
+        );
+      })}
     </div>
   );
 }
