@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useStateStore } from "@/stores/state-store";
 import { selectPlanViewModel } from "@/lib/selectors/plan";
 import { Constellation } from "@/components/app/Constellation";
+import { Starfield, DEEP_SPACE_BG } from "@/components/app/constellation/Starfield";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { MomentState, ScheduleBlock } from "@/lib/types";
