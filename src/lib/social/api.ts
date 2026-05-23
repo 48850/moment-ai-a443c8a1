@@ -10,8 +10,18 @@ export type Visibility = Database["public"]["Enums"]["visibility_level"];
 
 export type FeedItem = ProgressEventRow & { author: Pick<Profile, "id" | "display_name" | "handle" | "main_goal"> | null };
 
+async function attachAuthors(rows: ProgressEventRow[]): Promise<FeedItem[]> {
+  if (rows.length === 0) return [];
+  const ids = Array.from(new Set(rows.map((r) => r.user_id)));
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id,display_name,handle,main_goal")
+    .in("id", ids);
+  const map = new Map<string, any>((profiles ?? []).map((p) => [p.id, p]));
+  return rows.map((r) => ({ ...r, author: map.get(r.user_id) ?? null })) as FeedItem[];
+}
+
 export async function fetchFriendsFeed(uid: string, limit = 50): Promise<FeedItem[]> {
-  // accepted follows where I am follower
   const { data: follows } = await supabase
     .from("follows")
     .select("followee_id")
@@ -20,25 +30,25 @@ export async function fetchFriendsFeed(uid: string, limit = 50): Promise<FeedIte
   const ids = [uid, ...((follows ?? []).map((f) => f.followee_id))];
   const { data, error } = await supabase
     .from("progress_events")
-    .select("*, author:profiles!progress_events_user_id_fkey(id,display_name,handle,main_goal)")
+    .select("*")
     .in("user_id", ids)
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) throw error;
-  return (data ?? []) as unknown as FeedItem[];
+  return attachAuthors((data ?? []) as ProgressEventRow[]);
 }
 
 export async function fetchAlignedFeed(limit = 50): Promise<FeedItem[]> {
-  // RLS handles the filter (visibility=aligned + shared tags + opt-in).
   const { data, error } = await supabase
     .from("progress_events")
-    .select("*, author:profiles!progress_events_user_id_fkey(id,display_name,handle,main_goal)")
+    .select("*")
     .eq("visibility", "aligned")
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) throw error;
-  return (data ?? []) as unknown as FeedItem[];
+  return attachAuthors((data ?? []) as ProgressEventRow[]);
 }
+
 
 export async function fetchAlignedPeople(uid: string, limit = 6): Promise<Profile[]> {
   const { data: me } = await supabase.from("profiles").select("goal_tags,subject_tags").eq("id", uid).maybeSingle();
