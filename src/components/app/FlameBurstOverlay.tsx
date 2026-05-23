@@ -97,6 +97,20 @@ export function FlameBurstOverlay() {
           15%  { opacity: 1; transform: translate(calc(var(--dx) * 0.15), calc(var(--dy) * 0.15)) scale(1.1); }
           100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.2); }
         }
+        @keyframes fb-mote {
+          0%   { transform: scale(0.2) rotate(-12deg); opacity: 0; }
+          20%  { transform: scale(1.1) rotate(6deg);   opacity: 1; }
+          35%  { transform: scale(0.92) rotate(-4deg); opacity: 1; }
+          55%  { transform: scale(1.05) rotate(2deg);  opacity: 1; }
+          75%  { transform: scale(1.8)  rotate(0);     opacity: 0.9; }
+          100% { transform: scale(3.2)  rotate(0);     opacity: 0; }
+        }
+        @keyframes fb-wink {
+          0%, 20%   { transform: scaleY(0); opacity: 0; }
+          28%, 42%  { transform: scaleY(1); opacity: 1; }
+          50%, 100% { transform: scaleY(0); opacity: 0; }
+        }
+
       `}</style>
     </div>,
     document.body,
