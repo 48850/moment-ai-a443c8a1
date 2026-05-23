@@ -48,7 +48,7 @@ export function useAI<T = any>(intent: AIIntent) {
         setLoading(false);
       }
     },
-    [intent, state],
+    [intent, state, deviceMode],
   );
 
   return { run, loading, error, result };
