@@ -100,11 +100,20 @@ export function ConstellationGraph({
   renderPanel,
   nebulaHue = "indigo",
   minHeight = 340,
+  focusedId: focusedIdProp,
+  onFocusChange,
+  hideChipNav = false,
 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 800, h: minHeight });
-  const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [internalFocusedId, setInternalFocusedId] = useState<string | null>(null);
+  const focusedId = focusedIdProp !== undefined ? focusedIdProp : internalFocusedId;
+  const setFocusedId = (id: string | null) => {
+    if (focusedIdProp === undefined) setInternalFocusedId(id);
+    onFocusChange?.(id);
+  };
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+
 
   useEffect(() => {
     if (!wrapRef.current) return;
