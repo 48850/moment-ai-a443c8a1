@@ -12,6 +12,8 @@ interface Props {
   float?: boolean;
   /** Show the soft amber halo behind Mote. Defaults to true. */
   halo?: boolean;
+  /** Lively bounce — bigger, springier vertical motion. */
+  bounce?: boolean;
   alt?: string;
 }
 
