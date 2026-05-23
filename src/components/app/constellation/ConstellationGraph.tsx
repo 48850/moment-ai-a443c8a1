@@ -42,7 +42,13 @@ interface Props {
   nebulaHue?: "indigo" | "violet" | "teal";
   /** Min height of the SVG canvas. */
   minHeight?: number;
+  /** Controlled focused star id (overrides internal state when provided). */
+  focusedId?: string | null;
+  onFocusChange?: (id: string | null) => void;
+  /** Hide the bottom chip navigator (useful when an external list drives focus). */
+  hideChipNav?: boolean;
 }
+
 
 const TONE: Record<StarTone, { fill: string; glow: string; ring: string; chip: string }> = {
   bright:  { fill: "#dbeafe", glow: "rgba(147,197,253,0.85)", ring: "ring-blue-200/50",    chip: "border-blue-200/35 bg-blue-200/10 text-blue-100" },
