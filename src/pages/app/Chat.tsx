@@ -290,7 +290,7 @@ const Chat = () => {
         type: "goal/patch",
         payload: {
           statement: goalUpdate.statement,
-          why_it_matters: goalUpdate.why_it_matters ?? state.active_goal.why_it_matters,
+          why_it_matters: goalUpdate.why_it_matters ?? state.active_goal?.why_it_matters ?? "",
         },
       });
     }

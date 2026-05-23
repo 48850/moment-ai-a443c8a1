@@ -19,9 +19,8 @@ export function ChatContextBanner({ snapshot }: { snapshot: ChatSnapshot }) {
   const p = snapshot.portfolio;
   if (!p) return null;
 
-  const goalSnippet =
-    snapshot.active_goal?.statement?.slice(0, 60) +
-    (snapshot.active_goal?.statement && snapshot.active_goal.statement.length > 60 ? "…" : "");
+  const stmt = snapshot.active_goal?.statement ?? "";
+  const goalSnippet = stmt ? (stmt.length > 60 ? stmt.slice(0, 60) + "…" : stmt) : "";
 
   const pressureClass = PRESSURE_COLOR[p.schedule_pressure] ?? "text-muted-foreground";
   const alignmentClass = ALIGNMENT_COLOR[p.alignment_status] ?? "text-muted-foreground";
