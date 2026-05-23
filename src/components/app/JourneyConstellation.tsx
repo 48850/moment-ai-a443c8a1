@@ -4,6 +4,7 @@ import { CheckCircle2, Circle, Lock, Zap, AlertTriangle, Sparkles, Target, Calen
 import type { MomentState } from "@/lib/types";
 import { computeConstellationNodes, type ConstellationNode, type ConstellationNodeType } from "@/lib/selectors/constellation";
 import { ConstellationGraph, type StarNode, type StarEdge, type StarTone } from "@/components/app/constellation/ConstellationGraph";
+import { Mote } from "@/components/app/Mote";
 
 interface Props {
   state: MomentState;
@@ -126,14 +127,14 @@ export const JourneyConstellation = ({ state }: Props) => {
 
   if (raw.length === 0) {
     return (
-      <section className="relative flex min-h-72 items-center justify-center overflow-hidden rounded-2xl border border-border/40 bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900">
-        <div className="relative z-10 px-8 text-center">
-          <Sparkles className="mx-auto h-6 w-6 text-white/20" />
-          <p className="mt-2 text-sm text-white/40">Once you set your goal, Moment will map the pathway here.</p>
-        </div>
+      <section className="relative flex min-h-72 flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl border border-border/40 bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 p-8 text-center">
+        <Mote size={88} mood="calm" />
+        <p className="max-w-xs text-sm text-white/55">Set your goal and I'll start lighting the path with you.</p>
+        <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white/35">— mote</p>
       </section>
     );
   }
+
 
   return (
     <section className="space-y-4">
@@ -153,13 +154,17 @@ export const JourneyConstellation = ({ state }: Props) => {
           <button
             type="button"
             onClick={() => setFocusedId(nextFocus.id)}
-            className="w-full rounded-xl border border-amber-400/30 bg-amber-400/5 p-4 text-left transition hover:border-amber-300/50 hover:bg-amber-400/10"
+            className="flex w-full items-start gap-3 rounded-xl border border-amber-400/30 bg-amber-400/5 p-4 text-left transition hover:border-amber-300/50 hover:bg-amber-400/10"
           >
-            <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-amber-600 dark:text-amber-300/70">what to move next</div>
-            <div className="mt-1 text-sm font-semibold leading-snug text-foreground">{nextFocus.title}</div>
-            <div className="mt-1 text-xs leading-relaxed text-muted-foreground">{compactText(nextFocus.next_action || nextFocus.why_it_matters)}</div>
+            <Mote size={48} mood="focused" />
+            <div className="min-w-0 flex-1">
+              <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-amber-600 dark:text-amber-300/70">mote · what to move next</div>
+              <div className="mt-1 text-sm font-semibold leading-snug text-foreground">{nextFocus.title}</div>
+              <div className="mt-1 text-xs leading-relaxed text-muted-foreground">{compactText(nextFocus.next_action || nextFocus.why_it_matters)}</div>
+            </div>
           </button>
         )}
+
 
         <div className="grid gap-2">
           {route.map((node: ConstellationNode, index) => {
