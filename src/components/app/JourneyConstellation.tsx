@@ -4,6 +4,7 @@ import type { MomentState } from "@/lib/types";
 import { computeConstellationNodes, type ConstellationNodeType } from "@/lib/selectors/constellation";
 import { ConstellationGraph, type StarNode, type StarEdge, type StarTone } from "@/components/app/constellation/ConstellationGraph";
 import { Mote } from "@/components/app/Mote";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Props {
   state: MomentState;
