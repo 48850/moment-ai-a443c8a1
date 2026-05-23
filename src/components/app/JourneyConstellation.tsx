@@ -52,7 +52,10 @@ const compactText = (text?: string, fallback = "No detail logged yet.") => {
 
 export const JourneyConstellation = ({ state }: Props) => {
   const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [showMap, setShowMap] = useState(false);
   const constellationRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
+  const nodeCap = isMobile ? 6 : 12;
 
   const raw = useMemo(() => computeConstellationNodes(state), [
     state.active_goal, state.tasks, state.pursuit_model,
