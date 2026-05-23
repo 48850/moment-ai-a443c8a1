@@ -45,7 +45,22 @@ export function FlameBurstOverlay() {
           fill="currentColor"
           strokeWidth={1.5}
         />
+        {/* Mote winks then explodes with the flame */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="relative h-20 w-20 animate-[fb-mote_1.4s_cubic-bezier(0.2,0.7,0.2,1)_forwards]">
+            <img
+              src={moteImg}
+              alt=""
+              aria-hidden
+              draggable={false}
+              className="h-full w-full select-none drop-shadow-[0_0_18px_rgba(252,211,77,0.9)]"
+            />
+            {/* Wink overlay — covers left eye briefly */}
+            <span className="pointer-events-none absolute left-[28%] top-[48%] h-[6%] w-[14%] rounded-full bg-[#d99a4a] animate-[fb-wink_1.4s_ease-in-out_forwards]" />
+          </div>
+        </div>
       </div>
+
 
       {/* Radial sparks */}
       {sparks.map((_, i) => {
