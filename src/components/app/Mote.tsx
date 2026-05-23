@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 import moteImg from "@/assets/mote-mascot.png";
 import { cn } from "@/lib/utils";
+import { useSettingsStore } from "@/stores/settings-store";
 
 export type MoteMood = "calm" | "focused" | "celebrate" | "repair" | "overloaded";
 
@@ -8,13 +9,12 @@ interface Props {
   size?: number;
   mood?: MoteMood;
   className?: string;
-  /** Floats gently up and down. Defaults to true. */
   float?: boolean;
-  /** Show the soft amber halo behind Mote. Defaults to true. */
   halo?: boolean;
-  /** Lively bounce — bigger, springier vertical motion. */
   bounce?: boolean;
   alt?: string;
+  /** Override hue rotation in degrees. Defaults to user's settings. */
+  hue?: number;
 }
 
 const MOOD_TILT: Record<MoteMood, number> = {
@@ -25,15 +25,18 @@ const MOOD_TILT: Record<MoteMood, number> = {
   overloaded: 0,
 };
 
-export function Mote({
+export function MomentStar({
   size = 48,
   mood = "calm",
   className,
   float = true,
   halo = true,
   bounce = false,
-  alt = "Mote, your guide",
+  alt = "Moment Star",
+  hue,
 }: Props) {
+  const settingsHue = useSettingsStore((s) => s.profile.star_hue);
+  const appliedHue = hue ?? settingsHue ?? 0;
   const tilt = MOOD_TILT[mood];
   const animateProps = bounce
     ? { y: [0, -10, 0, -4, 0], rotate: [tilt - 4, tilt + 4, tilt - 4] }
@@ -55,7 +58,7 @@ export function Mote({
           style={{
             background:
               "radial-gradient(circle, rgba(253,224,138,0.55) 0%, rgba(251,191,36,0.18) 45%, rgba(168,85,247,0) 75%)",
-            filter: "blur(8px)",
+            filter: `blur(8px) hue-rotate(${appliedHue}deg)`,
           }}
           animate={{ opacity: [0.7, 1, 0.7], scale: [1, 1.08, 1] }}
           transition={{ duration: mood === "celebrate" ? 1.6 : 3.2, repeat: Infinity, ease: "easeInOut" }}
@@ -69,7 +72,7 @@ export function Mote({
         height={size}
         draggable={false}
         className="relative select-none"
-        style={{ width: size, height: size, rotate: `${tilt}deg` }}
+        style={{ width: size, height: size, rotate: `${tilt}deg`, filter: `hue-rotate(${appliedHue}deg)` }}
         animate={animateProps}
         transition={{
           duration,
@@ -80,3 +83,6 @@ export function Mote({
     </div>
   );
 }
+
+/** @deprecated Use MomentStar. Kept for backward compatibility. */
+export const Mote = MomentStar;
