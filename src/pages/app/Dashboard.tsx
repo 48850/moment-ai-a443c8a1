@@ -120,7 +120,8 @@ const Dashboard = () => {
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <div className="text-xs text-muted-foreground">{vm.greeting}</div>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+        <h1 className="mt-1 flex items-center gap-3 text-2xl font-semibold tracking-tight">
+          <Mote size={56} bounce mood="celebrate" />
           {state.profile.display_name ? `Hey ${state.profile.display_name}` : "Hey"}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">Here's the one move that matters most right now.</p>
