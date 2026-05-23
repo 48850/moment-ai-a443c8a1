@@ -1,5 +1,8 @@
+import { useEffect } from "react";
 import { useSettingsStore, type Visibility } from "@/stores/settings-store";
 import { SectionCard, Field } from "./ProfileSettings";
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
 
 const VIS: { value: Visibility; label: string; help: string }[] = [
   { value: "private", label: "Private", help: "Only you can see" },
@@ -10,6 +13,41 @@ const VIS: { value: Visibility; label: string; help: string }[] = [
 export default function PrivacySettings() {
   const privacy = useSettingsStore((s) => s.privacy);
   const update = useSettingsStore((s) => s.updatePrivacy);
+  const { uid } = useAuth();
+
+  // Pull server state on mount
+  useEffect(() => {
+    if (!uid) return;
+    supabase
+      .from("user_privacy")
+      .select("*")
+      .eq("user_id", uid)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return;
+        update({
+          profile_visibility: (data.profile_visibility as any) ?? "private",
+          progress_visibility: (data.progress_visibility as any) ?? "friends",
+          aligned_goal_discovery: !!data.aligned_discovery_opt_in,
+          comments_mode: (data.comments_mode as any) ?? "friends",
+        });
+      });
+  }, [uid, update]);
+
+  // Push to server when settings change
+  useEffect(() => {
+    if (!uid) return;
+    supabase
+      .from("user_privacy")
+      .upsert({
+        user_id: uid,
+        profile_visibility: privacy.profile_visibility as any,
+        progress_visibility: privacy.progress_visibility as any,
+        aligned_discovery_opt_in: privacy.aligned_goal_discovery,
+        comments_mode: privacy.comments_mode as any,
+      })
+      .then(() => {});
+  }, [uid, privacy.profile_visibility, privacy.progress_visibility, privacy.aligned_goal_discovery, privacy.comments_mode]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -53,8 +91,8 @@ export default function PrivacySettings() {
 
       <SectionCard title="Social feed">
         <Toggle
-          label="Show demo friends in feed"
-          help="Sample activity from Jerry, Mia, Alex, and Sam — clearly tagged Demo."
+          label="Show example feed in empty state"
+          help="Shows a labelled example strip when you have no friends yet. Never mixed into real activity."
           checked={privacy.show_demo_friends}
           onChange={(v) => update({ show_demo_friends: v })}
         />

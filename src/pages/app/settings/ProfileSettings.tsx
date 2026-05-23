@@ -1,11 +1,63 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSettingsStore, validateUsername } from "@/stores/settings-store";
 import { MomentStar } from "@/components/app/Mote";
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function ProfileSettings() {
   const profile = useSettingsStore((s) => s.profile);
   const update = useSettingsStore((s) => s.updateProfile);
   const [usernameError, setUsernameError] = useState<string | null>(null);
+  const { uid } = useAuth();
+
+  // Hydrate from server once
+  useEffect(() => {
+    if (!uid) return;
+    supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", uid)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return;
+        update({
+          display_name: data.display_name ?? profile.display_name,
+          username: data.handle ?? profile.username,
+          main_goal: data.main_goal ?? profile.main_goal,
+          school_stage: data.school_stage ?? profile.school_stage,
+          subjects: data.subject_tags?.length ? data.subject_tags : profile.subjects,
+        });
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid]);
+
+  // Push to server when key fields change (debounced via timeout)
+  useEffect(() => {
+    if (!uid) return;
+    const handle = profile.username && !validateUsername(profile.username) ? profile.username : null;
+    const t = setTimeout(() => {
+      const tags = profile.main_goal
+        ? profile.main_goal
+            .toLowerCase()
+            .split(/[^a-z0-9]+/)
+            .filter((w) => w.length > 2)
+        : [];
+      supabase
+        .from("profiles")
+        .update({
+          display_name: profile.display_name || "New user",
+          handle,
+          main_goal: profile.main_goal || null,
+          school_stage: profile.school_stage || null,
+          goal_tags: tags,
+          subject_tags: profile.subjects.map((s) => s.toLowerCase()),
+        })
+        .eq("id", uid)
+        .then(() => {});
+    }, 500);
+    return () => clearTimeout(t);
+  }, [uid, profile.display_name, profile.username, profile.main_goal, profile.school_stage, profile.subjects]);
+
 
   return (
     <div className="flex flex-col gap-6">

@@ -26,6 +26,7 @@ import DeviceSettings from "./pages/app/settings/DeviceSettings";
 import NotificationSettings from "./pages/app/settings/NotificationSettings";
 import PlusSettings from "./pages/app/settings/PlusSettings";
 import SafetySettings from "./pages/app/settings/SafetySettings";
+import Auth from "./pages/Auth";
 import { useStateStore } from "./stores/state-store";
 
 const queryClient = new QueryClient();
@@ -81,6 +82,7 @@ const App = () => {
           <OnboardingGuard />
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/app" element={<AppShell />}>
               <Route index element={<Dashboard />} />
