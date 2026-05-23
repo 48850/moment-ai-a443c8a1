@@ -9,12 +9,14 @@ const REACTIONS: { kind: ReactionKind; label: string; emoji: string }[] = [
   { kind: "keep_going", label: "Keep going", emoji: "🔥" },
 ];
 
+const EMPTY: ReactionKind[] = [];
+
 interface Props {
   eventId: string;
 }
 
 export function ReactionBar({ eventId }: Props) {
-  const mine = useSettingsStore((s) => s.reactions[eventId] ?? []);
+  const mine = useSettingsStore((s) => s.reactions[eventId]) ?? EMPTY;
   const toggle = useSettingsStore((s) => s.toggleReaction);
 
   return (
