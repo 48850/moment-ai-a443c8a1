@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Flame } from "lucide-react";
+import moteImg from "@/assets/mote-mascot.png";
+
 
 /**
  * Fullscreen flame burst overlay. Mounts once in AppShell and listens to the
