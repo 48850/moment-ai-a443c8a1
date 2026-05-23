@@ -4,6 +4,7 @@ import type { MomentState } from "@/lib/types";
 import { computeConstellationNodes, type ConstellationNodeType } from "@/lib/selectors/constellation";
 import { ConstellationGraph, type StarNode, type StarEdge, type StarTone } from "@/components/app/constellation/ConstellationGraph";
 import { Mote } from "@/components/app/Mote";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Props {
   state: MomentState;
@@ -51,7 +52,10 @@ const compactText = (text?: string, fallback = "No detail logged yet.") => {
 
 export const JourneyConstellation = ({ state }: Props) => {
   const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [showMap, setShowMap] = useState(false);
   const constellationRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
+  const nodeCap = isMobile ? 6 : 12;
 
   const raw = useMemo(() => computeConstellationNodes(state), [
     state.active_goal, state.tasks, state.pursuit_model,
@@ -75,7 +79,7 @@ export const JourneyConstellation = ({ state }: Props) => {
       if (node.type === "PROOF_STAR") return true;
       if (node.type === "FRICTION_STAR") return true;
       return false;
-    }).slice(0, 12);
+    }).slice(0, nodeCap);
 
     const stars: StarNode[] = primary.map((n) => ({
       id: n.id,
@@ -118,11 +122,12 @@ export const JourneyConstellation = ({ state }: Props) => {
     [route],
   );
 
-  // When a block is clicked, scroll the constellation map into view.
+  // When a block is clicked, scroll the constellation map into view (only when visible).
   useEffect(() => {
     if (!focusedId || !constellationRef.current) return;
+    if (isMobile && !showMap) return;
     constellationRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [focusedId]);
+  }, [focusedId, isMobile, showMap]);
 
   if (raw.length === 0) {
     return (
@@ -156,19 +161,45 @@ export const JourneyConstellation = ({ state }: Props) => {
       )}
 
 
-      {/* Constellation map — shows where the selected task lives */}
-      <div ref={constellationRef}>
-        <ConstellationGraph
-          nodes={starNodes}
-          edges={starEdges}
-          hudLabel="constellation map"
-          hudMeta={focusedId ? "highlighted star" : "tap a block above"}
-          focusedId={focusedId}
-          onFocusChange={setFocusedId}
-          hideChipNav
-          minHeight={360}
-        />
-      </div>
+      {/* Constellation map — hidden behind a toggle on mobile to keep the view uncluttered */}
+      {isMobile ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowMap((v) => !v)}
+            className="w-full rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-left font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground transition hover:bg-muted/50"
+          >
+            {showMap ? "hide constellation map" : "show constellation map"}
+          </button>
+          {showMap && (
+            <div ref={constellationRef}>
+              <ConstellationGraph
+                nodes={starNodes}
+                edges={starEdges}
+                hudLabel="constellation map"
+                hudMeta={focusedId ? "highlighted star" : "pinch to explore"}
+                focusedId={focusedId}
+                onFocusChange={setFocusedId}
+                hideChipNav
+                minHeight={280}
+              />
+            </div>
+          )}
+        </>
+      ) : (
+        <div ref={constellationRef}>
+          <ConstellationGraph
+            nodes={starNodes}
+            edges={starEdges}
+            hudLabel="constellation map"
+            hudMeta={focusedId ? "highlighted star" : "tap a star"}
+            focusedId={focusedId}
+            onFocusChange={setFocusedId}
+            hideChipNav
+            minHeight={360}
+          />
+        </div>
+      )}
     </section>
   );
 };
