@@ -14,7 +14,7 @@ interface Props {
 }
 
 export function ReactionBar({ eventId }: Props) {
-  const mine = useSettingsStore((s) => s.reactions[eventId] ?? []);
+  const mine = useSettingsStore((s) => s.reactions[eventId]) ?? EMPTY;
   const toggle = useSettingsStore((s) => s.toggleReaction);
 
   return (
