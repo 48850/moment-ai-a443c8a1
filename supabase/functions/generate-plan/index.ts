@@ -104,7 +104,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { goal, why, context, snapshot, goal_horizons } = await req.json();
+    const { goal, why, context, snapshot, goal_horizons, surface } = await req.json();
+    const isMobile = surface === "mobile";
     if (!goal || typeof goal !== "string") {
       return new Response(JSON.stringify({ error: "Missing goal" }), {
         status: 400,
