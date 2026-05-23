@@ -3,6 +3,7 @@ import { CheckCircle2, Circle, Lock, Zap, AlertTriangle, Sparkles, Target, Calen
 import type { MomentState } from "@/lib/types";
 import { computeConstellationNodes, type ConstellationNodeType } from "@/lib/selectors/constellation";
 import { ConstellationGraph, type StarNode, type StarEdge, type StarTone } from "@/components/app/constellation/ConstellationGraph";
+import { LinearConstellation } from "@/components/app/constellation/LinearConstellation";
 import { Mote } from "@/components/app/Mote";
 import { useIsMobile } from "@/hooks/use-mobile";
 
