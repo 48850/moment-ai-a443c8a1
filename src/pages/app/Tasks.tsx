@@ -329,7 +329,7 @@ const Tasks = () => {
     <div className="mx-auto max-w-3xl space-y-5">
       <div>
         <div className="text-xs text-muted-foreground">/ tasks</div>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Everything on your list</h1>
+        <h1 className="mt-1 flex items-center gap-3 text-2xl font-semibold tracking-tight"><Mote size={56} bounce mood="focused" />Everything on your list</h1>
         {goalText && (
           <p className="mt-1 text-xs text-muted-foreground">
             Goal: <span className="text-foreground">{goalText}</span>
