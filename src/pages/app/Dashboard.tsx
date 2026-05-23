@@ -1,3 +1,4 @@
+import { Mote } from "@/components/app/Mote";
 import { useEffect, useMemo, useState } from "react";
 import { Check, Clock, ExternalLink, NotebookPen, Plus, Sparkles, X } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";

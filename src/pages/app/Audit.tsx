@@ -1,3 +1,4 @@
+import { Mote } from "@/components/app/Mote";
 import { useMemo } from "react";
 import { useStateStore } from "@/stores/state-store";
 import { computeGoalProgress } from "@/lib/engine/next-best-task";

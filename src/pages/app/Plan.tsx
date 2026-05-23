@@ -1,3 +1,4 @@
+import { Mote } from "@/components/app/Mote";
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { RefreshCw, Loader2, Compass, Sparkles, Sun, CalendarDays, CalendarRange, Telescope, ExternalLink, NotebookPen, X, Plus } from "lucide-react";

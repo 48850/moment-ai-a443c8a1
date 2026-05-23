@@ -1,3 +1,4 @@
+import { Mote } from "@/components/app/Mote";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle, Target, TrendingUp, TrendingDown, Activity,

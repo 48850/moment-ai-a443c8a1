@@ -1,3 +1,4 @@
+import { Mote } from "@/components/app/Mote";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Send, Sparkles, CheckCircle2, Target } from "lucide-react";

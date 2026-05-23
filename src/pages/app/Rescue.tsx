@@ -1,3 +1,4 @@
+import { Mote } from "@/components/app/Mote";
 import { useEffect, useState } from "react";
 import { LifeBuoy, Wind, Coffee, Heart, Sparkles, Loader2 } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";

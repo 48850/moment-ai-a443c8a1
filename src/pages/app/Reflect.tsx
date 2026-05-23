@@ -1,3 +1,4 @@
+import { Mote } from "@/components/app/Mote";
 import { useMemo, useState } from "react";
 import { useStateStore } from "@/stores/state-store";
 import type { Reflection } from "@/lib/types";
