@@ -54,23 +54,35 @@ const TONE: Record<StarTone, { fill: string; glow: string; ring: string; chip: s
   dim:     { fill: "#cbd5e1", glow: "rgba(148,163,184,0.55)", ring: "ring-white/25",       chip: "border-white/12 bg-white/[0.04] text-white/55" },
 };
 
-/** Place n nodes along a gentle sine pathway across a width×height canvas. */
+/** Distribute n nodes across a width×height canvas using a snake grid + jitter. */
 function layout(n: number, width: number, height: number) {
   if (n === 0) return [];
-  const padX = 60;
-  const usableW = Math.max(120, width - padX * 2);
-  const midY = height / 2;
-  const amp = Math.min(height * 0.32, 110);
-  if (n === 1) return [{ x: width / 2, y: midY }];
+  const padX = 70, padY = 70;
+  const innerW = Math.max(120, width - padX * 2);
+  const innerH = Math.max(120, height - padY * 2);
+  if (n === 1) return [{ x: width / 2, y: height / 2 }];
+
+  // Choose grid roughly matching canvas aspect ratio.
+  const aspect = innerW / innerH;
+  const cols = Math.max(2, Math.min(n, Math.round(Math.sqrt(n * aspect))));
+  const rows = Math.ceil(n / cols);
+  const colStep = innerW / Math.max(1, cols - 1 || 1);
+  const rowStep = rows > 1 ? innerH / (rows - 1) : 0;
+
   return Array.from({ length: n }, (_, i) => {
-    const t = i / (n - 1);
-    const x = padX + t * usableW;
-    // Two gentle waves across the route + slight deterministic jitter
-    const wave = Math.sin(t * Math.PI * 1.7 + 0.4) * amp;
-    const jitter = Math.sin(i * 2.3) * (amp * 0.12);
-    return { x, y: midY + wave + jitter };
+    const row = Math.floor(i / cols);
+    const colInRow = i % cols;
+    // Snake: alternate direction so the spine flows L→R then R→L.
+    const col = row % 2 === 0 ? colInRow : cols - 1 - colInRow;
+    const baseX = padX + (cols === 1 ? innerW / 2 : col * colStep);
+    const baseY = rows === 1 ? height / 2 : padY + row * rowStep;
+    // Deterministic jitter so it doesn't look like a grid.
+    const jx = Math.sin(i * 12.9898) * Math.min(colStep * 0.18, 28);
+    const jy = Math.cos(i * 78.233)  * Math.min((rowStep || 60) * 0.18, 24);
+    return { x: baseX + jx, y: baseY + jy };
   });
 }
+
 
 export function ConstellationGraph({
   nodes,
@@ -250,34 +262,39 @@ export function ConstellationGraph({
                     transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
                   />
                 )}
-                {/* Label */}
-                <text
-                  x={p.x}
-                  y={p.y - baseR - 10}
-                  textAnchor="middle"
-                  className="pointer-events-none select-none"
-                  fontSize={11}
-                  fontFamily="ui-sans-serif, system-ui"
-                  fill={isFocus ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.7)"}
-                  style={{ paintOrder: "stroke", stroke: "rgba(3,5,26,0.85)", strokeWidth: 3 }}
-                >
-                  {n.title.length > 26 ? `${n.title.slice(0, 24)}…` : n.title}
-                </text>
-                {n.subtitle && (
-                  <text
-                    x={p.x}
-                    y={p.y + baseR + 14}
-                    textAnchor="middle"
-                    className="pointer-events-none select-none"
-                    fontSize={9}
-                    fontFamily="ui-monospace, monospace"
-                    letterSpacing="0.14em"
-                    fill="rgba(255,255,255,0.4)"
-                    style={{ paintOrder: "stroke", stroke: "rgba(3,5,26,0.85)", strokeWidth: 3 }}
-                  >
-                    {n.subtitle.toUpperCase()}
-                  </text>
+                {/* Label — only show on focus/hover to keep the sky clean */}
+                {(isFocus || isHover) && (
+                  <>
+                    <text
+                      x={p.x}
+                      y={p.y - baseR - 12}
+                      textAnchor="middle"
+                      className="pointer-events-none select-none"
+                      fontSize={11}
+                      fontFamily="ui-sans-serif, system-ui"
+                      fill="rgba(255,255,255,0.96)"
+                      style={{ paintOrder: "stroke", stroke: "rgba(3,5,26,0.95)", strokeWidth: 3 }}
+                    >
+                      {n.title.length > 24 ? `${n.title.slice(0, 22)}…` : n.title}
+                    </text>
+                    {n.subtitle && (
+                      <text
+                        x={p.x}
+                        y={p.y + baseR + 14}
+                        textAnchor="middle"
+                        className="pointer-events-none select-none"
+                        fontSize={9}
+                        fontFamily="ui-monospace, monospace"
+                        letterSpacing="0.14em"
+                        fill="rgba(255,255,255,0.55)"
+                        style={{ paintOrder: "stroke", stroke: "rgba(3,5,26,0.95)", strokeWidth: 3 }}
+                      >
+                        {n.subtitle.toUpperCase()}
+                      </text>
+                    )}
+                  </>
                 )}
+
               </g>
             );
           })}
