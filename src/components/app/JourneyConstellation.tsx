@@ -79,7 +79,7 @@ export const JourneyConstellation = ({ state }: Props) => {
       if (node.type === "PROOF_STAR") return true;
       if (node.type === "FRICTION_STAR") return true;
       return false;
-    }).slice(0, 12);
+    }).slice(0, nodeCap);
 
     const stars: StarNode[] = primary.map((n) => ({
       id: n.id,
