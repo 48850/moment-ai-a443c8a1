@@ -17,7 +17,7 @@ interface ConstellationProps {
 
 const toneFor = (b: ScheduleBlock, isDecisive: boolean): StarTone => {
   if (isDecisive) return "amber";
-  if (b.status === "completed" || b.status === "done") return "emerald";
+  if (b.status === "completed") return "emerald";
   if (b.status === "active") return "bright";
   if (b.status === "missed") return "rose";
   if (b.type === "fixed_commitment") return "violet";
@@ -34,7 +34,7 @@ export function Constellation({
     const nodes: StarNode[] = blocks.map((b) => {
       const isDecisive = !!decisiveMoveTitle && b.title === decisiveMoveTitle;
       const statusLabel =
-        b.status === "completed" || b.status === "done" ? "done"
+        b.status === "completed" ? "done"
         : b.status === "active" ? "now"
         : b.status === "missed" ? "missed"
         : (b.status || "next");
