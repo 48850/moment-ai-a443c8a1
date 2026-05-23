@@ -1,6 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
+import { motion } from "motion/react";
+import { CheckCircle2, Circle, Lock, Zap, AlertTriangle, Sparkles, Target, Calendar, Star, MapPin } from "lucide-react";
 import type { MomentState } from "@/lib/types";
-import { computeConstellationNodes, type ConstellationNodeType } from "@/lib/selectors/constellation";
+import { computeConstellationNodes, type ConstellationNode, type ConstellationNodeType } from "@/lib/selectors/constellation";
 import { ConstellationGraph, type StarNode, type StarEdge, type StarTone } from "@/components/app/constellation/ConstellationGraph";
 
 interface Props {
@@ -19,38 +21,45 @@ const TYPE_TONE: Record<ConstellationNodeType, StarTone> = {
   SCHEDULE_STAR: "bright",
 };
 
-const TYPE_LABEL: Record<ConstellationNodeType, string> = {
-  NORTH_STAR: "north star",
-  IDENTITY_STAR: "identity",
-  TODAY_STAR: "today",
-  WORKSTREAM_STAR: "lane",
-  TASK_STAR: "task",
-  PROOF_STAR: "proof",
-  GATE_STAR: "locked",
-  FRICTION_STAR: "signal",
-  SCHEDULE_STAR: "scheduled",
+const NODE_META: Record<ConstellationNodeType, {
+  label: string;
+  Icon: React.ComponentType<{ className?: string }>;
+  tone: string;
+  dot: string;
+}> = {
+  NORTH_STAR:    { label: "north star", Icon: Star,         tone: "border-amber-200/35 bg-amber-200/10 text-amber-100",   dot: "bg-amber-200" },
+  IDENTITY_STAR: { label: "identity",   Icon: Target,       tone: "border-white/20 bg-white/[0.06] text-white",            dot: "bg-white/80" },
+  TODAY_STAR:    { label: "today",      Icon: Zap,          tone: "border-amber-300/45 bg-amber-300/10 text-amber-100",   dot: "bg-amber-300" },
+  WORKSTREAM_STAR:{label: "lane",       Icon: Circle,       tone: "border-violet-200/30 bg-violet-200/10 text-violet-100",dot: "bg-violet-200" },
+  TASK_STAR:     { label: "task",       Icon: Circle,       tone: "border-blue-200/25 bg-blue-200/10 text-blue-100",      dot: "bg-blue-200" },
+  PROOF_STAR:    { label: "proof",      Icon: CheckCircle2, tone: "border-emerald-200/30 bg-emerald-200/10 text-emerald-100", dot: "bg-emerald-200" },
+  GATE_STAR:     { label: "locked",     Icon: Lock,         tone: "border-white/10 bg-white/[0.035] text-white/55",       dot: "bg-white/35" },
+  FRICTION_STAR: { label: "signal",     Icon: AlertTriangle,tone: "border-orange-200/30 bg-orange-200/10 text-orange-100",dot: "bg-orange-200" },
+  SCHEDULE_STAR: { label: "scheduled",  Icon: Calendar,     tone: "border-sky-200/25 bg-sky-200/10 text-sky-100",         dot: "bg-sky-200" },
 };
 
 const ORDER: ConstellationNodeType[] = [
-  "NORTH_STAR",
-  "IDENTITY_STAR",
-  "TODAY_STAR",
-  "WORKSTREAM_STAR",
-  "TASK_STAR",
-  "SCHEDULE_STAR",
-  "PROOF_STAR",
-  "FRICTION_STAR",
-  "GATE_STAR",
+  "NORTH_STAR", "IDENTITY_STAR", "TODAY_STAR",
+  "WORKSTREAM_STAR", "TASK_STAR", "SCHEDULE_STAR",
+  "PROOF_STAR", "FRICTION_STAR", "GATE_STAR",
 ];
 
+const compactText = (text?: string, fallback = "No detail logged yet.") => {
+  const v = text?.trim() || fallback;
+  return v.length > 138 ? `${v.slice(0, 135)}…` : v;
+};
+
 export const JourneyConstellation = ({ state }: Props) => {
+  const [focusedId, setFocusedId] = useState<string | null>(null);
+  const constellationRef = useRef<HTMLDivElement>(null);
+
   const raw = useMemo(() => computeConstellationNodes(state), [
     state.active_goal, state.tasks, state.pursuit_model,
     state.execution_feedback, state.today_state,
     state.schedule_state?.week_plan, state.schedule_state?.week_plan_generated_at,
   ]);
 
-  const { nodes, edges, counts } = useMemo(() => {
+  const { route, counts, starNodes, starEdges } = useMemo(() => {
     const sorted = [...raw].sort((a, b) => {
       const byType = ORDER.indexOf(a.type) - ORDER.indexOf(b.type);
       if (byType !== 0) return byType;
@@ -66,12 +75,12 @@ export const JourneyConstellation = ({ state }: Props) => {
       if (node.type === "PROOF_STAR") return true;
       if (node.type === "FRICTION_STAR") return true;
       return false;
-    }).slice(0, 11);
+    }).slice(0, 12);
 
-    const starNodes: StarNode[] = primary.map((n) => ({
+    const stars: StarNode[] = primary.map((n) => ({
       id: n.id,
       title: n.title,
-      subtitle: TYPE_LABEL[n.type],
+      subtitle: NODE_META[n.type].label,
       tone: TYPE_TONE[n.type],
       isLocked: n.status === "locked",
       isFocus: n.type === "TODAY_STAR" || (n.type === "TASK_STAR" && n.status === "active"),
@@ -80,14 +89,12 @@ export const JourneyConstellation = ({ state }: Props) => {
     }));
 
     const edges: StarEdge[] = [];
-    // Spine in display order
-    for (let i = 0; i < starNodes.length - 1; i++) {
-      edges.push({ from: starNodes[i].id, to: starNodes[i + 1].id, kind: "spine" });
+    for (let i = 0; i < stars.length - 1; i++) {
+      edges.push({ from: stars[i].id, to: stars[i + 1].id, kind: "spine" });
     }
-    // Cross-link North Star to every workstream as support arcs
-    const north = starNodes.find((n) => n.subtitle === "north star");
+    const north = stars.find((s) => s.subtitle === "north star");
     if (north) {
-      starNodes.filter((n) => n.subtitle === "lane").forEach((w) => {
+      stars.filter((s) => s.subtitle === "lane").forEach((w) => {
         if (!edges.find((e) => e.from === north.id && e.to === w.id)) {
           edges.push({ from: north.id, to: w.id, kind: "support" });
         }
@@ -95,8 +102,9 @@ export const JourneyConstellation = ({ state }: Props) => {
     }
 
     return {
-      nodes: starNodes,
-      edges,
+      route: primary,
+      starNodes: stars,
+      starEdges: edges,
       counts: {
         proofs: raw.filter((n) => n.type === "PROOF_STAR").length,
         locked: raw.filter((n) => n.type === "GATE_STAR").length,
@@ -105,15 +113,106 @@ export const JourneyConstellation = ({ state }: Props) => {
     };
   }, [raw]);
 
+  const nextFocus = useMemo(
+    () => route.find((n) => n.type === "TODAY_STAR" || (n.type === "TASK_STAR" && n.status === "active")),
+    [route],
+  );
+
+  // When a block is clicked, scroll the constellation map into view.
+  useEffect(() => {
+    if (!focusedId || !constellationRef.current) return;
+    constellationRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [focusedId]);
+
+  if (raw.length === 0) {
+    return (
+      <section className="relative flex min-h-72 items-center justify-center overflow-hidden rounded-2xl border border-border/40 bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900">
+        <div className="relative z-10 px-8 text-center">
+          <Sparkles className="mx-auto h-6 w-6 text-white/20" />
+          <p className="mt-2 text-sm text-white/40">Once you set your goal, Moment will map the pathway here.</p>
+        </div>
+      </section>
+    );
+  }
+
   return (
-    <ConstellationGraph
-      nodes={nodes}
-      edges={edges}
-      hudLabel="journey constellation"
-      hudMeta={`${counts.active} active · ${counts.proofs} proven · ${counts.locked} locked`}
-      emptyHint="Once you set your goal, Moment will map the pathway here."
-      nebulaHue="indigo"
-      minHeight={420}
-    />
+    <section className="space-y-4">
+      {/* Pathway blocks — primary navigation */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between px-1">
+          <div>
+            <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">journey pathway</div>
+            <div className="text-sm font-semibold text-foreground">Tap a star to see where it sits</div>
+          </div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            {counts.active} active · {counts.proofs} proven · {counts.locked} locked
+          </div>
+        </div>
+
+        {nextFocus && (
+          <button
+            type="button"
+            onClick={() => setFocusedId(nextFocus.id)}
+            className="w-full rounded-xl border border-amber-400/30 bg-amber-400/5 p-4 text-left transition hover:border-amber-300/50 hover:bg-amber-400/10"
+          >
+            <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-amber-600 dark:text-amber-300/70">what to move next</div>
+            <div className="mt-1 text-sm font-semibold leading-snug text-foreground">{nextFocus.title}</div>
+            <div className="mt-1 text-xs leading-relaxed text-muted-foreground">{compactText(nextFocus.next_action || nextFocus.why_it_matters)}</div>
+          </button>
+        )}
+
+        <div className="grid gap-2">
+          {route.map((node: ConstellationNode, index) => {
+            const meta = NODE_META[node.type];
+            const Icon = meta.Icon;
+            const isFocused = focusedId === node.id;
+            return (
+              <motion.button
+                key={node.id}
+                type="button"
+                onClick={() => setFocusedId(isFocused ? null : node.id)}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: node.status === "locked" ? 0.6 : 1, y: 0 }}
+                transition={{ delay: index * 0.025 }}
+                className={`relative grid grid-cols-[32px_1fr_auto] items-start gap-3 rounded-xl border p-3 text-left transition ${meta.tone} ${
+                  isFocused ? "ring-2 ring-amber-300/50 shadow-[0_0_24px_-6px_rgba(251,191,36,0.55)]" : "hover:border-foreground/30"
+                }`}
+              >
+                <span className="relative mt-0.5 flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-black/25">
+                  <span className={`absolute h-2 w-2 rounded-full ${meta.dot} shadow-[0_0_10px_currentColor]`} />
+                  <Icon className="relative h-3.5 w-3.5 opacity-60" />
+                </span>
+                <span className="min-w-0">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="truncate text-sm font-semibold">{node.title}</span>
+                    <span className="rounded-full border border-white/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-current/70">{meta.label}</span>
+                    {node.subtitle && <span className="rounded-full border border-white/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-current/60">{node.subtitle}</span>}
+                  </span>
+                  <span className="mt-1 block text-xs leading-relaxed opacity-75">{compactText(node.next_action || node.why_it_matters)}</span>
+                </span>
+                <span className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider opacity-55">
+                  <MapPin className="h-3 w-3" />
+                  show
+                </span>
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Constellation map — shows where the selected task lives */}
+      <div ref={constellationRef}>
+        <ConstellationGraph
+          nodes={starNodes}
+          edges={starEdges}
+          hudLabel="constellation map"
+          hudMeta={focusedId ? "highlighted star" : "tap a block above"}
+          focusedId={focusedId}
+          onFocusChange={setFocusedId}
+          hideChipNav
+          minHeight={360}
+        />
+      </div>
+    </section>
   );
 };
