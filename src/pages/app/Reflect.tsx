@@ -46,7 +46,8 @@ const Reflect = () => {
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <div className="text-xs text-muted-foreground">/ reflect</div>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+        <h1 className="mt-1 flex items-center gap-3 text-2xl font-semibold tracking-tight">
+          <Mote size={56} bounce mood="calm" />
           {state?.profile.display_name ? `${state.profile.display_name}, how was today?` : "How was today?"}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">A two-minute check-in. No pressure.</p>
