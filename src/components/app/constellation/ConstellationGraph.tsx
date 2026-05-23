@@ -54,23 +54,35 @@ const TONE: Record<StarTone, { fill: string; glow: string; ring: string; chip: s
   dim:     { fill: "#cbd5e1", glow: "rgba(148,163,184,0.55)", ring: "ring-white/25",       chip: "border-white/12 bg-white/[0.04] text-white/55" },
 };
 
-/** Place n nodes along a gentle sine pathway across a width×height canvas. */
+/** Distribute n nodes across a width×height canvas using a snake grid + jitter. */
 function layout(n: number, width: number, height: number) {
   if (n === 0) return [];
-  const padX = 60;
-  const usableW = Math.max(120, width - padX * 2);
-  const midY = height / 2;
-  const amp = Math.min(height * 0.32, 110);
-  if (n === 1) return [{ x: width / 2, y: midY }];
+  const padX = 70, padY = 70;
+  const innerW = Math.max(120, width - padX * 2);
+  const innerH = Math.max(120, height - padY * 2);
+  if (n === 1) return [{ x: width / 2, y: height / 2 }];
+
+  // Choose grid roughly matching canvas aspect ratio.
+  const aspect = innerW / innerH;
+  const cols = Math.max(2, Math.min(n, Math.round(Math.sqrt(n * aspect))));
+  const rows = Math.ceil(n / cols);
+  const colStep = innerW / Math.max(1, cols - 1 || 1);
+  const rowStep = rows > 1 ? innerH / (rows - 1) : 0;
+
   return Array.from({ length: n }, (_, i) => {
-    const t = i / (n - 1);
-    const x = padX + t * usableW;
-    // Two gentle waves across the route + slight deterministic jitter
-    const wave = Math.sin(t * Math.PI * 1.7 + 0.4) * amp;
-    const jitter = Math.sin(i * 2.3) * (amp * 0.12);
-    return { x, y: midY + wave + jitter };
+    const row = Math.floor(i / cols);
+    const colInRow = i % cols;
+    // Snake: alternate direction so the spine flows L→R then R→L.
+    const col = row % 2 === 0 ? colInRow : cols - 1 - colInRow;
+    const baseX = padX + (cols === 1 ? innerW / 2 : col * colStep);
+    const baseY = rows === 1 ? height / 2 : padY + row * rowStep;
+    // Deterministic jitter so it doesn't look like a grid.
+    const jx = Math.sin(i * 12.9898) * Math.min(colStep * 0.18, 28);
+    const jy = Math.cos(i * 78.233)  * Math.min((rowStep || 60) * 0.18, 24);
+    return { x: baseX + jx, y: baseY + jy };
   });
 }
+
 
 export function ConstellationGraph({
   nodes,
