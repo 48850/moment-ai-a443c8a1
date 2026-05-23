@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Flame } from "lucide-react";
+import moteImg from "@/assets/mote-mascot.png";
+
 
 /**
  * Fullscreen flame burst overlay. Mounts once in AppShell and listens to the
@@ -43,7 +45,22 @@ export function FlameBurstOverlay() {
           fill="currentColor"
           strokeWidth={1.5}
         />
+        {/* Mote winks then explodes with the flame */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="relative h-20 w-20 animate-[fb-mote_1.4s_cubic-bezier(0.2,0.7,0.2,1)_forwards]">
+            <img
+              src={moteImg}
+              alt=""
+              aria-hidden
+              draggable={false}
+              className="h-full w-full select-none drop-shadow-[0_0_18px_rgba(252,211,77,0.9)]"
+            />
+            {/* Wink overlay — covers left eye briefly */}
+            <span className="pointer-events-none absolute left-[28%] top-[48%] h-[6%] w-[14%] rounded-full bg-[#d99a4a] animate-[fb-wink_1.4s_ease-in-out_forwards]" />
+          </div>
+        </div>
       </div>
+
 
       {/* Radial sparks */}
       {sparks.map((_, i) => {
@@ -80,6 +97,20 @@ export function FlameBurstOverlay() {
           15%  { opacity: 1; transform: translate(calc(var(--dx) * 0.15), calc(var(--dy) * 0.15)) scale(1.1); }
           100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.2); }
         }
+        @keyframes fb-mote {
+          0%   { transform: scale(0.2) rotate(-12deg); opacity: 0; }
+          20%  { transform: scale(1.1) rotate(6deg);   opacity: 1; }
+          35%  { transform: scale(0.92) rotate(-4deg); opacity: 1; }
+          55%  { transform: scale(1.05) rotate(2deg);  opacity: 1; }
+          75%  { transform: scale(1.8)  rotate(0);     opacity: 0.9; }
+          100% { transform: scale(3.2)  rotate(0);     opacity: 0; }
+        }
+        @keyframes fb-wink {
+          0%, 20%   { transform: scaleY(0); opacity: 0; }
+          28%, 42%  { transform: scaleY(1); opacity: 1; }
+          50%, 100% { transform: scaleY(0); opacity: 0; }
+        }
+
       `}</style>
     </div>,
     document.body,
