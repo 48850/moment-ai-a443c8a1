@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStateStore } from "@/stores/state-store";
 import { buildContextPacket } from "@/lib/ai/context-packet";
+import { resolveSurface, useSettingsStore } from "@/stores/settings-store";
 
 export type AIIntent =
   | "next_move_rationale"
@@ -22,6 +23,7 @@ export type AIIntent =
 
 export function useAI<T = any>(intent: AIIntent) {
   const state = useStateStore((s) => s.state);
+  const deviceMode = useSettingsStore((s) => s.device.mode);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<T | null>(null);
@@ -30,9 +32,7 @@ export function useAI<T = any>(intent: AIIntent) {
     async (payload: Record<string, unknown> = {}) => {
       setLoading(true); setError(null);
       try {
-        const surface = typeof window !== "undefined" && window.matchMedia?.("(max-width: 768px)").matches
-          ? "mobile"
-          : "desktop";
+        const surface = resolveSurface(deviceMode);
         const { data, error: fnErr } = await supabase.functions.invoke("app-intelligence", {
           body: { intent, snapshot: buildContextPacket(state), payload: { surface, ...payload }, surface },
         });
@@ -48,7 +48,7 @@ export function useAI<T = any>(intent: AIIntent) {
         setLoading(false);
       }
     },
-    [intent, state],
+    [intent, state, deviceMode],
   );
 
   return { run, loading, error, result };

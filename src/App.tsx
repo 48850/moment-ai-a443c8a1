@@ -18,6 +18,14 @@ import Rescue from "./pages/app/Rescue";
 import Forge from "./pages/app/Forge";
 import ForgeFeature from "./pages/app/ForgeFeature";
 import ForgeVideoStudio from "./pages/app/ForgeVideoStudio";
+import Social from "./pages/app/Social";
+import SettingsShell from "./pages/app/settings/SettingsShell";
+import ProfileSettings from "./pages/app/settings/ProfileSettings";
+import PrivacySettings from "./pages/app/settings/PrivacySettings";
+import DeviceSettings from "./pages/app/settings/DeviceSettings";
+import NotificationSettings from "./pages/app/settings/NotificationSettings";
+import PlusSettings from "./pages/app/settings/PlusSettings";
+import SafetySettings from "./pages/app/settings/SafetySettings";
 import { useStateStore } from "./stores/state-store";
 
 const queryClient = new QueryClient();
@@ -86,6 +94,16 @@ const App = () => {
               <Route path="forge/videos" element={<ForgeVideoStudio />} />
               <Route path="mission/summary" element={<ForgeVideoStudio />} />
               <Route path="forge/:featureId" element={<ForgeFeature />} />
+              <Route path="social" element={<Social />} />
+              <Route path="settings" element={<SettingsShell />}>
+                <Route index element={<ProfileSettings />} />
+                <Route path="profile" element={<ProfileSettings />} />
+                <Route path="privacy" element={<PrivacySettings />} />
+                <Route path="device" element={<DeviceSettings />} />
+                <Route path="notifications" element={<NotificationSettings />} />
+                <Route path="plus" element={<PlusSettings />} />
+                <Route path="safety" element={<SafetySettings />} />
+              </Route>
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

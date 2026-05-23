@@ -1,6 +1,6 @@
 import { NavLink, Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { Home, Calendar, Target, ArrowLeft, MessageSquare, Heart, LifeBuoy, ListChecks, Hammer, Sun, Moon } from "lucide-react";
-import { Mote } from "@/components/app/Mote";
+import { Home, Calendar, Target, ArrowLeft, MessageSquare, Heart, LifeBuoy, ListChecks, Hammer, Sun, Moon, Settings, Users } from "lucide-react";
+import { MomentStar } from "@/components/app/Mote";
 import { useStateStore } from "@/stores/state-store";
 import { useTheme } from "@/hooks/use-theme";
 import { FlameBurstOverlay } from "@/components/app/FlameBurstOverlay";
@@ -13,12 +13,13 @@ const tabs: { to: string; label: string; icon: React.ComponentType<{ className?:
     label: "Today",
     icon: Home,
     end: true,
-    match: ["/app", "/app/chat", "/app/reflect", "/app/rescue"],
+    match: ["/app", "/app/chat", "/app/reflect", "/app/rescue", "/app/social"],
     sub: [
       { to: "/app", label: "Today", icon: Home, end: true },
       { to: "/app/chat", label: "Chat", icon: MessageSquare },
       { to: "/app/reflect", label: "Reflect", icon: Heart },
       { to: "/app/rescue", label: "Rescue", icon: LifeBuoy },
+      { to: "/app/social", label: "Social", icon: Users },
     ],
   },
   {
@@ -64,12 +65,24 @@ export const AppShell = () => {
         <Link to="/" className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-3.5 w-3.5" />
           <span className="inline-flex items-center gap-2">
-            <Mote size={28} halo={false} className="-my-1" />
+            <MomentStar size={28} halo={false} className="-my-1" />
             <span className="font-display text-base font-medium tracking-tight text-foreground">Moment</span>
             <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">/ai</span>
           </span>
         </Link>
         <div className="flex items-center gap-3">
+          <NavLink
+            to="/app/settings"
+            aria-label="Settings"
+            title="Settings"
+            className={({ isActive }) =>
+              `inline-flex h-7 w-7 items-center justify-center rounded-md border border-border ${
+                isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`
+            }
+          >
+            <Settings className="h-3.5 w-3.5" />
+          </NavLink>
           <button
             onClick={toggleTheme}
             aria-label="Toggle theme"
