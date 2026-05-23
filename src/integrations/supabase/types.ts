@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      follows: {
+        Row: {
+          created_at: string
+          followee_id: string
+          follower_id: string
+          status: Database["public"]["Enums"]["follow_status"]
+        }
+        Insert: {
+          created_at?: string
+          followee_id: string
+          follower_id: string
+          status?: Database["public"]["Enums"]["follow_status"]
+        }
+        Update: {
+          created_at?: string
+          followee_id?: string
+          follower_id?: string
+          status?: Database["public"]["Enums"]["follow_status"]
+        }
+        Relationships: []
+      }
       moment_state: {
         Row: {
           created_at: string
@@ -35,15 +56,171 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          created_at: string
+          device_id: string | null
+          display_name: string
+          goal_tags: string[]
+          handle: string | null
+          id: string
+          main_goal: string | null
+          school_stage: string | null
+          subject_tags: string[]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          device_id?: string | null
+          display_name?: string
+          goal_tags?: string[]
+          handle?: string | null
+          id: string
+          main_goal?: string | null
+          school_stage?: string | null
+          subject_tags?: string[]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          device_id?: string | null
+          display_name?: string
+          goal_tags?: string[]
+          handle?: string | null
+          id?: string
+          main_goal?: string | null
+          school_stage?: string | null
+          subject_tags?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      progress_events: {
+        Row: {
+          context: string | null
+          created_at: string
+          goal_tags: string[]
+          id: string
+          kind: Database["public"]["Enums"]["event_kind"]
+          source_key: string | null
+          subject_tags: string[]
+          title: string
+          user_id: string
+          visibility: Database["public"]["Enums"]["visibility_level"]
+        }
+        Insert: {
+          context?: string | null
+          created_at?: string
+          goal_tags?: string[]
+          id?: string
+          kind: Database["public"]["Enums"]["event_kind"]
+          source_key?: string | null
+          subject_tags?: string[]
+          title: string
+          user_id: string
+          visibility?: Database["public"]["Enums"]["visibility_level"]
+        }
+        Update: {
+          context?: string | null
+          created_at?: string
+          goal_tags?: string[]
+          id?: string
+          kind?: Database["public"]["Enums"]["event_kind"]
+          source_key?: string | null
+          subject_tags?: string[]
+          title?: string
+          user_id?: string
+          visibility?: Database["public"]["Enums"]["visibility_level"]
+        }
+        Relationships: []
+      }
+      reactions: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          kind: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          kind: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          kind?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reactions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "progress_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_privacy: {
+        Row: {
+          aligned_discovery_opt_in: boolean
+          comments_mode: Database["public"]["Enums"]["comments_mode"]
+          profile_visibility: Database["public"]["Enums"]["visibility_level"]
+          progress_visibility: Database["public"]["Enums"]["visibility_level"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          aligned_discovery_opt_in?: boolean
+          comments_mode?: Database["public"]["Enums"]["comments_mode"]
+          profile_visibility?: Database["public"]["Enums"]["visibility_level"]
+          progress_visibility?: Database["public"]["Enums"]["visibility_level"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          aligned_discovery_opt_in?: boolean
+          comments_mode?: Database["public"]["Enums"]["comments_mode"]
+          profile_visibility?: Database["public"]["Enums"]["visibility_level"]
+          progress_visibility?: Database["public"]["Enums"]["visibility_level"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_accepted_follower: {
+        Args: { _author: string; _viewer: string }
+        Returns: boolean
+      }
+      is_mutual: { Args: { _a: string; _b: string }; Returns: boolean }
+      shares_goal_tag: {
+        Args: { _author: string; _viewer: string }
+        Returns: boolean
+      }
+      viewer_aligned_opt_in: { Args: { _viewer: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      comments_mode: "off" | "friends" | "mutuals"
+      event_kind:
+        | "task_completed"
+        | "review_saved"
+        | "lesson_learned"
+        | "plan_repaired"
+        | "streak_milestone"
+        | "weekly_recap"
+        | "community_joined"
+      follow_status: "pending" | "accepted"
+      visibility_level: "private" | "friends" | "aligned" | "public"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -170,6 +347,19 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      comments_mode: ["off", "friends", "mutuals"],
+      event_kind: [
+        "task_completed",
+        "review_saved",
+        "lesson_learned",
+        "plan_repaired",
+        "streak_milestone",
+        "weekly_recap",
+        "community_joined",
+      ],
+      follow_status: ["pending", "accepted"],
+      visibility_level: ["private", "friends", "aligned", "public"],
+    },
   },
 } as const
