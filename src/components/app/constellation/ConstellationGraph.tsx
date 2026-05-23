@@ -262,34 +262,39 @@ export function ConstellationGraph({
                     transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
                   />
                 )}
-                {/* Label */}
-                <text
-                  x={p.x}
-                  y={p.y - baseR - 10}
-                  textAnchor="middle"
-                  className="pointer-events-none select-none"
-                  fontSize={11}
-                  fontFamily="ui-sans-serif, system-ui"
-                  fill={isFocus ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.7)"}
-                  style={{ paintOrder: "stroke", stroke: "rgba(3,5,26,0.85)", strokeWidth: 3 }}
-                >
-                  {n.title.length > 26 ? `${n.title.slice(0, 24)}…` : n.title}
-                </text>
-                {n.subtitle && (
-                  <text
-                    x={p.x}
-                    y={p.y + baseR + 14}
-                    textAnchor="middle"
-                    className="pointer-events-none select-none"
-                    fontSize={9}
-                    fontFamily="ui-monospace, monospace"
-                    letterSpacing="0.14em"
-                    fill="rgba(255,255,255,0.4)"
-                    style={{ paintOrder: "stroke", stroke: "rgba(3,5,26,0.85)", strokeWidth: 3 }}
-                  >
-                    {n.subtitle.toUpperCase()}
-                  </text>
+                {/* Label — only show on focus/hover to keep the sky clean */}
+                {(isFocus || isHover) && (
+                  <>
+                    <text
+                      x={p.x}
+                      y={p.y - baseR - 12}
+                      textAnchor="middle"
+                      className="pointer-events-none select-none"
+                      fontSize={11}
+                      fontFamily="ui-sans-serif, system-ui"
+                      fill="rgba(255,255,255,0.96)"
+                      style={{ paintOrder: "stroke", stroke: "rgba(3,5,26,0.95)", strokeWidth: 3 }}
+                    >
+                      {n.title.length > 24 ? `${n.title.slice(0, 22)}…` : n.title}
+                    </text>
+                    {n.subtitle && (
+                      <text
+                        x={p.x}
+                        y={p.y + baseR + 14}
+                        textAnchor="middle"
+                        className="pointer-events-none select-none"
+                        fontSize={9}
+                        fontFamily="ui-monospace, monospace"
+                        letterSpacing="0.14em"
+                        fill="rgba(255,255,255,0.55)"
+                        style={{ paintOrder: "stroke", stroke: "rgba(3,5,26,0.95)", strokeWidth: 3 }}
+                      >
+                        {n.subtitle.toUpperCase()}
+                      </text>
+                    )}
+                  </>
                 )}
+
               </g>
             );
           })}
