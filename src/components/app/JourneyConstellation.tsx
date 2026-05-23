@@ -1,8 +1,7 @@
 import { useMemo, useState, useRef, useEffect } from "react";
-import { motion } from "motion/react";
-import { CheckCircle2, Circle, Lock, Zap, AlertTriangle, Sparkles, Target, Calendar, Star, MapPin } from "lucide-react";
+import { CheckCircle2, Circle, Lock, Zap, AlertTriangle, Sparkles, Target, Calendar, Star } from "lucide-react";
 import type { MomentState } from "@/lib/types";
-import { computeConstellationNodes, type ConstellationNode, type ConstellationNodeType } from "@/lib/selectors/constellation";
+import { computeConstellationNodes, type ConstellationNodeType } from "@/lib/selectors/constellation";
 import { ConstellationGraph, type StarNode, type StarEdge, type StarTone } from "@/components/app/constellation/ConstellationGraph";
 import { Mote } from "@/components/app/Mote";
 
