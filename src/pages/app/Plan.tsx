@@ -486,6 +486,9 @@ const Plan = () => {
     try {
       const { buildContextPacket } = await import("@/lib/ai/context-packet");
       const snapshot = buildContextPacket(state);
+      const surface = typeof window !== "undefined" && window.matchMedia?.("(max-width: 768px)").matches
+        ? "mobile"
+        : "desktop";
       const { data, error } = await supabase.functions.invoke("generate-plan", {
         body: {
           goal: goalText,
@@ -493,6 +496,7 @@ const Plan = () => {
           context: state.active_goal?.reality_gap ?? "",
           goal_horizons: (snapshot as any).active_goal,
           snapshot,
+          surface,
         },
       });
       if (error) throw error;
