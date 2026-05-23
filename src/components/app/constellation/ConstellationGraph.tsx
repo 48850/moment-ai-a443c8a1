@@ -42,7 +42,13 @@ interface Props {
   nebulaHue?: "indigo" | "violet" | "teal";
   /** Min height of the SVG canvas. */
   minHeight?: number;
+  /** Controlled focused star id (overrides internal state when provided). */
+  focusedId?: string | null;
+  onFocusChange?: (id: string | null) => void;
+  /** Hide the bottom chip navigator (useful when an external list drives focus). */
+  hideChipNav?: boolean;
 }
+
 
 const TONE: Record<StarTone, { fill: string; glow: string; ring: string; chip: string }> = {
   bright:  { fill: "#dbeafe", glow: "rgba(147,197,253,0.85)", ring: "ring-blue-200/50",    chip: "border-blue-200/35 bg-blue-200/10 text-blue-100" },
@@ -94,11 +100,20 @@ export function ConstellationGraph({
   renderPanel,
   nebulaHue = "indigo",
   minHeight = 340,
+  focusedId: focusedIdProp,
+  onFocusChange,
+  hideChipNav = false,
 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 800, h: minHeight });
-  const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [internalFocusedId, setInternalFocusedId] = useState<string | null>(null);
+  const focusedId = focusedIdProp !== undefined ? focusedIdProp : internalFocusedId;
+  const setFocusedId = (id: string | null) => {
+    if (focusedIdProp === undefined) setInternalFocusedId(id);
+    onFocusChange?.(id);
+  };
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+
 
   useEffect(() => {
     if (!wrapRef.current) return;
@@ -342,58 +357,61 @@ export function ConstellationGraph({
       </div>
 
       {/* Chip navigator */}
-      <div className="relative z-10 flex items-center gap-2 border-t border-white/10 bg-black/40 px-2 py-2 backdrop-blur">
-        <button
-          type="button"
-          onClick={() => goto(-1)}
-          className="rounded-full border border-white/10 p-1.5 text-white/60 hover:border-white/30 hover:text-white"
-          aria-label="Previous star"
-        >
-          <ChevronLeft className="h-3.5 w-3.5" />
-        </button>
-        <div className="flex flex-1 gap-1.5 overflow-x-auto scrollbar-none">
-          {nodes.map((n, i) => {
-            const tone = TONE[n.tone ?? "bright"];
-            const isActive = focusedId === n.id;
-            return (
-              <button
-                key={n.id}
-                type="button"
-                onClick={() => { setFocusedId(n.id); onNodeClick?.(n.id); }}
-                onMouseEnter={() => setHoveredId(n.id)}
-                onMouseLeave={() => setHoveredId((cur) => (cur === n.id ? null : cur))}
-                className={`group flex shrink-0 items-center gap-2 rounded-full border px-2.5 py-1 text-left transition ${tone.chip} ${
-                  isActive ? `ring-1 ${tone.ring} bg-white/10` : "hover:bg-white/[0.07]"
-                } ${n.isLocked ? "opacity-55" : ""}`}
-              >
-                <span
-                  className="h-1.5 w-1.5 rounded-full"
-                  style={{ background: tone.fill, boxShadow: `0 0 8px ${tone.glow}` }}
-                />
-                <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-white/40">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <span className="max-w-[10rem] truncate text-[11px] font-medium">
-                  {n.title}
-                </span>
-                {n.meta && (
-                  <span className="font-mono text-[9px] uppercase tracking-wider text-white/45">
-                    {n.meta}
+      {!hideChipNav && (
+        <div className="relative z-10 flex items-center gap-2 border-t border-white/10 bg-black/40 px-2 py-2 backdrop-blur">
+          <button
+            type="button"
+            onClick={() => goto(-1)}
+            className="rounded-full border border-white/10 p-1.5 text-white/60 hover:border-white/30 hover:text-white"
+            aria-label="Previous star"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </button>
+          <div className="flex flex-1 gap-1.5 overflow-x-auto scrollbar-none">
+            {nodes.map((n, i) => {
+              const tone = TONE[n.tone ?? "bright"];
+              const isActive = focusedId === n.id;
+              return (
+                <button
+                  key={n.id}
+                  type="button"
+                  onClick={() => { setFocusedId(n.id); onNodeClick?.(n.id); }}
+                  onMouseEnter={() => setHoveredId(n.id)}
+                  onMouseLeave={() => setHoveredId((cur) => (cur === n.id ? null : cur))}
+                  className={`group flex shrink-0 items-center gap-2 rounded-full border px-2.5 py-1 text-left transition ${tone.chip} ${
+                    isActive ? `ring-1 ${tone.ring} bg-white/10` : "hover:bg-white/[0.07]"
+                  } ${n.isLocked ? "opacity-55" : ""}`}
+                >
+                  <span
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{ background: tone.fill, boxShadow: `0 0 8px ${tone.glow}` }}
+                  />
+                  <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-white/40">
+                    {String(i + 1).padStart(2, "0")}
                   </span>
-                )}
-              </button>
-            );
-          })}
+                  <span className="max-w-[10rem] truncate text-[11px] font-medium">
+                    {n.title}
+                  </span>
+                  {n.meta && (
+                    <span className="font-mono text-[9px] uppercase tracking-wider text-white/45">
+                      {n.meta}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => goto(1)}
+            className="rounded-full border border-white/10 p-1.5 text-white/60 hover:border-white/30 hover:text-white"
+            aria-label="Next star"
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => goto(1)}
-          className="rounded-full border border-white/10 p-1.5 text-white/60 hover:border-white/30 hover:text-white"
-          aria-label="Next star"
-        >
-          <ChevronRight className="h-3.5 w-3.5" />
-        </button>
-      </div>
+      )}
+
     </div>
   );
 }
