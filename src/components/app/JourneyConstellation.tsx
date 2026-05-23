@@ -122,11 +122,12 @@ export const JourneyConstellation = ({ state }: Props) => {
     [route],
   );
 
-  // When a block is clicked, scroll the constellation map into view.
+  // When a block is clicked, scroll the constellation map into view (only when visible).
   useEffect(() => {
     if (!focusedId || !constellationRef.current) return;
+    if (isMobile && !showMap) return;
     constellationRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [focusedId]);
+  }, [focusedId, isMobile, showMap]);
 
   if (raw.length === 0) {
     return (
