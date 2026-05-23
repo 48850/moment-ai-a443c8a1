@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { CompiledPursuitModel } from "@/lib/types";
 import type { WorkstreamAnalytics } from "@/lib/selectors/mission-analytics";
 import { ConstellationGraph, type StarNode, type StarEdge, type StarTone } from "@/components/app/constellation/ConstellationGraph";
+import { Mote } from "@/components/app/Mote";
 
 interface Props {
   model: CompiledPursuitModel;
