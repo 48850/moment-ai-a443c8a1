@@ -31,8 +31,18 @@ export function Mote({
   className,
   float = true,
   halo = true,
+  bounce = false,
   alt = "Mote, your guide",
 }: Props) {
+  const tilt = MOOD_TILT[mood];
+  const animateProps = bounce
+    ? { y: [0, -10, 0, -4, 0], rotate: [tilt - 4, tilt + 4, tilt - 4] }
+    : float
+      ? mood === "overloaded"
+        ? { y: [0, -1, 1, -1, 0], rotate: [tilt, tilt - 2, tilt + 2, tilt] }
+        : { y: [0, -4, 0] }
+      : undefined;
+  const duration = bounce ? 1.6 : mood === "celebrate" ? 1.4 : mood === "overloaded" ? 0.6 : 3.6;
   return (
     <div
       className={cn("relative inline-flex shrink-0 items-center justify-center", className)}
@@ -59,18 +69,12 @@ export function Mote({
         height={size}
         draggable={false}
         className="relative select-none"
-        style={{ width: size, height: size, rotate: `${MOOD_TILT[mood]}deg` }}
-        animate={
-          float
-            ? mood === "overloaded"
-              ? { y: [0, -1, 1, -1, 0], rotate: [MOOD_TILT[mood], MOOD_TILT[mood] - 2, MOOD_TILT[mood] + 2, MOOD_TILT[mood]] }
-              : { y: [0, -4, 0] }
-            : undefined
-        }
+        style={{ width: size, height: size, rotate: `${tilt}deg` }}
+        animate={animateProps}
         transition={{
-          duration: mood === "celebrate" ? 1.4 : mood === "overloaded" ? 0.6 : 3.6,
+          duration,
           repeat: Infinity,
-          ease: "easeInOut",
+          ease: bounce ? [0.34, 1.56, 0.64, 1] : "easeInOut",
         }}
       />
     </div>
