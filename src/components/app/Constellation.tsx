@@ -1,21 +1,6 @@
 import { useMemo } from "react";
 import type { ScheduleBlock } from "@/lib/types";
-import { Starfield, DEEP_SPACE_BG, ConstellationHud } from "@/components/app/constellation/Starfield";
-
-interface Node {
-  id: string;
-  title: string;
-  type: string;
-  status: string;
-  isDecisive?: boolean;
-  time: string;
-}
-
-interface Link {
-  source: string;
-  target: string;
-  type: string;
-}
+import { ConstellationGraph, type StarNode, type StarEdge, type StarTone } from "@/components/app/constellation/ConstellationGraph";
 
 export interface ScheduleRelationship {
   from: string;
@@ -30,12 +15,13 @@ interface ConstellationProps {
   onNodeClick?: (id: string) => void;
 }
 
-const toneFor = (node: Node) => {
-  if (node.isDecisive) return "border-amber-200/45 bg-amber-200/10 text-amber-100 shadow-[0_0_28px_-12px_rgba(251,191,36,0.9)]";
-  if (node.status === "completed" || node.status === "done") return "border-emerald-300/35 bg-emerald-300/10 text-emerald-100";
-  if (node.status === "active") return "border-blue-200/35 bg-blue-200/10 text-blue-100";
-  if (node.status === "missed") return "border-red-300/35 bg-red-300/10 text-red-100";
-  return "border-white/12 bg-white/[0.045] text-white/75";
+const toneFor = (b: ScheduleBlock, isDecisive: boolean): StarTone => {
+  if (isDecisive) return "amber";
+  if (b.status === "completed") return "emerald";
+  if (b.status === "active") return "bright";
+  if (b.status === "missed") return "rose";
+  if (b.type === "fixed_commitment") return "violet";
+  return "dim";
 };
 
 export function Constellation({
@@ -44,84 +30,55 @@ export function Constellation({
   decisiveMoveTitle,
   onNodeClick,
 }: ConstellationProps) {
-  const data = useMemo(() => {
-    const nodes: Node[] = blocks.map((b) => ({
-      id: b.id,
-      title: b.title,
-      type: b.type,
-      status: b.status || "upcoming",
-      time: `${b.start_time}–${b.end_time}`,
-      isDecisive: !!decisiveMoveTitle && b.title === decisiveMoveTitle,
-    }));
+  const { nodes, edges } = useMemo(() => {
+    const nodes: StarNode[] = blocks.map((b) => {
+      const isDecisive = !!decisiveMoveTitle && b.title === decisiveMoveTitle;
+      const statusLabel =
+        b.status === "completed" ? "done"
+        : b.status === "active" ? "now"
+        : b.status === "missed" ? "missed"
+        : (b.status || "next");
+      return {
+        id: b.id,
+        title: b.title,
+        subtitle: isDecisive ? "decisive move" : b.type.replace(/_/g, " "),
+        meta: `${b.start_time}–${b.end_time}`,
+        detail: `${b.start_time}–${b.end_time} · ${statusLabel}`,
+        panelBody: isDecisive
+          ? "Your decisive move for today. Protect this window."
+          : `Scheduled ${b.start_time}–${b.end_time}.`,
+        tone: toneFor(b, isDecisive),
+        isFocus: isDecisive || b.status === "active",
+        isLocked: b.type === "fixed_commitment",
+      };
+    });
 
-    const links: Link[] = relationships
-      .map((r) => ({ source: r.from, target: r.to, type: r.type }))
-      .filter(
-        (l) =>
-          nodes.find((n) => n.id === l.source) &&
-          nodes.find((n) => n.id === l.target),
-      );
-
+    const edges: StarEdge[] = [];
+    const ids = new Set(nodes.map((n) => n.id));
     for (let i = 0; i < blocks.length - 1; i++) {
-      const a = blocks[i];
-      const b = blocks[i + 1];
-      const aIds = new Set(a.linked_task_ids ?? []);
-      const sharesTask = (b.linked_task_ids ?? []).some((id) => aIds.has(id));
-      const isAdjacent = a.end_time === b.start_time;
-      if (!sharesTask && !isAdjacent) continue;
-      if (!links.find((l) => l.source === a.id && l.target === b.id)) {
-        links.push({ source: a.id, target: b.id, type: sharesTask ? "support" : "sequential" });
-      }
+      edges.push({ from: blocks[i].id, to: blocks[i + 1].id, kind: "spine" });
     }
-    return { nodes, links };
+    for (const r of relationships) {
+      if (!ids.has(r.from) || !ids.has(r.to)) continue;
+      if (edges.find((e) => e.from === r.from && e.to === r.to)) continue;
+      edges.push({ from: r.from, to: r.to, kind: "support" });
+    }
+    return { nodes, edges };
   }, [blocks, relationships, decisiveMoveTitle]);
 
   if (blocks.length === 0) return null;
 
-  const doneCount = data.nodes.filter((b) => b.status === "completed" || b.status === "done").length;
-  const linkedTargets = new Set(data.links.map((l) => l.target));
+  const done = nodes.filter((n) => n.tone === "emerald").length;
 
   return (
-    <div
-      className="relative min-h-72 w-full overflow-hidden rounded-2xl border border-white/10"
-      style={{ background: DEEP_SPACE_BG }}
-    >
-      <ConstellationHud
-        label="today pathway"
-        meta={`${doneCount}/${data.nodes.length} done`}
-      />
-      <div className="relative w-full p-4">
-        <Starfield density={4300} nebulaHue="violet" showShootingStars={false} />
-        <div className="relative z-10 grid gap-2">
-          {data.nodes.map((node, index) => {
-            const canOpen = node.type !== "fixed_commitment" && !!onNodeClick;
-            return (
-              <button
-                key={node.id}
-                type="button"
-                disabled={!canOpen}
-                onClick={() => canOpen && onNodeClick?.(node.id)}
-                className={`group relative grid grid-cols-[72px_1fr_auto] items-center gap-3 rounded-xl border px-3 py-3 text-left backdrop-blur transition ${toneFor(node)} ${canOpen ? "hover:border-white/35 hover:bg-white/10" : "cursor-default"}`}
-              >
-                {index < data.nodes.length - 1 && (
-                  <span className="absolute left-[48px] top-[calc(50%+18px)] h-[calc(100%+8px)] w-px bg-gradient-to-b from-blue-200/50 to-transparent" />
-                )}
-                <span className="relative flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em] text-white/45">
-                  <span className={`h-2.5 w-2.5 rounded-full ${node.isDecisive ? "bg-amber-200" : linkedTargets.has(node.id) ? "bg-blue-200/70" : "bg-white/35"}`} />
-                  {node.time}
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-semibold text-current">{node.title}</span>
-                  <span className="mt-0.5 block text-[11px] uppercase tracking-[0.14em] text-white/35">{node.isDecisive ? "decisive move" : node.type.replace(/_/g, " ")}</span>
-                </span>
-                <span className="rounded-full border border-white/10 px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-white/45">
-                  {node.status === "completed" || node.status === "done" ? "done" : node.status}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </div>
+    <ConstellationGraph
+      nodes={nodes}
+      edges={edges}
+      hudLabel="today constellation"
+      hudMeta={`${done}/${nodes.length} done`}
+      onNodeClick={onNodeClick}
+      nebulaHue="indigo"
+      minHeight={300}
+    />
   );
 }
