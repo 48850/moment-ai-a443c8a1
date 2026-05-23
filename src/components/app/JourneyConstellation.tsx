@@ -1,8 +1,7 @@
 import { useMemo, useState, useRef, useEffect } from "react";
-import { motion } from "motion/react";
-import { CheckCircle2, Circle, Lock, Zap, AlertTriangle, Sparkles, Target, Calendar, Star, MapPin } from "lucide-react";
+import { CheckCircle2, Circle, Lock, Zap, AlertTriangle, Sparkles, Target, Calendar, Star } from "lucide-react";
 import type { MomentState } from "@/lib/types";
-import { computeConstellationNodes, type ConstellationNode, type ConstellationNodeType } from "@/lib/selectors/constellation";
+import { computeConstellationNodes, type ConstellationNodeType } from "@/lib/selectors/constellation";
 import { ConstellationGraph, type StarNode, type StarEdge, type StarTone } from "@/components/app/constellation/ConstellationGraph";
 import { Mote } from "@/components/app/Mote";
 
@@ -138,72 +137,24 @@ export const JourneyConstellation = ({ state }: Props) => {
 
   return (
     <section className="space-y-4">
-      {/* Pathway blocks — primary navigation */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between px-1">
-          <div>
-            <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">journey pathway</div>
-            <div className="text-sm font-semibold text-foreground">Tap a star to see where it sits</div>
-          </div>
-          <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-            {counts.active} active · {counts.proofs} proven · {counts.locked} locked
-          </div>
-        </div>
-
-        {nextFocus && (
-          <button
-            type="button"
-            onClick={() => setFocusedId(nextFocus.id)}
-            className="flex w-full items-start gap-3 rounded-xl border border-amber-400/30 bg-amber-400/5 p-4 text-left transition hover:border-amber-300/50 hover:bg-amber-400/10"
-          >
-            <Mote size={48} mood="focused" />
-            <div className="min-w-0 flex-1">
-              <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-amber-600 dark:text-amber-300/70">mote · what to move next</div>
-              <div className="mt-1 text-sm font-semibold leading-snug text-foreground">{nextFocus.title}</div>
-              <div className="mt-1 text-xs leading-relaxed text-muted-foreground">{compactText(nextFocus.next_action || nextFocus.why_it_matters)}</div>
+      {nextFocus && (
+        <button
+          type="button"
+          onClick={() => setFocusedId(nextFocus.id)}
+          className="flex w-full items-start gap-3 rounded-xl border border-amber-400/30 bg-amber-400/5 p-4 text-left transition hover:border-amber-300/50 hover:bg-amber-400/10"
+        >
+          <Mote size={48} mood="focused" />
+          <div className="min-w-0 flex-1">
+            <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-amber-600 dark:text-amber-300/70">mote · what to move next</div>
+            <div className="mt-1 text-sm font-semibold leading-snug text-foreground">{nextFocus.title}</div>
+            <div className="mt-1 text-xs leading-relaxed text-muted-foreground">{compactText(nextFocus.next_action || nextFocus.why_it_matters)}</div>
+            <div className="mt-2 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+              {counts.active} active · {counts.proofs} proven · {counts.locked} locked
             </div>
-          </button>
-        )}
+          </div>
+        </button>
+      )}
 
-
-        <div className="grid gap-2">
-          {route.map((node: ConstellationNode, index) => {
-            const meta = NODE_META[node.type];
-            const Icon = meta.Icon;
-            const isFocused = focusedId === node.id;
-            return (
-              <motion.button
-                key={node.id}
-                type="button"
-                onClick={() => setFocusedId(isFocused ? null : node.id)}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: node.status === "locked" ? 0.6 : 1, y: 0 }}
-                transition={{ delay: index * 0.025 }}
-                className={`relative grid grid-cols-[32px_1fr_auto] items-start gap-3 rounded-xl border p-3 text-left transition ${meta.tone} ${
-                  isFocused ? "ring-2 ring-amber-300/50 shadow-[0_0_24px_-6px_rgba(251,191,36,0.55)]" : "hover:border-foreground/30"
-                }`}
-              >
-                <span className="relative mt-0.5 flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-black/25">
-                  <span className={`absolute h-2 w-2 rounded-full ${meta.dot} shadow-[0_0_10px_currentColor]`} />
-                  <Icon className="relative h-3.5 w-3.5 opacity-60" />
-                </span>
-                <span className="min-w-0">
-                  <span className="flex flex-wrap items-center gap-2">
-                    <span className="truncate text-sm font-semibold">{node.title}</span>
-                    <span className="rounded-full border border-white/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-current/70">{meta.label}</span>
-                    {node.subtitle && <span className="rounded-full border border-white/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-current/60">{node.subtitle}</span>}
-                  </span>
-                  <span className="mt-1 block text-xs leading-relaxed opacity-75">{compactText(node.next_action || node.why_it_matters)}</span>
-                </span>
-                <span className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider opacity-55">
-                  <MapPin className="h-3 w-3" />
-                  show
-                </span>
-              </motion.button>
-            );
-          })}
-        </div>
-      </div>
 
       {/* Constellation map — shows where the selected task lives */}
       <div ref={constellationRef}>

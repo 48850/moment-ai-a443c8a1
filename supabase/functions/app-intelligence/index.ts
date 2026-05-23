@@ -713,6 +713,7 @@ RULES:
 9. resource_label must name the specific resource (e.g. "3Blue1Brown — Essence of Calculus, Ch.1", "Khan Academy: Intro to Limits"), not a vague label like "video" or "article".
 10. Keep the list focused and non-duplicative. Pick the highest-leverage next tasks, but do not assume the app enforces a 3-task day.
 11. Every task MUST include elaborated_notes — 2 to 5 paragraphs of substantive, specific guidance the user can read before starting. Include: what the resource covers, the exact sections/timestamps/chapters to focus on, what to extract, common pitfalls, and the specific output to produce. No motivation, no filler, no "do your own research".
+${payload?.surface === "mobile" ? "12. MOBILE SURFACE: the user is on a phone. Return AT MOST 3 tasks. Titles ≤ 7 words, why_now ≤ 18 words, elaborated_notes ≤ 2 short paragraphs. Clarity beats completeness." : ""}
 
 Propose a focused set of next tasks. Quality over quantity. Remember: when you return 3 tasks, ≥2 of 3 must include a real specific resource_url.`;
     }

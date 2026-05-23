@@ -104,7 +104,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { goal, why, context, snapshot, goal_horizons } = await req.json();
+    const { goal, why, context, snapshot, goal_horizons, surface } = await req.json();
+    const isMobile = surface === "mobile";
     if (!goal || typeof goal !== "string") {
       return new Response(JSON.stringify({ error: "Missing goal" }), {
         status: 400,
@@ -141,7 +142,7 @@ Deno.serve(async (req) => {
 - Preferences: tone=${prefs.tone ?? "?"} · strictness=${prefs.strictness ?? "?"} · schedule_style=${prefs.schedule_style ?? "?"} · support_style=${prefs.support_style ?? "?"}
 - Onboarding ${ob.completed ? "complete" : "incomplete"} · unknowns: ${(ob.understanding?.unknowns ?? []).join(", ") || "(none)"}`;
 
-    const system = `You are an elite life-design coach for ambitious teenagers. You translate a goal trio into a phased plan across four horizons: days, weeks, months, years. Be concrete, specific, age-appropriate, energising, never preachy. Every item should be doable and unmistakably move the goal forward. Avoid generic productivity fluff. ALWAYS calibrate to the user profile provided — never propose actions that conflict with their age, schedule, or onboarding-confirmed reality. Use short-term as the main source for days/weeks, medium-term for month-level milestones, and long-term only as the anchor/why. HARD CAP: the days array is today's work and must contain no more than 3 tasks.`;
+    const system = `You are an elite life-design coach for ambitious teenagers. You translate a goal trio into a phased plan across four horizons: days, weeks, months, years. Be concrete, specific, age-appropriate, energising, never preachy. Every item should be doable and unmistakably move the goal forward. Avoid generic productivity fluff. ALWAYS calibrate to the user profile provided — never propose actions that conflict with their age, schedule, or onboarding-confirmed reality. Use short-term as the main source for days/weeks, medium-term for month-level milestones, and long-term only as the anchor/why. HARD CAP: the days array is today's work and must contain no more than 3 tasks.${isMobile ? " MOBILE SURFACE: the user is on a small phone screen — clutter is the enemy. Trim ruthlessly: days ≤ 2 items, weeks ≤ 2 items, months ≤ 2 items, years ≤ 2 items. Each title ≤ 7 words, each detail ≤ 22 words. Drop anything that isn't the single most decisive move for that horizon." : ""}`;
 
     const portfolioBlock = renderPortfolio(snapshot?.learning_portfolio);
 

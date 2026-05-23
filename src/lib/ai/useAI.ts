@@ -30,8 +30,11 @@ export function useAI<T = any>(intent: AIIntent) {
     async (payload: Record<string, unknown> = {}) => {
       setLoading(true); setError(null);
       try {
+        const surface = typeof window !== "undefined" && window.matchMedia?.("(max-width: 768px)").matches
+          ? "mobile"
+          : "desktop";
         const { data, error: fnErr } = await supabase.functions.invoke("app-intelligence", {
-          body: { intent, snapshot: buildContextPacket(state), payload },
+          body: { intent, snapshot: buildContextPacket(state), payload: { surface, ...payload }, surface },
         });
         if (fnErr) throw fnErr;
         if (data?.error) throw new Error(data.error);
