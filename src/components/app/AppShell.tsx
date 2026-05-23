@@ -1,5 +1,6 @@
 import { NavLink, Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { Home, Calendar, Target, ArrowLeft, MessageSquare, Heart, LifeBuoy, ListChecks, Hammer, Sun, Moon } from "lucide-react";
+import { Mote } from "@/components/app/Mote";
 import { useStateStore } from "@/stores/state-store";
 import { useTheme } from "@/hooks/use-theme";
 import { FlameBurstOverlay } from "@/components/app/FlameBurstOverlay";
@@ -63,9 +64,7 @@ export const AppShell = () => {
         <Link to="/" className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-3.5 w-3.5" />
           <span className="inline-flex items-center gap-2">
-            <span className="grid h-6 w-6 place-items-center rounded-full border border-primary/40 bg-primary/10">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-            </span>
+            <Mote size={28} halo={false} className="-my-1" />
             <span className="font-display text-base font-medium tracking-tight text-foreground">Moment</span>
             <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">/ai</span>
           </span>

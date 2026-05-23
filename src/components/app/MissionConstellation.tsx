@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { CompiledPursuitModel } from "@/lib/types";
 import type { WorkstreamAnalytics } from "@/lib/selectors/mission-analytics";
 import { ConstellationGraph, type StarNode, type StarEdge, type StarTone } from "@/components/app/constellation/ConstellationGraph";
+import { Mote } from "@/components/app/Mote";
 
 interface Props {
   model: CompiledPursuitModel;
@@ -92,9 +93,12 @@ export function MissionConstellation({ model, analytics, onWorkstreamClick }: Pr
 
   return (
     <div className="space-y-3">
-      <div className="rounded-xl border border-amber-200/20 bg-amber-200/[0.06] px-4 py-3">
-        <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-amber-100/60">next intelligent move</div>
-        <div className="mt-1 text-sm font-semibold leading-snug text-white">{intel.focus}</div>
+      <div className="flex items-start gap-3 rounded-xl border border-amber-200/25 bg-amber-200/[0.06] px-4 py-3">
+        <Mote size={44} mood="focused" />
+        <div className="min-w-0">
+          <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-amber-100/70">mote says · next intelligent move</div>
+          <div className="mt-1 text-sm font-semibold leading-snug text-white">{intel.focus}</div>
+        </div>
       </div>
       <ConstellationGraph
         nodes={nodes}
