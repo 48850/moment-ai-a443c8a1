@@ -3,7 +3,6 @@ import { CheckCircle2, BookOpen, Sparkles, Wrench, Flame, CalendarDays, MoreHori
 import type { ProgressEvent } from "@/lib/social/select-progress-events";
 import { MomentStar, type MoteMood } from "@/components/app/Mote";
 import { ReactionBar } from "./ReactionBar";
-import { useSettingsStore } from "@/stores/settings-store";
 
 type Kind = ProgressEvent["kind"];
 
@@ -80,7 +79,6 @@ export function ProgressEventCard({ event }: { event: ProgressEvent }) {
   const meta = KIND_META[event.kind];
   const Icon = meta.icon;
   const [showReactions, setShowReactions] = useState(false);
-  const reactionCount = useSettingsStore((s) => (s.reactions[event.id] ?? []).length);
 
   return (
     <article
@@ -135,9 +133,6 @@ export function ProgressEventCard({ event }: { event: ProgressEvent }) {
             >
               <Smile className="h-3.5 w-3.5" />
               React
-              {reactionCount > 0 && (
-                <span className="font-mono text-[10px] opacity-80">· {reactionCount}</span>
-              )}
             </button>
             <button
               type="button"
