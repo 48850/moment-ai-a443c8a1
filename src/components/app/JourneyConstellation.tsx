@@ -161,19 +161,45 @@ export const JourneyConstellation = ({ state }: Props) => {
       )}
 
 
-      {/* Constellation map — shows where the selected task lives */}
-      <div ref={constellationRef}>
-        <ConstellationGraph
-          nodes={starNodes}
-          edges={starEdges}
-          hudLabel="constellation map"
-          hudMeta={focusedId ? "highlighted star" : "tap a block above"}
-          focusedId={focusedId}
-          onFocusChange={setFocusedId}
-          hideChipNav
-          minHeight={360}
-        />
-      </div>
+      {/* Constellation map — hidden behind a toggle on mobile to keep the view uncluttered */}
+      {isMobile ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowMap((v) => !v)}
+            className="w-full rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-left font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground transition hover:bg-muted/50"
+          >
+            {showMap ? "hide constellation map" : "show constellation map"}
+          </button>
+          {showMap && (
+            <div ref={constellationRef}>
+              <ConstellationGraph
+                nodes={starNodes}
+                edges={starEdges}
+                hudLabel="constellation map"
+                hudMeta={focusedId ? "highlighted star" : "pinch to explore"}
+                focusedId={focusedId}
+                onFocusChange={setFocusedId}
+                hideChipNav
+                minHeight={280}
+              />
+            </div>
+          )}
+        </>
+      ) : (
+        <div ref={constellationRef}>
+          <ConstellationGraph
+            nodes={starNodes}
+            edges={starEdges}
+            hudLabel="constellation map"
+            hudMeta={focusedId ? "highlighted star" : "tap a star"}
+            focusedId={focusedId}
+            onFocusChange={setFocusedId}
+            hideChipNav
+            minHeight={360}
+          />
+        </div>
+      )}
     </section>
   );
 };
