@@ -3,6 +3,7 @@ import { CheckCircle2, Circle, Lock, Zap, AlertTriangle, Sparkles, Target, Calen
 import type { MomentState } from "@/lib/types";
 import { computeConstellationNodes, type ConstellationNodeType } from "@/lib/selectors/constellation";
 import { ConstellationGraph, type StarNode, type StarEdge, type StarTone } from "@/components/app/constellation/ConstellationGraph";
+import { LinearConstellation } from "@/components/app/constellation/LinearConstellation";
 import { Mote } from "@/components/app/Mote";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -169,34 +170,28 @@ export const JourneyConstellation = ({ state }: Props) => {
             onClick={() => setShowMap((v) => !v)}
             className="w-full rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-left font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground transition hover:bg-muted/50"
           >
-            {showMap ? "hide constellation map" : "show constellation map"}
+            {showMap ? "hide constellation" : "show constellation"}
           </button>
           {showMap && (
             <div ref={constellationRef}>
-              <ConstellationGraph
+              <LinearConstellation
                 nodes={starNodes}
-                edges={starEdges}
-                hudLabel="constellation map"
-                hudMeta={focusedId ? "highlighted star" : "pinch to explore"}
                 focusedId={focusedId}
                 onFocusChange={setFocusedId}
-                hideChipNav
-                minHeight={280}
+                hudLabel="path"
+                hudMeta={`${starNodes.length} stars`}
               />
             </div>
           )}
         </>
       ) : (
         <div ref={constellationRef}>
-          <ConstellationGraph
+          <LinearConstellation
             nodes={starNodes}
-            edges={starEdges}
-            hudLabel="constellation map"
-            hudMeta={focusedId ? "highlighted star" : "tap a star"}
             focusedId={focusedId}
             onFocusChange={setFocusedId}
-            hideChipNav
-            minHeight={360}
+            hudLabel="path"
+            hudMeta={`${starNodes.length} stars`}
           />
         </div>
       )}
