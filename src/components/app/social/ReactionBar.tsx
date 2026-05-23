@@ -9,6 +9,8 @@ const REACTIONS: { kind: ReactionKind; label: string; emoji: string }[] = [
   { kind: "keep_going", label: "Keep going", emoji: "🔥" },
 ];
 
+const EMPTY: ReactionKind[] = [];
+
 interface Props {
   eventId: string;
 }
