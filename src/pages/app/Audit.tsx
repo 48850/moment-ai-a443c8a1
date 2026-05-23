@@ -1,3 +1,4 @@
+import { Mote } from "@/components/app/Mote";
 import { useMemo } from "react";
 import { useStateStore } from "@/stores/state-store";
 import { computeGoalProgress } from "@/lib/engine/next-best-task";
@@ -25,7 +26,7 @@ const Audit = () => {
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
         <div className="text-xs text-muted-foreground">/ audit</div>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">How you're really doing</h1>
+        <h1 className="mt-1 flex items-center gap-3 text-2xl font-semibold tracking-tight"><Mote size={56} bounce mood="focused" />How you're really doing</h1>
         <p className="mt-1 text-sm text-muted-foreground">An honest snapshot. No vanity metrics.</p>
       </div>
 

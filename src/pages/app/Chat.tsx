@@ -1,3 +1,4 @@
+import { Mote } from "@/components/app/Mote";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Send, Sparkles, CheckCircle2, Target } from "lucide-react";
@@ -509,14 +510,14 @@ const Chat = () => {
           <div className="text-xs text-muted-foreground">/ chat</div>
           {isSpecialisation ? (
             <>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight">Goal calibration</h1>
+              <h1 className="mt-1 flex items-center gap-3 text-2xl font-semibold tracking-tight"><Mote size={56} bounce mood="focused" />Goal calibration</h1>
               <p className="mt-1 text-xs text-muted-foreground">
                 One conversation to map where you are and activate your first move.
               </p>
             </>
           ) : (
             <>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight">Talk it out with Moment</h1>
+              <h1 className="mt-1 flex items-center gap-3 text-2xl font-semibold tracking-tight"><Mote size={56} bounce mood="calm" />Talk it out with Moment</h1>
               <p className="mt-1 text-xs text-muted-foreground">
                 What you share here flows into your plan, schedule, and goal.
               </p>

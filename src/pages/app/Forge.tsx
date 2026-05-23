@@ -1,3 +1,4 @@
+import { Mote } from "@/components/app/Mote";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -808,7 +809,7 @@ const Forge = () => {
       {/* Header */}
       <div>
         <div className="text-xs text-muted-foreground">/ forge</div>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Forge</h1>
+        <h1 className="mt-1 flex items-center gap-3 text-2xl font-semibold tracking-tight"><Mote size={56} bounce mood="celebrate" />Forge</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Build small, runnable tools for your goal. Describe what you want help with — Moment generates three specific options, you pick one.
         </p>

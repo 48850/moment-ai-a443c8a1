@@ -1,3 +1,4 @@
+import { Mote } from "@/components/app/Mote";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle, Target, TrendingUp, TrendingDown, Activity,
@@ -431,7 +432,8 @@ const Mission = () => {
               </div>
               <StreakFlame tasks={allTasks} />
             </div>
-            <h1 className="mt-3 text-3xl font-bold leading-tight tracking-tight md:text-4xl">
+            <h1 className="mt-3 flex items-center gap-3 text-3xl font-bold leading-tight tracking-tight md:text-4xl">
+              <Mote size={68} bounce mood="focused" />
               {name ? `${name}'s path` : "Your path"}
             </h1>
             {goalStatement && (

@@ -1,3 +1,4 @@
+import { Mote } from "@/components/app/Mote";
 import { useEffect, useState } from "react";
 import { LifeBuoy, Wind, Coffee, Heart, Sparkles, Loader2 } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
@@ -122,7 +123,7 @@ const Rescue = () => {
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <div className="text-xs text-muted-foreground">/ rescue</div>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">When today feels too much</h1>
+        <h1 className="mt-1 flex items-center gap-3 text-2xl font-semibold tracking-tight"><Mote size={56} bounce mood="repair" />When today feels too much</h1>
         <p className="mt-1 text-sm text-muted-foreground">Pick what's true right now.</p>
       </div>
 

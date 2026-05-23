@@ -1,3 +1,4 @@
+import { Mote } from "@/components/app/Mote";
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { RefreshCw, Loader2, Compass, Sparkles, Sun, CalendarDays, CalendarRange, Telescope, ExternalLink, NotebookPen, X, Plus } from "lucide-react";
@@ -596,7 +597,7 @@ const Plan = () => {
       <div className="flex items-end justify-between gap-4">
         <div>
           <div className="text-xs text-muted-foreground">/ plan</div>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Your arc, mapped</h1>
+          <h1 className="mt-1 flex items-center gap-3 text-2xl font-semibold tracking-tight"><Mote size={56} bounce mood="celebrate" />Your arc, mapped</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             From today to the person you're becoming. Powered by AI from your goal.
           </p>
