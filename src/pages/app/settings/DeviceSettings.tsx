@@ -43,6 +43,21 @@ export default function DeviceSettings() {
           full layout and full task generation.
         </p>
       </SectionCard>
+
+      <SectionCard title="Tutorial">
+        <Field label="Replay the intro tour" help="A quick walkthrough of every tab in the app.">
+          <button
+            type="button"
+            onClick={() => {
+              window.localStorage.removeItem("moment.tutorial.v1");
+              window.dispatchEvent(new Event("moment:tutorial:replay"));
+            }}
+            className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs text-primary hover:bg-primary/15"
+          >
+            Replay tutorial
+          </button>
+        </Field>
+      </SectionCard>
     </div>
   );
 }
