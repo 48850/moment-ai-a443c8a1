@@ -4,6 +4,7 @@ import { MomentStar } from "@/components/app/Mote";
 import { useStateStore } from "@/stores/state-store";
 import { useTheme } from "@/hooks/use-theme";
 import { FlameBurstOverlay } from "@/components/app/FlameBurstOverlay";
+import { AppTutorial } from "@/components/app/AppTutorial";
 
 type SubTab = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; end?: boolean };
 
