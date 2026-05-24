@@ -5,6 +5,7 @@ import { MomentStar, type MoteMood } from "@/components/app/Mote";
 import { ReactionBar } from "./ReactionBar";
 import { Comments } from "./Comments";
 import { useAuth } from "@/hooks/use-auth";
+import { toast } from "sonner";
 
 type Kind = ProgressEvent["kind"];
 
