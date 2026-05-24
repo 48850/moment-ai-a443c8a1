@@ -47,21 +47,25 @@ function findSlot(
   state: MomentState,
   dayIdx: number,
   durationMin: number,
-): { dayIdx: number; start: number; end: number } {
+): { dayIdx: number; start: number; end: number } | null {
   const duration = Math.max(15, Math.min(180, durationMin));
   const preferredStart = 16 * 60;
   const dayEnd = 22 * 60;
   const earliest = 8 * 60;
+  const MAX_FLEX_PER_DAY = 4; // hard cap on non-school/non-commitment auto-scheduled blocks
 
   for (let offset = 0; offset < 7; offset++) {
     const day = (dayIdx + offset) % 7;
-    const dayBlocks = (state.schedule_state.week_plan ?? [])
-      .filter((b) => b.day_index === day)
+    const dayBlocksAll = (state.schedule_state.week_plan ?? []).filter((b) => b.day_index === day);
+    const flexCount = dayBlocksAll.filter(
+      (b) => b.category !== "school" && b.category !== "commitment",
+    ).length;
+    if (flexCount >= MAX_FLEX_PER_DAY) continue; // day is full — try the next day
+
+    const dayBlocks = dayBlocksAll
       .map((b) => ({ start: toMin(b.start_time), end: toMin(b.end_time) }))
       .sort((a, b) => a.start - b.start);
 
-    // First pass: preferred window 16:00 → 22:00
-    // Second pass: widen to 08:00 → 22:00
     for (const windowStart of [preferredStart, earliest]) {
       const latestStart = dayEnd - duration;
       for (let probe = windowStart; probe <= latestStart; probe += 15) {
@@ -72,9 +76,8 @@ function findSlot(
     }
   }
 
-  // Week packed — stack at the end of the original day (rare).
-  const start = dayEnd - duration;
-  return { dayIdx, start, end: start + duration };
+  // Every day is full to the cap — refuse to schedule rather than pile up.
+  return null;
 }
 
 /**
