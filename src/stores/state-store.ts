@@ -275,6 +275,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
         },
         chat_messages: (saved as any).chat_messages ?? [],
         onboarding: onboardingBackfill,
+        last_adaptation: (saved as any).last_adaptation ?? null,
       };
       hydrated = syncActiveTasksToWeek(hydrated);
       // In demo mode, use demo state instead of saved (only for fresh demo sessions)
@@ -1085,6 +1086,11 @@ export const useStateStore = create<StateStore>((set, get) => ({
             } as typeof t;
           }),
         });
+        break;
+      }
+
+      case "adaptation/set": {
+        next = { ...s, last_adaptation: action.payload };
         break;
       }
 

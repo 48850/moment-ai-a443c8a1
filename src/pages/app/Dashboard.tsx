@@ -138,6 +138,12 @@ const Dashboard = () => {
             <Sparkles className="h-3 w-3" /> your next move
           </div>
           <h2 className="mt-2 text-xl font-semibold leading-tight">{dm.title}</h2>
+          {state.last_adaptation?.summary && state.last_adaptation.from_task_id !== dm.id && (
+            <p className="mt-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs leading-relaxed text-foreground">
+              <span className="mr-1 font-medium uppercase tracking-[0.14em] text-primary">Why this changed →</span>
+              {state.last_adaptation.summary}
+            </p>
+          )}
           <p className="mt-2 text-sm text-muted-foreground">
             {rationale.result?.why_now ?? <>Why this? It moves you toward <span className="text-foreground">{vm.goalSnippet}</span>.</>}
           </p>

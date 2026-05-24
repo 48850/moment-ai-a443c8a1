@@ -121,4 +121,12 @@ export type MomentAction =
       total_done: number;
       velocity_7d: number;
       workstreams: Array<Record<string, unknown>>;
-    } };
+    } }
+  | { type: "adaptation/set"; payload: {
+      from_task_id: string;
+      from_task_title: string;
+      from_feedback: string;
+      rule_id: string;
+      summary: string;
+      created_at: string;
+    } | null };
