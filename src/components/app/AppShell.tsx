@@ -1,38 +1,37 @@
 import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
-import { Home, Calendar, Target, ArrowLeft, Sun, Moon, Settings } from "lucide-react";
+import { Home, MessageCircle, ArrowLeft, Sun, Moon, Settings } from "lucide-react";
 import { MomentStar } from "@/components/app/Mote";
 import { useTheme } from "@/hooks/use-theme";
 import { FlameBurstOverlay } from "@/components/app/FlameBurstOverlay";
-import { AppTutorial } from "@/components/app/AppTutorial";
 
 /**
  * Moment Core v1 shell.
  *
- * Three flat tabs. No sub-tab strips. No drawers. No path peek.
- * Old surfaces (Chat, Reflect, Rescue, Social, Tasks, Forge, Summary Clips)
- * are intentionally not in the nav — their routes still exist for direct
- * links, but the cockpit is gone. Doctrine: one move now, signals preserved.
+ * Two tabs only: Today + Coach. Plan, Mission, Constellation, Forge, Social,
+ * Reflect, Rescue, Tasks are intentionally not in the nav. Their routes still
+ * exist for direct links — but they are NOT a cockpit.
+ *
+ * Doctrine: one move now, one signal after, one visible adaptation next.
  */
-type Tab = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; end?: boolean; match: string[] };
+type Tab = {
+  to: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  end?: boolean;
+  match: (path: string) => boolean;
+};
 const tabs: Tab[] = [
-  { to: "/app", label: "Today", icon: Home, end: true, match: ["/app"] },
-  { to: "/app/plan", label: "Plan", icon: Calendar, match: ["/app/plan"] },
-  { to: "/app/mission", label: "Mission", icon: Target, match: ["/app/mission"] },
+  { to: "/app", label: "Today", icon: Home, end: true, match: (p) => p === "/app" },
+  { to: "/app/chat", label: "Coach", icon: MessageCircle, match: (p) => p.startsWith("/app/chat") },
 ];
 
 export const AppShell = () => {
   const { pathname } = useLocation();
   const { theme, toggle: toggleTheme } = useTheme();
 
-  const activeGroup =
-    tabs.find((t) => t.match.includes(pathname)) ??
-    tabs.find((t) => t.to !== "/app" && pathname.startsWith(t.to)) ??
-    tabs[0];
-
   return (
     <div className="app-zone min-h-screen">
       <FlameBurstOverlay />
-      <AppTutorial />
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/80 px-4 py-3 backdrop-blur md:px-8">
         <Link to="/" className="flex items-center gap-3 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-3.5 w-3.5" />
@@ -68,7 +67,7 @@ export const AppShell = () => {
       <div className="flex">
         <aside className="sticky top-[52px] hidden h-[calc(100vh-52px)] w-56 shrink-0 flex-col gap-1 overflow-y-auto border-r border-border/60 px-3 py-6 md:flex">
           {tabs.map((t) => {
-            const isActive = activeGroup.to === t.to;
+            const isActive = t.match(pathname);
             return (
               <NavLink
                 key={t.to}
@@ -95,7 +94,7 @@ export const AppShell = () => {
         aria-label="Primary"
       >
         {tabs.map((t) => {
-          const isActive = activeGroup.to === t.to;
+          const isActive = t.match(pathname);
           return (
             <NavLink
               key={t.to}
@@ -114,4 +113,3 @@ export const AppShell = () => {
     </div>
   );
 };
-

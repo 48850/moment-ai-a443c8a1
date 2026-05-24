@@ -248,8 +248,14 @@ export const reflectionSchema = z.object({
 // Emotionally-intelligent feedback signals collected throughout the app.
 // Tone rule: every option is observational, not evaluative of the user.
 export const FEEDBACK_OPTIONS = [
-  // task fit
+  // Moment Core v1 — frozen labels surfaced after Done.
+  "hard_to_start",
+  "too_long",
+  "distracted",
+  "felt_pointless",
+  "useful",
   "easy",
+  // Legacy labels kept for backward compat with stored history + other surfaces.
   "hard",
   "too_vague",
   "too_big",
@@ -258,14 +264,12 @@ export const FEEDBACK_OPTIONS = [
   "not_relevant",
   "need_help",
   "do_differently",
-  // emotional / capacity signals (never diagnostic)
   "tired",
   "overwhelmed",
   "dont_understand",
   "feels_unrealistic",
   "wrong_time",
   "too_much_today",
-  // shaping requests
   "make_simpler",
   "make_more_ambitious",
   "be_more_direct",

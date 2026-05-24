@@ -2,91 +2,64 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useStateStore } from "@/stores/state-store";
 import type { ExecutionFeedbackItem, Task } from "@/lib/types";
-import type { FeedbackKey } from "@/lib/feedback/labels";
-import { FEEDBACK_LABELS } from "@/lib/feedback/labels";
 import { toast } from "sonner";
-import { computeNextMoveAdaptation, pickStrongestSignal } from "@/lib/adaptation/next-move-rule";
+import { applyRule, CORE_FEEDBACK_KEYS, type CoreFeedback } from "@/lib/adaptation/rules";
 import { selectHomeViewModel } from "@/lib/selectors/home";
 
 /**
- * Calm, 10-second check-in shown the moment a task is marked done.
- * Captures three signals — fit, goal-impact, friction — and writes them into
- * `execution_feedback` so chat-coach + app-intelligence + plan reform all see them.
+ * Moment Core v1 — mini feedback after Done.
  *
- * The user can dismiss instantly: completion is already saved.
+ * One row, six frozen labels. Pick one (or skip). Save the signal and, if
+ * a next candidate exists, deterministically adapt it via applyRule().
+ * No LLM. No analytics language.
  */
 interface Props {
   task: Task | null;
   onClose: () => void;
 }
 
-const FIT_CHIPS: { key: FeedbackKey; label: string }[] = [
-  { key: "easy", label: "Easier than expected" },
-  { key: "valuable", label: "About right" },
-  { key: "hard", label: "Harder than expected" },
-];
-
-const FRICTION_CHIPS: { key: FeedbackKey; label: string }[] = [
-  { key: "tired", label: "Low energy" },
-  { key: "overwhelmed", label: "Overwhelmed" },
-  { key: "too_big", label: "Too big" },
-  { key: "too_vague", label: "Unclear next step" },
-  { key: "wrong_time", label: "Wrong time of day" },
-  { key: "dont_understand", label: "Didn't understand it" },
-];
+const LABELS: Record<CoreFeedback, string> = {
+  hard_to_start: "Hard to start",
+  too_long: "Took too long",
+  distracted: "Got distracted",
+  felt_pointless: "Felt pointless",
+  useful: "Useful",
+  easy: "Easy",
+};
 
 export function DoneCheckIn({ task, onClose }: Props) {
   const dispatch = useStateStore((s) => s.dispatch);
-  const [fit, setFit] = useState<FeedbackKey | null>(null);
-  const [goalForward, setGoalForward] = useState<"yes" | "no" | null>(null);
-  const [friction, setFriction] = useState<FeedbackKey | null>(null);
+  const [pick, setPick] = useState<CoreFeedback | null>(null);
 
-  const log = (key: FeedbackKey) => {
-    if (!task) return;
-    const item: ExecutionFeedbackItem = {
-      id: crypto.randomUUID(),
-      task_id: task.id,
-      task_title: task.title,
-      completed_at: task.completed_at || new Date().toISOString(),
-      feedback: key,
-      note: "",
-      created_at: new Date().toISOString(),
-      source: "task",
-      target_id: task.id,
-    };
-    dispatch({ type: "feedback/add", payload: item });
-  };
+  const finish = (signal: CoreFeedback | null) => {
+    if (!task) return onClose();
 
-  const submit = () => {
-    if (fit) log(fit);
-    if (goalForward === "yes") log("valuable");
-    if (goalForward === "no") log("not_relevant");
-    if (friction) log(friction);
+    if (signal) {
+      const item: ExecutionFeedbackItem = {
+        id: crypto.randomUUID(),
+        task_id: task.id,
+        task_title: task.title,
+        completed_at: task.completed_at || new Date().toISOString(),
+        feedback: signal,
+        note: "",
+        created_at: new Date().toISOString(),
+        source: "task",
+        target_id: task.id,
+      };
+      dispatch({ type: "feedback/add", payload: item });
 
-    // Visible Adaptation Loop — deterministic.
-    const signals: FeedbackKey[] = [];
-    if (friction) signals.push(friction);
-    if (fit) signals.push(fit);
-    if (goalForward === "yes") signals.push("valuable");
-    if (goalForward === "no") signals.push("not_relevant");
-    const strongest = pickStrongestSignal(signals);
-
-    if (task && strongest) {
-      // Recompute the home VM AFTER the just-completed task is marked done
-      // so the next decisive move is the *new* top candidate, not the one
-      // we just finished.
+      // Determine next candidate AFTER completion has been applied upstream.
       const live = useStateStore.getState().state;
       const vm = live ? selectHomeViewModel(live) : null;
       const nextId = vm?.decisiveMove?.id ?? null;
       const nextCandidate = nextId ? live?.tasks.find((t) => t.id === nextId) ?? null : null;
 
-      const adaptation = computeNextMoveAdaptation({
+      const adaptation = applyRule({
         completedTask: { id: task.id, title: task.title },
-        feedback: strongest,
+        feedback: signal,
         nextCandidate: nextCandidate ?? null,
       });
 
-      // Apply the (small) mutation to the next candidate.
       if (nextCandidate && adaptation.next_task_changes) {
         dispatch({
           type: "task/update",
@@ -94,7 +67,9 @@ export function DoneCheckIn({ task, onClose }: Props) {
         });
       }
 
-      // Store the adaptation note so the Dashboard can show "Why this changed".
+      // Store adaptation summary so Today can show "Why this changed →".
+      // Save even when summary is empty — preserves the signal for the next
+      // generated move when there is no next candidate yet.
       dispatch({
         type: "adaptation/set",
         payload: {
@@ -106,98 +81,59 @@ export function DoneCheckIn({ task, onClose }: Props) {
           created_at: adaptation.created_at,
         },
       });
-      toast.success("Your next move just changed.", { duration: 2600 });
-    } else if (fit || goalForward || friction) {
-      toast.success("Saved — I'll fold this into the next plan.", { duration: 2200 });
+
+      if (adaptation.summary) {
+        toast.success("Your next move just changed.", { duration: 2400 });
+      } else {
+        toast.success("Saved — I'll use this for the next move.", { duration: 2000 });
+      }
     }
     onClose();
   };
-
-  const skip = () => onClose();
 
   return (
     <Dialog open={!!task} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-base font-medium">Quick check — {task?.title}</DialogTitle>
+          <DialogTitle className="text-base font-medium">How did that land?</DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            10 seconds. This shapes tomorrow's plan and the AI's next questions.
+            One tap. Shapes your next move.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <Row label="How did it land?">
-            {FIT_CHIPS.map((c) => (
-              <Chip key={c.key} active={fit === c.key} onClick={() => setFit(c.key)}>
-                {c.label}
-              </Chip>
-            ))}
-          </Row>
-
-          <Row label="Did this move your goal forward?">
-            <Chip active={goalForward === "yes"} onClick={() => setGoalForward("yes")}>Yes</Chip>
-            <Chip active={goalForward === "no"} onClick={() => setGoalForward("no")}>Not really</Chip>
-          </Row>
-
-          <Row label="What got in the way? (optional)">
-            {FRICTION_CHIPS.map((c) => (
-              <Chip key={c.key} active={friction === c.key} onClick={() => setFriction(c.key)}>
-                {c.label}
-              </Chip>
-            ))}
-          </Row>
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          {CORE_FEEDBACK_KEYS.map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setPick(k)}
+              className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                pick === k
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-secondary/50 text-foreground hover:border-primary/50"
+              }`}
+            >
+              {LABELS[k]}
+            </button>
+          ))}
         </div>
 
-        <div className="flex items-center justify-between pt-2">
+        <div className="flex items-center justify-between pt-3">
           <button
-            onClick={skip}
+            onClick={() => finish(null)}
             className="text-xs text-muted-foreground hover:text-foreground"
           >
             Skip
           </button>
           <button
-            onClick={submit}
-            className="rounded-md bg-primary px-4 py-2 text-xs font-medium text-primary-foreground hover:opacity-90"
+            onClick={() => finish(pick)}
+            disabled={!pick}
+            className="rounded-md bg-primary px-4 py-2 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
           >
-            Save signal
+            Save
           </button>
         </div>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-        {label}
-      </div>
-      <div className="flex flex-wrap gap-1.5">{children}</div>
-    </div>
-  );
-}
-
-function Chip({
-  active,
-  onClick,
-  children,
-}: {
-  active?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
-        active
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border bg-secondary/50 text-foreground hover:border-primary/50"
-      }`}
-    >
-      {children}
-    </button>
   );
 }
