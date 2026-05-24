@@ -98,18 +98,6 @@ export const AppShell = () => {
           >
             {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
           </button>
-          {import.meta.env.DEV && (
-            <button
-              onClick={() => {
-                if (!confirm("Reset onboarding? This wipes local state.")) return;
-                reset();
-                navigate("/onboarding", { replace: true });
-              }}
-              className="rounded-md border border-border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              Reset onboarding
-            </button>
-          )}
           <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">your moment</div>
         </div>
       </header>
