@@ -82,6 +82,7 @@ export function ForgeEpisodePlayer({ episode, onFinalAction, onRegenerate }: Pro
             scene={currentScene}
             elapsed={elapsed}
             sceneIndex={sceneIndex}
+            showCaption={!finished}
           />
         )}
       </div>
