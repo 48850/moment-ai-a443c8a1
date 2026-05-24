@@ -465,7 +465,7 @@ const Mission = () => {
 
   const name = state.profile?.display_name?.trim();
   const goalStatement = m.goal.statement;
-  const goalHorizons = [m.goal.shortTerm, m.goal.mediumTerm, m.goal.longTerm].filter((g) => g.trim());
+  
   const rawStage = state.active_goal?.current_stage ?? "";
   const stage = readableStage(rawStage);
   const stageBrief = stage ? STAGE_BRIEF[stage] ?? null : null;
