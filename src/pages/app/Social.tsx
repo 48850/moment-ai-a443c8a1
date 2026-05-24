@@ -212,7 +212,10 @@ export default function Social() {
               </button>
             </div>
 
+            {uid && <FollowRequests uid={uid} />}
+            {uid && <PeopleSearch uid={uid} />}
             <AlignedPeople uid={uid!} />
+
 
             <div className="rounded-2xl border border-border bg-card/40 p-3">
               <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
