@@ -259,14 +259,85 @@ function SignalPill({ value, label, tone }: { value: string | number; label: str
   );
 }
 
-function GoalHorizonCard({ label, value, emphasis = false }: { label: string; value: string; emphasis?: boolean }) {
-  if (!value.trim()) return null;
+function EditableGoalHorizon({
+  label,
+  value,
+  emphasis = false,
+  placeholder,
+  onSave,
+}: {
+  label: string;
+  value: string;
+  emphasis?: boolean;
+  placeholder: string;
+  onSave: (v: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  useEffect(() => {
+    if (!editing) setDraft(value);
+  }, [value, editing]);
+
+  const commit = () => {
+    const trimmed = draft.trim();
+    if (trimmed !== value.trim()) onSave(trimmed);
+    setEditing(false);
+  };
+
+  const isEmpty = !value.trim();
+
   return (
-    <div className={`rounded-xl border p-4 ${emphasis ? "border-primary/30 bg-primary/8" : "border-border/60 bg-background/35"}`}>
-      <div className={`font-mono text-[10px] uppercase tracking-[0.18em] ${emphasis ? "text-primary/70" : "text-muted-foreground"}`}>
-        {label}
+    <div
+      className={`group relative rounded-xl border p-4 transition-colors ${
+        emphasis ? "border-primary/30 bg-primary/8" : "border-border/60 bg-background/35"
+      } ${editing ? "ring-1 ring-primary/40" : "hover:border-primary/40 cursor-text"}`}
+      onClick={() => !editing && setEditing(true)}
+    >
+      <div
+        className={`flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.18em] ${
+          emphasis ? "text-primary/70" : "text-muted-foreground"
+        }`}
+      >
+        <span>{label}</span>
+        {!editing && (
+          <span className="opacity-0 group-hover:opacity-100 text-[9px] normal-case tracking-normal text-muted-foreground">
+            click to edit
+          </span>
+        )}
       </div>
-      <p className="mt-2 text-sm font-medium leading-snug text-foreground">{value}</p>
+      {editing ? (
+        <textarea
+          autoFocus
+          rows={3}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              commit();
+            } else if (e.key === "Escape") {
+              setDraft(value);
+              setEditing(false);
+            }
+          }}
+          placeholder={placeholder}
+          className="mt-2 w-full resize-none rounded-md border border-border bg-background/60 px-2 py-1.5 text-sm font-medium leading-snug text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+        />
+      ) : (
+        <p
+          className={`mt-2 text-sm font-medium leading-snug ${
+            isEmpty ? "text-muted-foreground/60 italic" : "text-foreground"
+          }`}
+        >
+          {isEmpty ? placeholder : value}
+        </p>
+      )}
+      {editing && (
+        <p className="mt-1.5 text-[10px] text-muted-foreground">
+          ⌘/Ctrl+Enter to save · Esc to cancel · saves to your portfolio
+        </p>
+      )}
     </div>
   );
 }
