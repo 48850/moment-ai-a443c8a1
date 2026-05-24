@@ -105,7 +105,9 @@ function syncActiveTasksToWeek(state: MomentState): MomentState {
       // Drop blocks linked to inactive tasks
       if (b.task_id && (!activeTaskById.has(b.task_id) || seenTaskIds.has(b.task_id))) return false;
       if (b.task_id) seenTaskIds.add(b.task_id);
-      // Hard dedupe by normalized title + category across the whole week
+      // Hard dedupe by normalized title across the week — but EXEMPT school,
+      // commitment, and locked blocks (one "School" per weekday is expected).
+      if (b.category === "school" || b.category === "commitment" || b.is_locked) return true;
       const key = `${b.category}::${normTitle(b.title)}`;
       if (!key.endsWith("::")) {
         if (seenTitleKeys.has(key)) return false;
