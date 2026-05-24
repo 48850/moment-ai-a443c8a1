@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronRight, ChevronLeft, Lock } from "lucide-react";
@@ -6,6 +6,8 @@ import { useStateStore } from "@/stores/state-store";
 import { evaluateGoalFeasibility } from "@/lib/engine/goal-feasibility";
 import type { GoalFeasibilityReport } from "@/lib/types";
 import type { MomentState } from "@/lib/types";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 
 // ─── Stage types ──────────────────────────────────────────────────────────────
 
