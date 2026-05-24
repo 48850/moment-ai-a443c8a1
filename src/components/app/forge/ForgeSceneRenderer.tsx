@@ -67,13 +67,13 @@ export function ForgeSceneRenderer({ scene, elapsed, sceneIndex }: Props) {
         <div className="pointer-events-none absolute inset-0 opacity-25 ring-grid" />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-foreground/80 to-transparent" />
 
-        <div className="relative z-10 flex flex-1 flex-col gap-6 px-5 pb-28 pt-16 sm:px-8 sm:pb-32 lg:px-12">
+        <div className="relative z-10 flex flex-1 flex-col gap-4 px-5 pb-24 pt-14 sm:px-8 sm:pb-28 sm:pt-16 lg:px-12">
           <div className="flex items-center justify-between gap-4 text-[10px] font-mono uppercase tracking-[0.18em] text-background/50">
             <span>{scene.setting.replace(/_/g, " ")}</span>
             {scene.soundCue && <span className="hidden text-right sm:block">{scene.soundCue}</span>}
           </div>
 
-          <div className="grid flex-1 items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(300px,420px)]">
+          <div className="grid flex-1 items-center gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,420px)]">
             <motion.div
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
@@ -83,7 +83,7 @@ export function ForgeSceneRenderer({ scene, elapsed, sceneIndex }: Props) {
               <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-background/45">
                 Scene {sceneIndex + 1}
               </p>
-              <h2 className="max-w-4xl text-balance font-display text-4xl font-medium leading-[0.95] text-background sm:text-6xl lg:text-7xl">
+              <h2 className="max-w-4xl text-balance font-display text-4xl font-medium leading-[0.95] text-background sm:text-5xl lg:text-6xl xl:text-7xl">
                 {activeCaption}
               </h2>
               {scene.visualStyle && (
