@@ -8,6 +8,8 @@ import { useProgressEmitter } from "@/hooks/use-progress-emitter";
 import { useSocialFeed } from "@/hooks/use-social-feed";
 import { ProgressEventCard } from "@/components/app/social/ProgressEventCard";
 import { AlignedPeople } from "@/components/app/social/AlignedPeople";
+import { PeopleSearch } from "@/components/app/social/PeopleSearch";
+import { FollowRequests } from "@/components/app/social/FollowRequests";
 import { EmptyConnections } from "@/components/app/social/EmptyConnections";
 import { MomentStar } from "@/components/app/Mote";
 import { DEMO_FRIEND_EVENTS } from "@/lib/social/sample-friends";
