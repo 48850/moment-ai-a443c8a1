@@ -13,11 +13,12 @@ import { AppTutorial } from "@/components/app/AppTutorial";
  * are intentionally not in the nav — their routes still exist for direct
  * links, but the cockpit is gone. Doctrine: one move now, signals preserved.
  */
-const tabs = [
+type Tab = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; end?: boolean; match: string[] };
+const tabs: Tab[] = [
   { to: "/app", label: "Today", icon: Home, end: true, match: ["/app"] },
   { to: "/app/plan", label: "Plan", icon: Calendar, match: ["/app/plan"] },
   { to: "/app/mission", label: "Mission", icon: Target, match: ["/app/mission"] },
-] as const;
+];
 
 export const AppShell = () => {
   const { pathname } = useLocation();
