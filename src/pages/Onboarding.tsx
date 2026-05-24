@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronRight, ChevronLeft, Lock } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
@@ -167,10 +167,16 @@ function Chip({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function Onboarding() {
+  const { uid, loading: authLoading } = useAuth();
   const dispatch = useStateStore((s) => s.dispatch);
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const TOTAL_STEPS = 9;
+
+  // Require an authenticated email before onboarding.
+  if (!authLoading && !uid) {
+    return <Navigate to="/auth?mode=sign_up&next=/onboarding" replace />;
+  }
 
   // Heuristic: pre-fill country from browser timezone.
   const guessedCountry = (() => {

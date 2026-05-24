@@ -105,13 +105,6 @@ export default function Auth() {
         >
           {mode === "sign_up" ? "Already have an account? Sign in" : "New here? Create an account"}
         </button>
-        <button
-          type="button"
-          onClick={() => navigate("/app")}
-          className="mt-2 w-full text-center text-[11px] text-muted-foreground/70 hover:text-muted-foreground"
-        >
-          Continue exploring without an account
-        </button>
       </div>
     </div>
   );
