@@ -62,7 +62,52 @@ export function DoneCheckIn({ task, onClose }: Props) {
     if (goalForward === "yes") log("valuable");
     if (goalForward === "no") log("not_relevant");
     if (friction) log(friction);
-    if (fit || goalForward || friction) {
+
+    // Visible Adaptation Loop — deterministic.
+    const signals: FeedbackKey[] = [];
+    if (friction) signals.push(friction);
+    if (fit) signals.push(fit);
+    if (goalForward === "yes") signals.push("valuable");
+    if (goalForward === "no") signals.push("not_relevant");
+    const strongest = pickStrongestSignal(signals);
+
+    if (task && strongest) {
+      // Recompute the home VM AFTER the just-completed task is marked done
+      // so the next decisive move is the *new* top candidate, not the one
+      // we just finished.
+      const live = useStateStore.getState().state;
+      const vm = live ? selectHomeViewModel(live) : null;
+      const nextId = vm?.decisiveMove?.id ?? null;
+      const nextCandidate = nextId ? live?.tasks.find((t) => t.id === nextId) ?? null : null;
+
+      const adaptation = computeNextMoveAdaptation({
+        completedTask: { id: task.id, title: task.title },
+        feedback: strongest,
+        nextCandidate: nextCandidate ?? null,
+      });
+
+      // Apply the (small) mutation to the next candidate.
+      if (nextCandidate && adaptation.next_task_changes) {
+        dispatch({
+          type: "task/update",
+          payload: { id: nextCandidate.id, changes: adaptation.next_task_changes },
+        });
+      }
+
+      // Store the adaptation note so the Dashboard can show "Why this changed".
+      dispatch({
+        type: "adaptation/set",
+        payload: {
+          from_task_id: adaptation.from_task_id,
+          from_task_title: adaptation.from_task_title,
+          from_feedback: adaptation.from_feedback,
+          rule_id: adaptation.rule_id,
+          summary: adaptation.summary,
+          created_at: adaptation.created_at,
+        },
+      });
+      toast.success("Your next move just changed.", { duration: 2600 });
+    } else if (fit || goalForward || friction) {
       toast.success("Saved — I'll fold this into the next plan.", { duration: 2200 });
     }
     onClose();
