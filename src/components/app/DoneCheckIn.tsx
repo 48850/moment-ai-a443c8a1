@@ -5,6 +5,8 @@ import type { ExecutionFeedbackItem, Task } from "@/lib/types";
 import type { FeedbackKey } from "@/lib/feedback/labels";
 import { FEEDBACK_LABELS } from "@/lib/feedback/labels";
 import { toast } from "sonner";
+import { computeNextMoveAdaptation, pickStrongestSignal } from "@/lib/adaptation/next-move-rule";
+import { selectHomeViewModel } from "@/lib/selectors/home";
 
 /**
  * Calm, 10-second check-in shown the moment a task is marked done.
