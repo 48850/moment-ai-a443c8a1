@@ -259,14 +259,85 @@ function SignalPill({ value, label, tone }: { value: string | number; label: str
   );
 }
 
-function GoalHorizonCard({ label, value, emphasis = false }: { label: string; value: string; emphasis?: boolean }) {
-  if (!value.trim()) return null;
+function EditableGoalHorizon({
+  label,
+  value,
+  emphasis = false,
+  placeholder,
+  onSave,
+}: {
+  label: string;
+  value: string;
+  emphasis?: boolean;
+  placeholder: string;
+  onSave: (v: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  useEffect(() => {
+    if (!editing) setDraft(value);
+  }, [value, editing]);
+
+  const commit = () => {
+    const trimmed = draft.trim();
+    if (trimmed !== value.trim()) onSave(trimmed);
+    setEditing(false);
+  };
+
+  const isEmpty = !value.trim();
+
   return (
-    <div className={`rounded-xl border p-4 ${emphasis ? "border-primary/30 bg-primary/8" : "border-border/60 bg-background/35"}`}>
-      <div className={`font-mono text-[10px] uppercase tracking-[0.18em] ${emphasis ? "text-primary/70" : "text-muted-foreground"}`}>
-        {label}
+    <div
+      className={`group relative rounded-xl border p-4 transition-colors ${
+        emphasis ? "border-primary/30 bg-primary/8" : "border-border/60 bg-background/35"
+      } ${editing ? "ring-1 ring-primary/40" : "hover:border-primary/40 cursor-text"}`}
+      onClick={() => !editing && setEditing(true)}
+    >
+      <div
+        className={`flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.18em] ${
+          emphasis ? "text-primary/70" : "text-muted-foreground"
+        }`}
+      >
+        <span>{label}</span>
+        {!editing && (
+          <span className="opacity-0 group-hover:opacity-100 text-[9px] normal-case tracking-normal text-muted-foreground">
+            click to edit
+          </span>
+        )}
       </div>
-      <p className="mt-2 text-sm font-medium leading-snug text-foreground">{value}</p>
+      {editing ? (
+        <textarea
+          autoFocus
+          rows={3}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              commit();
+            } else if (e.key === "Escape") {
+              setDraft(value);
+              setEditing(false);
+            }
+          }}
+          placeholder={placeholder}
+          className="mt-2 w-full resize-none rounded-md border border-border bg-background/60 px-2 py-1.5 text-sm font-medium leading-snug text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+        />
+      ) : (
+        <p
+          className={`mt-2 text-sm font-medium leading-snug ${
+            isEmpty ? "text-muted-foreground/60 italic" : "text-foreground"
+          }`}
+        >
+          {isEmpty ? placeholder : value}
+        </p>
+      )}
+      {editing && (
+        <p className="mt-1.5 text-[10px] text-muted-foreground">
+          ⌘/Ctrl+Enter to save · Esc to cancel · saves to your portfolio
+        </p>
+      )}
     </div>
   );
 }
@@ -336,6 +407,11 @@ const Mission = () => {
     [analytics],
   );
 
+  /* Save goal horizon edit — persists to onboarding answers (used by every AI prompt) */
+  const saveHorizon = (key: "short_term_goal" | "medium_term_goal" | "long_term_goal", value: string) => {
+    dispatch({ type: "onboarding/set_answer", payload: { key, value } });
+  };
+
   /* Create task helper */
   const createTaskFromProof = (workstreamId: string, proof: string) => {
     if (!state) return;
@@ -389,7 +465,7 @@ const Mission = () => {
 
   const name = state.profile?.display_name?.trim();
   const goalStatement = m.goal.statement;
-  const goalHorizons = [m.goal.shortTerm, m.goal.mediumTerm, m.goal.longTerm].filter((g) => g.trim());
+  
   const rawStage = state.active_goal?.current_stage ?? "";
   const stage = readableStage(rawStage);
   const stageBrief = stage ? STAGE_BRIEF[stage] ?? null : null;
@@ -439,13 +515,28 @@ const Mission = () => {
             {goalStatement && (
               <p className="mt-1.5 text-lg text-muted-foreground leading-snug">{goalStatement}</p>
             )}
-            {goalHorizons.length > 0 && (
-              <div className="mt-5 grid gap-3 md:grid-cols-3">
-                <GoalHorizonCard label="Short-term · next proof" value={m.goal.shortTerm} emphasis />
-                <GoalHorizonCard label="Medium-term · milestone" value={m.goal.mediumTerm} />
-                <GoalHorizonCard label="Long-term · anchor" value={m.goal.longTerm} />
-              </div>
-            )}
+            <div className="mt-5 grid gap-3 md:grid-cols-3">
+              <EditableGoalHorizon
+                label="Short-term · next proof"
+                value={m.goal.shortTerm}
+                emphasis
+                placeholder="What's the next concrete proof — in the next 1–4 weeks?"
+                onSave={(v) => saveHorizon("short_term_goal", v)}
+              />
+              <EditableGoalHorizon
+                label="Medium-term · milestone"
+                value={m.goal.mediumTerm}
+                placeholder="The milestone you're aiming at in the next few months."
+                onSave={(v) => saveHorizon("medium_term_goal", v)}
+              />
+              <EditableGoalHorizon
+                label="Long-term · anchor"
+                value={m.goal.longTerm}
+                placeholder="The deeper goal this all serves."
+                onSave={(v) => saveHorizon("long_term_goal", v)}
+              />
+            </div>
+
             {stage && (
               <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/8 px-3.5 py-1 text-sm font-medium text-primary">
                 <Layers className="h-3.5 w-3.5" />
