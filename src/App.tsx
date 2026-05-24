@@ -57,8 +57,10 @@ function OnboardingGuard() {
       return;
     }
 
-    // Onboarding not done and no goal — send to /onboarding (but don't loop)
-    if (!isOnOnboarding && location.pathname !== "/" && location.pathname !== "") {
+    // Onboarding not done and no goal — send to /onboarding (but don't loop).
+    // Skip public routes (landing, auth) so users can sign in / sign up freely.
+    const publicPaths = ["/", "", "/auth"];
+    if (!isOnOnboarding && !publicPaths.includes(location.pathname)) {
       navigate("/onboarding", { replace: true });
     }
   }, [isHydrated, state?.onboarding?.completed, state?.active_goal?.statement, location.pathname, navigate, state]);
