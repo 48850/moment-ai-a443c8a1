@@ -820,6 +820,8 @@ export default function Onboarding() {
                     {understanding.confidence}
                   </span>
                 </div>
+
+                <AuthPanel />
               </div>
             )}
           </motion.div>
