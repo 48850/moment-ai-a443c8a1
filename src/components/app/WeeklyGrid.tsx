@@ -217,7 +217,7 @@ export function WeeklyGrid() {
     }
     dispatch({ type: "week/set", payload: kept });
     toast.success(`Decluttered ${removed} block${removed === 1 ? "" : "s"}`, {
-      description: "Removed duplicates, overlaps and micro blocks. Locked items were preserved.",
+      description: "Kept school + locked items and your top 4 priorities per day.",
     });
   };
 
