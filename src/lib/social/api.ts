@@ -83,6 +83,41 @@ export async function unfollow(uid: string, target: string) {
   return supabase.from("follows").delete().eq("follower_id", uid).eq("followee_id", target);
 }
 
+export async function declineFollow(uid: string, follower: string) {
+  return supabase
+    .from("follows")
+    .delete()
+    .eq("follower_id", follower)
+    .eq("followee_id", uid);
+}
+
+export async function fetchIncomingRequests(uid: string): Promise<Profile[]> {
+  const { data: rows } = await supabase
+    .from("follows")
+    .select("follower_id")
+    .eq("followee_id", uid)
+    .eq("status", "pending");
+  const ids = (rows ?? []).map((r) => r.follower_id);
+  if (ids.length === 0) return [];
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("*")
+    .in("id", ids);
+  return (profiles ?? []) as Profile[];
+}
+
+export async function searchProfilesByHandle(query: string, uid: string, limit = 10): Promise<Profile[]> {
+  const q = query.trim().replace(/^@/, "").toLowerCase();
+  if (q.length < 2) return [];
+  const { data } = await supabase
+    .from("profiles")
+    .select("*")
+    .ilike("handle", `%${q}%`)
+    .neq("id", uid)
+    .limit(limit);
+  return (data ?? []) as Profile[];
+}
+
 export async function fetchMyFollowsMap(uid: string): Promise<Record<string, "pending" | "accepted">> {
   const { data } = await supabase
     .from("follows")
@@ -91,6 +126,36 @@ export async function fetchMyFollowsMap(uid: string): Promise<Record<string, "pe
   const map: Record<string, "pending" | "accepted"> = {};
   (data ?? []).forEach((r) => (map[r.followee_id] = r.status as any));
   return map;
+}
+
+// ── Comments ──────────────────────────────────────────────────────────────────
+export type CommentRow = Database["public"]["Tables"]["comments"]["Row"] & {
+  author?: Pick<Profile, "id" | "display_name" | "handle"> | null;
+};
+
+export async function fetchComments(eventId: string): Promise<CommentRow[]> {
+  const { data } = await supabase
+    .from("comments")
+    .select("*")
+    .eq("event_id", eventId)
+    .order("created_at", { ascending: true });
+  const rows = (data ?? []) as any[];
+  if (rows.length === 0) return [];
+  const ids = Array.from(new Set(rows.map((r) => r.user_id)));
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id,display_name,handle")
+    .in("id", ids);
+  const map = new Map<string, any>((profiles ?? []).map((p) => [p.id, p]));
+  return rows.map((r) => ({ ...r, author: map.get(r.user_id) ?? null }));
+}
+
+export async function addComment(uid: string, eventId: string, body: string) {
+  return supabase.from("comments").insert({ user_id: uid, event_id: eventId, body });
+}
+
+export async function deleteComment(id: string) {
+  return supabase.from("comments").delete().eq("id", id);
 }
 
 export async function insertProgressEvent(row: {

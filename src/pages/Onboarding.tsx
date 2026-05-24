@@ -292,7 +292,7 @@ export default function Onboarding() {
     }
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     if (!feasibility) return;
 
     const age_bracket = ageBracketFromLifeStage(data.stage_of_life, data.age_str);
@@ -300,6 +300,20 @@ export default function Onboarding() {
     const current_stage = buildCurrentStageDescription(data);
 
     const horizon = data.horizon as MomentState["active_goal"]["horizon"];
+
+    // Derive goal/subject tags so aligned-goal discovery works on day one.
+    const tagify = (s: string) =>
+      s
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter((w) => w.length > 2);
+    const goal_tags = Array.from(
+      new Set([
+        ...tagify(data.long_term_goal),
+        ...tagify(data.medium_term_goal),
+        ...tagify(data.short_term_goal),
+      ]),
+    ).slice(0, 24);
 
     dispatch({
       type: "onboarding/complete",
@@ -345,6 +359,27 @@ export default function Onboarding() {
         feasibility,
       },
     });
+
+    // If signed in, push profile + goal tags to the backend so aligned
+    // discovery and @handle search work immediately.
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const userId = sess.session?.user.id;
+      if (userId) {
+        await supabase
+          .from("profiles")
+          .update({
+            display_name: data.preferred_name.trim() || "New user",
+            main_goal: data.long_term_goal.trim() || null,
+            school_stage: data.school_year || data.stage_of_life || null,
+            goal_tags,
+            subject_tags: [],
+          })
+          .eq("id", userId);
+      }
+    } catch {
+      /* offline / not signed in — local-only is fine */
+    }
 
     navigate("/app/chat?mode=goal_specialisation");
   };

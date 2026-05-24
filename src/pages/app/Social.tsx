@@ -8,6 +8,8 @@ import { useProgressEmitter } from "@/hooks/use-progress-emitter";
 import { useSocialFeed } from "@/hooks/use-social-feed";
 import { ProgressEventCard } from "@/components/app/social/ProgressEventCard";
 import { AlignedPeople } from "@/components/app/social/AlignedPeople";
+import { PeopleSearch } from "@/components/app/social/PeopleSearch";
+import { FollowRequests } from "@/components/app/social/FollowRequests";
 import { EmptyConnections } from "@/components/app/social/EmptyConnections";
 import { MomentStar } from "@/components/app/Mote";
 import { DEMO_FRIEND_EVENTS } from "@/lib/social/sample-friends";
@@ -210,7 +212,10 @@ export default function Social() {
               </button>
             </div>
 
+            {uid && <FollowRequests uid={uid} />}
+            {uid && <PeopleSearch uid={uid} />}
             <AlignedPeople uid={uid!} />
+
 
             <div className="rounded-2xl border border-border bg-card/40 p-3">
               <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">

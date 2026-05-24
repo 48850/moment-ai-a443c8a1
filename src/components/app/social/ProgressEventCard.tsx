@@ -3,6 +3,8 @@ import { CheckCircle2, BookOpen, Sparkles, Wrench, Flame, CalendarDays, MoreHori
 import type { ProgressEvent } from "@/lib/social/select-progress-events";
 import { MomentStar, type MoteMood } from "@/components/app/Mote";
 import { ReactionBar } from "./ReactionBar";
+import { Comments } from "./Comments";
+import { useAuth } from "@/hooks/use-auth";
 
 type Kind = ProgressEvent["kind"];
 
@@ -78,7 +80,11 @@ function relTime(iso: string): string {
 export function ProgressEventCard({ event }: { event: ProgressEvent }) {
   const meta = KIND_META[event.kind];
   const Icon = meta.icon;
+  const { uid } = useAuth();
   const [showReactions, setShowReactions] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  // event.id is a uuid only for real DB events. Demo events use string ids.
+  const isReal = /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(event.id);
 
   return (
     <article
@@ -136,8 +142,14 @@ export function ProgressEventCard({ event }: { event: ProgressEvent }) {
             </button>
             <button
               type="button"
-              onClick={() => alert("Comments arrive with the friend system.")}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+              onClick={() => isReal && setShowComments((v) => !v)}
+              disabled={!isReal}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+                showComments
+                  ? "border-primary/40 bg-primary/10 text-primary"
+                  : "border-border bg-card/60 text-muted-foreground hover:text-foreground"
+              } disabled:opacity-50`}
+              aria-expanded={showComments}
             >
               <MessageCircle className="h-3.5 w-3.5" />
               Comment
@@ -155,6 +167,12 @@ export function ProgressEventCard({ event }: { event: ProgressEvent }) {
           {showReactions && (
             <div className="mt-2 rounded-xl border border-border/60 bg-background/50 p-2">
               <ReactionBar eventId={event.id} />
+            </div>
+          )}
+
+          {showComments && isReal && (
+            <div className="mt-2 rounded-xl border border-border/60 bg-background/50 p-2">
+              <Comments uid={uid} eventId={event.id} />
             </div>
           )}
         </div>
