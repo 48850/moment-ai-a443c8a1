@@ -1092,6 +1092,8 @@ export const useStateStore = create<StateStore>((set, get) => ({
         next = { ...s, last_adaptation: action.payload };
         break;
       }
+
+      case "rescue/log": {
         next = { ...s, rescue_signals: [...(s.rescue_signals ?? []), action.payload] };
         break;
       }
