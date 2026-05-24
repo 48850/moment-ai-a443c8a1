@@ -218,28 +218,88 @@ export function ConstellationGraph({
             </linearGradient>
           </defs>
 
-          {/* Edges */}
-          {resolvedEdges.map((e, i) => {
+          <defs>
+            <radialGradient id="cg-star-bright" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="rgba(255,255,255,1)" />
+              <stop offset="40%" stopColor="rgba(220,235,255,0.7)" />
+              <stop offset="100%" stopColor="rgba(120,160,255,0)" />
+            </radialGradient>
+            <linearGradient id="cg-line" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%"   stopColor="rgba(147,197,253,0.85)" />
+              <stop offset="50%"  stopColor="rgba(196,181,253,0.95)" />
+              <stop offset="100%" stopColor="rgba(253,224,138,0.85)" />
+            </linearGradient>
+            <linearGradient id="cg-area" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stopColor="rgba(147,197,253,0.32)" />
+              <stop offset="60%"  stopColor="rgba(99,102,241,0.10)" />
+              <stop offset="100%" stopColor="rgba(99,102,241,0)" />
+            </linearGradient>
+          </defs>
+
+          {/* Gridlines — subtle stock-chart grid */}
+          {[0.2, 0.4, 0.6, 0.8].map((t) => {
+            const y = 56 + (size.h - 56 - 64) * t;
+            return (
+              <line
+                key={`grid-${t}`}
+                x1={48} x2={size.w - 48} y1={y} y2={y}
+                stroke="rgba(255,255,255,0.05)"
+                strokeWidth={1}
+                strokeDasharray="2 6"
+              />
+            );
+          })}
+
+          {/* Stock-chart line + area through nodes in order */}
+          {positions.length >= 2 && (() => {
+            const linePath = smoothPath(positions);
+            const baseY = size.h - 64;
+            const first = positions[0];
+            const last = positions[positions.length - 1];
+            const areaPath = `${linePath} L ${last.x} ${baseY} L ${first.x} ${baseY} Z`;
+            return (
+              <g>
+                <motion.path
+                  d={areaPath}
+                  fill="url(#cg-area)"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.8, ease: "easeOut" }}
+                />
+                <motion.path
+                  d={linePath}
+                  fill="none"
+                  stroke="url(#cg-line)"
+                  strokeWidth={1.6}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  initial={{ pathLength: 0, opacity: 0 }}
+                  animate={{ pathLength: 1, opacity: 0.95 }}
+                  transition={{ pathLength: { duration: 1.2, ease: "easeOut" }, opacity: { duration: 0.4 } }}
+                  style={{ filter: "drop-shadow(0 0 6px rgba(147,197,253,0.45))" }}
+                />
+              </g>
+            );
+          })()}
+
+          {/* Support edges only (dashed connectors for non-spine relationships) */}
+          {resolvedEdges.filter((e) => e.kind === "support").map((e, i) => {
             const a = posById.get(e.from);
             const b = posById.get(e.to);
             if (!a || !b) return null;
-            const dx = b.x - a.x, dy = b.y - a.y;
-            const len = Math.sqrt(dx * dx + dy * dy) || 1;
-            const isSupport = e.kind === "support";
             const isLit = focusedId === e.from || focusedId === e.to ||
                           hoveredId === e.from || hoveredId === e.to;
             return (
               <motion.line
-                key={`${e.from}-${e.to}-${i}`}
+                key={`sup-${e.from}-${e.to}-${i}`}
                 x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-                stroke={isSupport ? "rgba(196,181,253,0.55)" : "url(#cg-spine)"}
-                strokeWidth={isLit ? 1.6 : isSupport ? 0.9 : 1.1}
-                strokeDasharray={isSupport ? "4 6" : undefined}
+                stroke="rgba(196,181,253,0.45)"
+                strokeWidth={isLit ? 1.2 : 0.7}
+                strokeDasharray="3 5"
                 strokeLinecap="round"
-                initial={{ pathLength: 0, opacity: 0 }}
-                animate={{ pathLength: 1, opacity: isLit ? 0.95 : 0.55 }}
-                transition={{ pathLength: { duration: 0.9, delay: 0.05 * i, ease: "easeOut" }, opacity: { duration: 0.4 } }}
-                style={{ strokeDasharray: isSupport ? "4 6" : `${len} ${len}` }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: isLit ? 0.8 : 0.35 }}
+                transition={{ duration: 0.4 }}
               />
             );
           })}
