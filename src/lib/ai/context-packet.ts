@@ -92,6 +92,30 @@ export interface MomentContextPacket {
   };
   recent_chat: Array<{ role: "user" | "assistant"; content: string }>;
   learning_portfolio: LearningPortfolio;
+  /** Moment Core v1 — Visible Adaptation Loop context for Coach. */
+  adaptation: {
+    last: {
+      from_task_id: string;
+      from_task_title: string;
+      from_feedback: string;
+      rule_id: string;
+      summary: string;
+      created_at: string;
+    } | null;
+    pending: {
+      from_task_id: string;
+      from_task_title: string;
+      from_feedback: string;
+      rule_id: string;
+      reason: string;
+      created_at: string;
+    } | null;
+    visibly_applied: boolean;
+    hard_to_start_streak: number;
+    next_move: { id: string; title: string; estimated_minutes: number } | null;
+    latest_completed: { id: string; title: string; completed_at: string } | null;
+    latest_core_feedback: string;
+  };
 }
 
 function horizonFromState(s: MomentState, key: "long" | "medium" | "short") {
