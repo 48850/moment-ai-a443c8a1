@@ -90,12 +90,13 @@ export function scheduleTaskInWeek(state: MomentState, task: Task): WeekBlock | 
   if (existing) return null;
 
   const preferredDay = dayIndexFromDueDate(task.due_date);
-  const { dayIdx, start, end } = findSlot(state, preferredDay, task.estimated_minutes ?? 30);
+  const slot = findSlot(state, preferredDay, task.estimated_minutes ?? 30);
+  if (!slot) return null; // week is at capacity — don't pile on
   return {
     id: `wb_${Math.random().toString(36).slice(2, 10)}`,
-    day_index: dayIdx,
-    start_time: fmt(start),
-    end_time: fmt(end),
+    day_index: slot.dayIdx,
+    start_time: fmt(slot.start),
+    end_time: fmt(slot.end),
     title: task.title,
     category: mapCategory(task),
     notes: task.why_now ?? "",
