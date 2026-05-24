@@ -263,6 +263,85 @@ const Tasks = () => {
     [notesTaskId, tasks],
   );
 
+  const declutter = () => {
+    const pending = tasks.filter((t) => t.status !== "done" && t.status !== "skipped");
+    if (pending.length === 0) {
+      toast.message("Nothing to declutter", { description: "Your list is already clear." });
+      return;
+    }
+
+    const now = Date.now();
+    const DAY = 86_400_000;
+    const goalId = state?.active_goal?.id ?? "";
+
+    const score = (t: Task): number => {
+      let s = 0;
+      if (t.priority === "high") s += 4;
+      else if (t.priority === "medium") s += 2;
+      if (t.category === "bottleneck_removal") s += 3;
+      else if (t.category === "goal_direct") s += 2;
+      else if (t.category === "discovery") s += 1;
+      if (t.goal_id && t.goal_id === goalId) s += 2;
+      if (t.why_now && t.why_now.trim()) s += 1;
+      if (t.proof_of_completion && t.proof_of_completion.trim()) s += 1;
+      if (t.due_date) {
+        const due = new Date(t.due_date).getTime();
+        if (!Number.isNaN(due)) {
+          const days = (due - now) / DAY;
+          if (days < 0) s += 3; // overdue → urgent
+          else if (days < 1) s += 2;
+          else if (days < 3) s += 1;
+        }
+      }
+      const ageDays = (now - new Date(t.created_at).getTime()) / DAY;
+      if (ageDays > 14) s -= 2;
+      if (ageDays > 30) s -= 2;
+      if ((t.notes?.length ?? 0) === 0 && !t.due_date && t.priority === "low") s -= 2;
+      return s;
+    };
+
+    const scored = pending
+      .map((t) => ({ t, s: score(t) }))
+      .sort((a, b) => b.s - a.s);
+
+    // Archive (skip) the worst: low score AND stale.
+    const toArchive = scored.filter(({ t, s }) => {
+      const ageDays = (now - new Date(t.created_at).getTime()) / DAY;
+      return s <= 0 && ageDays >= 7;
+    });
+
+    // Promote top items lacking high priority.
+    const toPromote = scored
+      .filter(({ t }) => !toArchive.find((x) => x.t.id === t.id))
+      .slice(0, 3)
+      .filter(({ t }) => t.priority !== "high");
+
+    if (toArchive.length === 0 && toPromote.length === 0) {
+      toast.message("Already focused", {
+        description: "No stale tasks and your top 3 are already high priority.",
+      });
+      return;
+    }
+
+    const proceed = window.confirm(
+      `Declutter your list?\n\n• Archive ${toArchive.length} stale task${toArchive.length === 1 ? "" : "s"}\n• Promote ${toPromote.length} task${toPromote.length === 1 ? "" : "s"} to high priority`,
+    );
+    if (!proceed) return;
+
+    toArchive.forEach(({ t }) =>
+      dispatch({ type: "task/update", payload: { id: t.id, changes: { status: "skipped" } } }),
+    );
+    toPromote.forEach(({ t }) =>
+      dispatch({ type: "task/update", payload: { id: t.id, changes: { priority: "high" } } }),
+    );
+
+    toast.success("Decluttered", {
+      description: `Archived ${toArchive.length}, prioritised ${toPromote.length}. Top of list = next move.`,
+    });
+    setFilter("pending");
+  };
+
+
   if (!state)
     return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
 
