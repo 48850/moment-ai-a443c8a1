@@ -3,6 +3,11 @@ import { FEEDBACK_OPTIONS } from "@/lib/state/schema";
 export type FeedbackKey = (typeof FEEDBACK_OPTIONS)[number];
 
 export const FEEDBACK_LABELS: Record<FeedbackKey, string> = {
+  hard_to_start: "Hard to start",
+  too_long: "Took too long",
+  distracted: "Got distracted",
+  felt_pointless: "Felt pointless",
+  useful: "Useful",
   easy: "Easy",
   hard: "Hard",
   too_vague: "Too vague",
