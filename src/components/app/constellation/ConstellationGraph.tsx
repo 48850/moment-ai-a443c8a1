@@ -60,33 +60,56 @@ const TONE: Record<StarTone, { fill: string; glow: string; ring: string; chip: s
   dim:     { fill: "#cbd5e1", glow: "rgba(148,163,184,0.55)", ring: "ring-white/25",       chip: "border-white/12 bg-white/[0.04] text-white/55" },
 };
 
-/** Distribute n nodes across a width×height canvas using a snake grid + jitter. */
-function layout(n: number, width: number, height: number) {
+const TONE_VALUE: Record<StarTone, number> = {
+  bright: 85, emerald: 78, warm: 62, amber: 70, violet: 55, rose: 30, dim: 22,
+};
+
+/** Stock-chart layout: x = chronological index, y = meta value (or tone-derived). */
+function layout(nodes: StarNode[], width: number, height: number) {
+  const n = nodes.length;
   if (n === 0) return [];
-  const padX = 70, padY = 70;
+  const padX = 56, padTop = 56, padBottom = 64;
   const innerW = Math.max(120, width - padX * 2);
-  const innerH = Math.max(120, height - padY * 2);
-  if (n === 1) return [{ x: width / 2, y: height / 2 }];
+  const innerH = Math.max(120, height - padTop - padBottom);
+  if (n === 1) return [{ x: width / 2, y: padTop + innerH / 2 }];
 
-  // Choose grid roughly matching canvas aspect ratio.
-  const aspect = innerW / innerH;
-  const cols = Math.max(2, Math.min(n, Math.round(Math.sqrt(n * aspect))));
-  const rows = Math.ceil(n / cols);
-  const colStep = innerW / Math.max(1, cols - 1 || 1);
-  const rowStep = rows > 1 ? innerH / (rows - 1) : 0;
-
-  return Array.from({ length: n }, (_, i) => {
-    const row = Math.floor(i / cols);
-    const colInRow = i % cols;
-    // Snake: alternate direction so the spine flows L→R then R→L.
-    const col = row % 2 === 0 ? colInRow : cols - 1 - colInRow;
-    const baseX = padX + (cols === 1 ? innerW / 2 : col * colStep);
-    const baseY = rows === 1 ? height / 2 : padY + row * rowStep;
-    // Deterministic jitter so it doesn't look like a grid.
-    const jx = Math.sin(i * 12.9898) * Math.min(colStep * 0.18, 28);
-    const jy = Math.cos(i * 78.233)  * Math.min((rowStep || 60) * 0.18, 24);
-    return { x: baseX + jx, y: baseY + jy };
+  // Derive y values: prefer numeric meta, else tone score, with small deterministic noise.
+  const vals = nodes.map((node, i) => {
+    const parsed = node.meta != null ? parseFloat(String(node.meta)) : NaN;
+    const base = Number.isFinite(parsed)
+      ? Math.max(0, Math.min(100, parsed))
+      : TONE_VALUE[node.tone ?? "bright"];
+    const noise = Math.sin(i * 12.9898) * 6 + Math.cos(i * 4.221) * 4;
+    return Math.max(4, Math.min(100, base + noise));
   });
+
+  const step = n === 1 ? 0 : innerW / (n - 1);
+  return nodes.map((_, i) => {
+    const x = padX + i * step;
+    // Invert: high value = up.
+    const y = padTop + (1 - vals[i] / 100) * innerH;
+    return { x, y };
+  });
+}
+
+/** Smooth cardinal-spline path through points. */
+function smoothPath(pts: { x: number; y: number }[]) {
+  if (pts.length === 0) return "";
+  if (pts.length === 1) return `M ${pts[0].x} ${pts[0].y}`;
+  const t = 0.2;
+  let d = `M ${pts[0].x} ${pts[0].y}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] ?? pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] ?? p2;
+    const c1x = p1.x + (p2.x - p0.x) * t;
+    const c1y = p1.y + (p2.y - p0.y) * t;
+    const c2x = p2.x - (p3.x - p1.x) * t;
+    const c2y = p2.y - (p3.y - p1.y) * t;
+    d += ` C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2.x} ${p2.y}`;
+  }
+  return d;
 }
 
 
@@ -125,7 +148,7 @@ export function ConstellationGraph({
     return () => ro.disconnect();
   }, [minHeight]);
 
-  const positions = useMemo(() => layout(nodes.length, size.w, size.h), [nodes.length, size.w, size.h]);
+  const positions = useMemo(() => layout(nodes, size.w, size.h), [nodes, size.w, size.h]);
   const posById = useMemo(() => {
     const map = new Map<string, { x: number; y: number }>();
     nodes.forEach((n, i) => positions[i] && map.set(n.id, positions[i]));
@@ -182,41 +205,89 @@ export function ConstellationGraph({
           viewBox={`0 0 ${size.w} ${size.h}`}
           preserveAspectRatio="none"
         >
+
           <defs>
             <radialGradient id="cg-star-bright" cx="50%" cy="50%" r="50%">
               <stop offset="0%" stopColor="rgba(255,255,255,1)" />
               <stop offset="40%" stopColor="rgba(220,235,255,0.7)" />
               <stop offset="100%" stopColor="rgba(120,160,255,0)" />
             </radialGradient>
-            <linearGradient id="cg-spine" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="rgba(147,197,253,0.0)" />
-              <stop offset="50%" stopColor="rgba(191,219,254,0.85)" />
-              <stop offset="100%" stopColor="rgba(147,197,253,0.0)" />
+            <linearGradient id="cg-line" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%"   stopColor="rgba(147,197,253,0.85)" />
+              <stop offset="50%"  stopColor="rgba(196,181,253,0.95)" />
+              <stop offset="100%" stopColor="rgba(253,224,138,0.85)" />
+            </linearGradient>
+            <linearGradient id="cg-area" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stopColor="rgba(147,197,253,0.32)" />
+              <stop offset="60%"  stopColor="rgba(99,102,241,0.10)" />
+              <stop offset="100%" stopColor="rgba(99,102,241,0)" />
             </linearGradient>
           </defs>
 
-          {/* Edges */}
-          {resolvedEdges.map((e, i) => {
+          {/* Gridlines — subtle stock-chart grid */}
+          {[0.2, 0.4, 0.6, 0.8].map((t) => {
+            const y = 56 + (size.h - 56 - 64) * t;
+            return (
+              <line
+                key={`grid-${t}`}
+                x1={48} x2={size.w - 48} y1={y} y2={y}
+                stroke="rgba(255,255,255,0.05)"
+                strokeWidth={1}
+                strokeDasharray="2 6"
+              />
+            );
+          })}
+
+          {/* Stock-chart line + area through nodes in order */}
+          {positions.length >= 2 && (() => {
+            const linePath = smoothPath(positions);
+            const baseY = size.h - 64;
+            const first = positions[0];
+            const last = positions[positions.length - 1];
+            const areaPath = `${linePath} L ${last.x} ${baseY} L ${first.x} ${baseY} Z`;
+            return (
+              <g>
+                <motion.path
+                  d={areaPath}
+                  fill="url(#cg-area)"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.8, ease: "easeOut" }}
+                />
+                <motion.path
+                  d={linePath}
+                  fill="none"
+                  stroke="url(#cg-line)"
+                  strokeWidth={1.6}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  initial={{ pathLength: 0, opacity: 0 }}
+                  animate={{ pathLength: 1, opacity: 0.95 }}
+                  transition={{ pathLength: { duration: 1.2, ease: "easeOut" }, opacity: { duration: 0.4 } }}
+                  style={{ filter: "drop-shadow(0 0 6px rgba(147,197,253,0.45))" }}
+                />
+              </g>
+            );
+          })()}
+
+          {/* Support edges only (dashed connectors for non-spine relationships) */}
+          {resolvedEdges.filter((e) => e.kind === "support").map((e, i) => {
             const a = posById.get(e.from);
             const b = posById.get(e.to);
             if (!a || !b) return null;
-            const dx = b.x - a.x, dy = b.y - a.y;
-            const len = Math.sqrt(dx * dx + dy * dy) || 1;
-            const isSupport = e.kind === "support";
             const isLit = focusedId === e.from || focusedId === e.to ||
                           hoveredId === e.from || hoveredId === e.to;
             return (
               <motion.line
-                key={`${e.from}-${e.to}-${i}`}
+                key={`sup-${e.from}-${e.to}-${i}`}
                 x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-                stroke={isSupport ? "rgba(196,181,253,0.55)" : "url(#cg-spine)"}
-                strokeWidth={isLit ? 1.6 : isSupport ? 0.9 : 1.1}
-                strokeDasharray={isSupport ? "4 6" : undefined}
+                stroke="rgba(196,181,253,0.45)"
+                strokeWidth={isLit ? 1.2 : 0.7}
+                strokeDasharray="3 5"
                 strokeLinecap="round"
-                initial={{ pathLength: 0, opacity: 0 }}
-                animate={{ pathLength: 1, opacity: isLit ? 0.95 : 0.55 }}
-                transition={{ pathLength: { duration: 0.9, delay: 0.05 * i, ease: "easeOut" }, opacity: { duration: 0.4 } }}
-                style={{ strokeDasharray: isSupport ? "4 6" : `${len} ${len}` }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: isLit ? 0.8 : 0.35 }}
+                transition={{ duration: 0.4 }}
               />
             );
           })}
