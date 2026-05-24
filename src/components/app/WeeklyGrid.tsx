@@ -197,13 +197,16 @@ export function WeeklyGrid() {
         accepted.push(b);
       }
 
-      // 4. Cap blocks per day at 8 (keep highest-scored)
-      const MAX_PER_DAY = 8;
-      let final = accepted;
-      if (final.length > MAX_PER_DAY) {
-        final = final.sort((a, b) => score(b) - score(a)).slice(0, MAX_PER_DAY);
-        removed += accepted.length - final.length;
-      }
+      // 4. Cap NON-locked, non-school blocks per day at 4 (keep highest-scored).
+      //    Locked items + school blocks always stay.
+      const MAX_FLEX_PER_DAY = 4;
+      const protectedBlocks = accepted.filter((b) => b.is_locked || b.category === "school");
+      const flex = accepted
+        .filter((b) => !b.is_locked && b.category !== "school")
+        .sort((a, b) => score(b) - score(a));
+      const flexKept = flex.slice(0, MAX_FLEX_PER_DAY);
+      removed += flex.length - flexKept.length;
+      const final = [...protectedBlocks, ...flexKept];
 
       kept.push(...final.sort((a, b) => toMinutes(a.start_time) - toMinutes(b.start_time)));
     }
