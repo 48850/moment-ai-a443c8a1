@@ -510,13 +510,28 @@ const Mission = () => {
             {goalStatement && (
               <p className="mt-1.5 text-lg text-muted-foreground leading-snug">{goalStatement}</p>
             )}
-            {goalHorizons.length > 0 && (
-              <div className="mt-5 grid gap-3 md:grid-cols-3">
-                <GoalHorizonCard label="Short-term · next proof" value={m.goal.shortTerm} emphasis />
-                <GoalHorizonCard label="Medium-term · milestone" value={m.goal.mediumTerm} />
-                <GoalHorizonCard label="Long-term · anchor" value={m.goal.longTerm} />
-              </div>
-            )}
+            <div className="mt-5 grid gap-3 md:grid-cols-3">
+              <EditableGoalHorizon
+                label="Short-term · next proof"
+                value={m.goal.shortTerm}
+                emphasis
+                placeholder="What's the next concrete proof — in the next 1–4 weeks?"
+                onSave={(v) => saveHorizon("short_term_goal", v)}
+              />
+              <EditableGoalHorizon
+                label="Medium-term · milestone"
+                value={m.goal.mediumTerm}
+                placeholder="The milestone you're aiming at in the next few months."
+                onSave={(v) => saveHorizon("medium_term_goal", v)}
+              />
+              <EditableGoalHorizon
+                label="Long-term · anchor"
+                value={m.goal.longTerm}
+                placeholder="The deeper goal this all serves."
+                onSave={(v) => saveHorizon("long_term_goal", v)}
+              />
+            </div>
+
             {stage && (
               <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/8 px-3.5 py-1 text-sm font-medium text-primary">
                 <Layers className="h-3.5 w-3.5" />
