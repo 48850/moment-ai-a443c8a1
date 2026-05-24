@@ -169,7 +169,7 @@ export function WeeklyGrid() {
     }
 
     for (let day = 0; day < 7; day++) {
-      const dayBlocks = original
+      const dayBlocks = weekDeduped
         .filter((b) => b.day_index === day)
         .slice()
         .sort((a, b) => toMinutes(a.start_time) - toMinutes(b.start_time));
