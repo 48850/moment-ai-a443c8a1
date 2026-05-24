@@ -13,7 +13,7 @@ export function ForgeFinalActionButton({ finalAction, onAction }: Props) {
       animate={{ scale: 1, opacity: 1 }}
       transition={{ type: "spring", stiffness: 200, damping: 18 }}
       onClick={onAction}
-      className="w-full rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black shadow-lg transition hover:bg-white/90 active:scale-95"
+      className="w-full rounded-lg bg-background px-5 py-3 text-sm font-semibold text-foreground shadow-soft transition hover:bg-background/90 active:scale-95"
     >
       {finalAction.label}
     </motion.button>

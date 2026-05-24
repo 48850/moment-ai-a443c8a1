@@ -6,7 +6,7 @@ interface Props {
 
 export function ForgeCaption({ text }: Props) {
   return (
-    <div className="min-h-[3rem] px-4">
+    <div className="min-h-[3rem] px-4 sm:px-8">
       <AnimatePresence mode="wait">
         {text && (
           <motion.p
@@ -15,7 +15,7 @@ export function ForgeCaption({ text }: Props) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.25, delay: 0.08 }}
-            className="text-center text-sm font-medium leading-snug text-white/90"
+            className="mx-auto max-w-3xl rounded-lg border border-background/15 bg-foreground/60 px-4 py-3 text-center text-sm font-medium leading-snug text-background/90 shadow-soft backdrop-blur sm:text-base"
           >
             {text}
           </motion.p>

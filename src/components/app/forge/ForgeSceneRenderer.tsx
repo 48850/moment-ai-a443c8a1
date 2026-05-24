@@ -1,11 +1,12 @@
 import { AnimatePresence, motion } from "motion/react";
+import type { MotionProps } from "motion/react";
 import type { ForgeScene, ForgeSceneTransition } from "@/lib/types/forge-episode";
 import { ForgeCharacterSprite } from "./ForgeCharacterSprite";
 import { ForgeCaption } from "./ForgeCaption";
 
 const TRANSITION_VARIANTS: Record<
   ForgeSceneTransition,
-  { initial: any; animate: any; exit: any; transition?: any }
+  Pick<MotionProps, "initial" | "animate" | "exit" | "transition">
 > = {
   fade:       { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.4 } },
   zoom:       { initial: { opacity: 0, scale: 0.88 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 1.08 }, transition: { duration: 0.35 } },
@@ -16,12 +17,12 @@ const TRANSITION_VARIANTS: Record<
 };
 
 const BG_STYLES: Record<string, string> = {
-  courtroom:    "from-slate-900 via-slate-800 to-slate-900",
-  news_studio:  "from-blue-950 via-blue-900 to-slate-900",
-  lair:         "from-red-950 via-zinc-900 to-black",
-  mission_control: "from-zinc-900 via-indigo-950 to-black",
-  roast_stage:  "from-amber-950 via-zinc-900 to-black",
-  default:      "from-zinc-900 via-zinc-800 to-zinc-900",
+  courtroom: "from-foreground via-foreground to-muted-foreground",
+  news_studio: "from-foreground via-primary to-foreground",
+  lair: "from-foreground via-destructive to-foreground",
+  mission_control: "from-foreground via-primary to-foreground",
+  roast_stage: "from-foreground via-accent to-foreground",
+  default: "from-foreground via-muted-foreground to-foreground",
 };
 
 function bgForSetting(setting: string): string {
@@ -35,12 +36,14 @@ interface Props {
   scene: ForgeScene;
   elapsed: number; // seconds elapsed in this scene
   sceneIndex: number;
+  showCaption?: boolean;
 }
 
-export function ForgeSceneRenderer({ scene, elapsed, sceneIndex }: Props) {
+export function ForgeSceneRenderer({ scene, elapsed, sceneIndex, showCaption = true }: Props) {
   const progress = Math.min(1, elapsed / scene.durationSeconds);
   const variant = TRANSITION_VARIANTS[scene.transition ?? "fade"];
   const bg = bgForSetting(scene.setting);
+  const activeCaption = scene.voiceover || scene.caption;
 
   // Determine active actions by timing bucket
   const activeActions = scene.actions.filter((a) => {
@@ -60,32 +63,59 @@ export function ForgeSceneRenderer({ scene, elapsed, sceneIndex }: Props) {
         animate={variant.animate}
         exit={variant.exit}
         transition={variant.transition ?? { duration: 0.3 }}
-        className={`absolute inset-0 flex flex-col bg-gradient-to-b ${bg}`}
+        className={`absolute inset-0 flex flex-col bg-gradient-to-br ${bg}`}
       >
-        {/* Setting label */}
-        <div className="px-4 pt-3 text-[9px] font-mono uppercase tracking-[0.2em] text-white/30">
-          {scene.setting.replace(/_/g, " ")}
-        </div>
+        <div className="pointer-events-none absolute inset-0 opacity-25 ring-grid" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-foreground/80 to-transparent" />
 
-        {/* Characters */}
-        <div className="flex flex-1 items-center justify-center gap-6 px-4">
-          {scene.characters.map((char) => {
-            const act = actionMap[char.id];
-            return (
-              <ForgeCharacterSprite
-                key={char.id}
-                character={char}
-                activeAction={act?.action}
-                speechText={act?.text}
-              />
-            );
-          })}
+        <div className="relative z-10 flex flex-1 flex-col gap-4 px-5 pb-24 pt-14 sm:px-8 sm:pb-28 sm:pt-16 lg:px-12">
+          <div className="flex items-center justify-between gap-4 text-[10px] font-mono uppercase tracking-[0.18em] text-background/50">
+            <span>{scene.setting.replace(/_/g, " ")}</span>
+            {scene.soundCue && <span className="hidden text-right sm:block">{scene.soundCue}</span>}
+          </div>
+
+          <div className="grid flex-1 items-center gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,420px)]">
+            <motion.div
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: 0.05 }}
+              className="min-w-0 space-y-5"
+            >
+              <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-background/45">
+                Scene {sceneIndex + 1}
+              </p>
+              <h2 className="max-w-4xl text-balance font-display text-4xl font-medium leading-[0.95] text-background sm:text-5xl lg:text-6xl xl:text-7xl">
+                {activeCaption}
+              </h2>
+              {scene.visualStyle && (
+                <p className="max-w-2xl text-sm leading-relaxed text-background/60 sm:text-base">
+                  {scene.visualStyle}
+                </p>
+              )}
+            </motion.div>
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-1">
+              {scene.characters.map((char) => {
+                const act = actionMap[char.id];
+                return (
+                  <ForgeCharacterSprite
+                    key={char.id}
+                    character={char}
+                    activeAction={act?.action}
+                    speechText={act?.text}
+                  />
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {/* Caption */}
-        <div className="pb-3">
-          <ForgeCaption text={scene.caption} />
-        </div>
+        {showCaption && (
+          <div className="absolute inset-x-0 bottom-3 z-20 sm:bottom-4">
+            <ForgeCaption text={scene.caption} />
+          </div>
+        )}
       </motion.div>
     </AnimatePresence>
   );

@@ -15,10 +15,10 @@ export function ForgeProgressBar({ scenes, currentIndex, progress }: Props) {
         return (
           <div
             key={i}
-            className="h-0.5 flex-1 overflow-hidden rounded-full bg-white/20"
+            className="h-0.5 flex-1 overflow-hidden rounded-full bg-background/20"
           >
             <div
-              className="h-full bg-white/80 transition-[width] duration-100"
+              className="h-full bg-background/80 transition-[width] duration-100"
               style={{ width: `${pct}%` }}
             />
           </div>

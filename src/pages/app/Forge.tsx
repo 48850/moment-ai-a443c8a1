@@ -87,11 +87,11 @@ const Forge = () => {
   };
 
   return (
-    <div className="mx-auto max-w-lg space-y-4 pb-8">
+    <div className="mx-auto w-full max-w-6xl space-y-5 pb-8">
       <div>
         <div className="text-xs text-muted-foreground">/ forge</div>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Your plan, turned into a tiny animated crisis.
+          Your plan, cut into a sharp context clip.
         </p>
       </div>
 
@@ -103,8 +103,8 @@ const Forge = () => {
           onRegenerate={handleRegenerate}
         />
       ) : (
-        <div className="flex aspect-[9/16] max-h-[70vh] items-center justify-center rounded-2xl bg-zinc-900">
-          <span className="text-xs text-white/30">Generating episode…</span>
+        <div className="flex min-h-[420px] items-center justify-center rounded-lg border border-border bg-foreground text-background shadow-elevated">
+          <span className="text-xs text-background/50">Generating episode…</span>
         </div>
       )}
 
