@@ -80,7 +80,11 @@ function relTime(iso: string): string {
 export function ProgressEventCard({ event }: { event: ProgressEvent }) {
   const meta = KIND_META[event.kind];
   const Icon = meta.icon;
+  const { uid } = useAuth();
   const [showReactions, setShowReactions] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  // event.id is a uuid only for real DB events. Demo events use string ids.
+  const isReal = /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(event.id);
 
   return (
     <article
