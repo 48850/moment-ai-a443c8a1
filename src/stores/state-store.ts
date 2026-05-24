@@ -96,12 +96,21 @@ function syncActiveTasksToWeek(state: MomentState): MomentState {
       .filter((t) => t.status !== "done" && t.status !== "skipped")
       .map((t) => [t.id, t]),
   );
-  const seen = new Set<string>();
+  const normTitle = (s: string) =>
+    (s ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").slice(0, 80);
+  const seenTaskIds = new Set<string>();
+  const seenTitleKeys = new Set<string>(); // category::normalizedTitle — hard dedupe across the week
   let week = (state.schedule_state.week_plan ?? [])
     .filter((b: any) => {
-      if (!b.task_id) return true;
-      if (!activeTaskById.has(b.task_id) || seen.has(b.task_id)) return false;
-      seen.add(b.task_id);
+      // Drop blocks linked to inactive tasks
+      if (b.task_id && (!activeTaskById.has(b.task_id) || seenTaskIds.has(b.task_id))) return false;
+      if (b.task_id) seenTaskIds.add(b.task_id);
+      // Hard dedupe by normalized title + category across the whole week
+      const key = `${b.category}::${normTitle(b.title)}`;
+      if (!key.endsWith("::")) {
+        if (seenTitleKeys.has(key)) return false;
+        seenTitleKeys.add(key);
+      }
       return true;
     })
     .map((b: any) => {
@@ -120,9 +129,19 @@ function syncActiveTasksToWeek(state: MomentState): MomentState {
   let synthState: MomentState = { ...state, tasks, schedule_state: { ...state.schedule_state, week_plan: week } };
   for (const task of tasks) {
     if (task.status === "done" || task.status === "skipped") continue;
-    const existing = week.find((b: any) => b.task_id === task.id);
-    if (existing) {
-      tasks = tasks.map((t) => (t.id === task.id && t.scheduled_block_id !== existing.id ? { ...t, scheduled_block_id: existing.id } : t));
+    // Already represented by an explicit task_id link?
+    const existingById = week.find((b: any) => b.task_id === task.id);
+    if (existingById) {
+      tasks = tasks.map((t) => (t.id === task.id && t.scheduled_block_id !== existingById.id ? { ...t, scheduled_block_id: existingById.id } : t));
+      continue;
+    }
+    // Already represented by an identically-titled block? Adopt it instead of creating a duplicate.
+    const taskKey = normTitle(task.title);
+    const existingByTitle = week.find((b: any) => !b.task_id && normTitle(b.title) === taskKey);
+    if (existingByTitle) {
+      existingByTitle.task_id = task.id;
+      tasks = tasks.map((t) => (t.id === task.id ? { ...t, scheduled_block_id: existingByTitle.id } : t));
+      synthState = { ...synthState, tasks, schedule_state: { ...synthState.schedule_state, week_plan: week } };
       continue;
     }
     const block = scheduleTaskInWeek(synthState, task);
