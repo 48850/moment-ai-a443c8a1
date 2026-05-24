@@ -148,7 +148,7 @@ export function ConstellationGraph({
     return () => ro.disconnect();
   }, [minHeight]);
 
-  const positions = useMemo(() => layout(nodes.length, size.w, size.h), [nodes.length, size.w, size.h]);
+  const positions = useMemo(() => layout(nodes, size.w, size.h), [nodes, size.w, size.h]);
   const posById = useMemo(() => {
     const map = new Map<string, { x: number; y: number }>();
     nodes.forEach((n, i) => positions[i] && map.set(n.id, positions[i]));
