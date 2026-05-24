@@ -280,5 +280,36 @@ export function buildContextPacket(s: MomentState | null): MomentContextPacket |
       .filter((m) => m.role === "user" || m.role === "assistant")
       .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
     learning_portfolio: buildLearningPortfolio(s),
+    adaptation: buildAdaptationContext(s),
+  };
+}
+
+function buildAdaptationContext(s: MomentState): MomentContextPacket["adaptation"] {
+  const CORE = new Set(["hard_to_start", "too_long", "distracted", "felt_pointless", "useful", "easy"]);
+  const fb = (s.execution_feedback ?? []).slice().sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const coreFb = fb.filter((f) => CORE.has(f.feedback));
+  let streak = 0;
+  for (const f of coreFb) {
+    if (f.feedback === "hard_to_start") streak++;
+    else break;
+  }
+  const doneTasks = (s.tasks ?? []).filter((t) => t.status === "done" && t.completed_at)
+    .sort((a, b) => b.completed_at.localeCompare(a.completed_at));
+  const latestDone = doneTasks[0] ?? null;
+  const pendingHigh = (s.tasks ?? []).find((t) => t.status === "pending");
+  const last = s.last_adaptation ?? null;
+  const pending = (s as any).pending_adaptation ?? null;
+  return {
+    last,
+    pending,
+    visibly_applied: !!(last && last.rule_id && last.rule_id !== "noop_v1" && last.summary),
+    hard_to_start_streak: streak,
+    next_move: pendingHigh
+      ? { id: pendingHigh.id, title: pendingHigh.title, estimated_minutes: pendingHigh.estimated_minutes }
+      : null,
+    latest_completed: latestDone
+      ? { id: latestDone.id, title: latestDone.title, completed_at: latestDone.completed_at }
+      : null,
+    latest_core_feedback: coreFb[0]?.feedback ?? "",
   };
 }
