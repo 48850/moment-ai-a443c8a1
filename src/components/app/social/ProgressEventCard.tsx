@@ -3,6 +3,8 @@ import { CheckCircle2, BookOpen, Sparkles, Wrench, Flame, CalendarDays, MoreHori
 import type { ProgressEvent } from "@/lib/social/select-progress-events";
 import { MomentStar, type MoteMood } from "@/components/app/Mote";
 import { ReactionBar } from "./ReactionBar";
+import { Comments } from "./Comments";
+import { useAuth } from "@/hooks/use-auth";
 
 type Kind = ProgressEvent["kind"];
 
