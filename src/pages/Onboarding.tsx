@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronRight, ChevronLeft, Lock } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
