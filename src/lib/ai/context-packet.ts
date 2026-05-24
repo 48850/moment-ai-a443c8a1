@@ -300,8 +300,8 @@ function buildAdaptationContext(s: MomentState): MomentContextPacket["adaptation
   const last = s.last_adaptation ?? null;
   const pending = (s as any).pending_adaptation ?? null;
   return {
-    last,
-    pending,
+    last: last as MomentContextPacket["adaptation"]["last"],
+    pending: pending as MomentContextPacket["adaptation"]["pending"],
     visibly_applied: !!(last && last.rule_id && last.rule_id !== "noop_v1" && last.summary),
     hard_to_start_streak: streak,
     next_move: pendingHigh
