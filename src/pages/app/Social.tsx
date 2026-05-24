@@ -11,7 +11,7 @@ import { AlignedPeople } from "@/components/app/social/AlignedPeople";
 import { EmptyConnections } from "@/components/app/social/EmptyConnections";
 import { MomentStar } from "@/components/app/Mote";
 import { DEMO_FRIEND_EVENTS } from "@/lib/social/sample-friends";
-import { ArrowRight, ShieldCheck, Sparkles, LogIn } from "lucide-react";
+import { ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
 import type { FeedItem } from "@/lib/social/api";
 
 const PHONE_CAP = 5;
@@ -33,7 +33,7 @@ function feedRowToEvent(r: FeedItem) {
 }
 
 export default function Social() {
-  const { uid, loading: authLoading } = useAuth();
+  const { uid } = useAuth();
   useProgressEmitter();
 
   const state = useStateStore((s) => s.state);
@@ -61,40 +61,6 @@ export default function Social() {
     ).size;
   }, [events]);
 
-  // Signed-out CTA
-  if (!authLoading && !uid) {
-    return (
-      <div className="mx-auto w-full max-w-2xl">
-        <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-indigo-950 via-slate-950 to-slate-900 p-8 text-center">
-          <MomentStar size={72} mood="focused" bounce />
-          <h1 className="mt-4 text-2xl font-semibold text-white">Sign in to see real progress.</h1>
-          <p className="mx-auto mt-2 max-w-md text-sm text-white/70">
-            Moment Social is a real people feed — friends you follow, plus people opted in to
-            aligned-goal discovery. No demo accounts, no ranking.
-          </p>
-          <div className="mt-6 flex items-center justify-center gap-2">
-            <button
-              type="button"
-              onClick={() => navigate("/auth?mode=sign_up&next=/app/social")}
-              className="inline-flex items-center gap-2 rounded-full bg-amber-300 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-amber-200"
-            >
-              <Sparkles className="h-4 w-4" /> Create account
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate("/auth?next=/app/social")}
-              className="inline-flex items-center gap-2 rounded-full border border-white/15 px-5 py-2.5 text-sm text-white hover:bg-white/5"
-            >
-              <LogIn className="h-4 w-4" /> Sign in
-            </button>
-          </div>
-          <p className="mt-4 text-[11px] text-white/50">
-            Private by default. Nothing public unless you turn it on.
-          </p>
-        </section>
-      </div>
-    );
-  }
 
   const visible = isPhone && !expanded ? events.slice(0, PHONE_CAP) : events;
   const showDemoStrip = !loading && events.length === 0 && tab === "friends";

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronRight, ChevronLeft, Lock } from "lucide-react";
@@ -6,6 +6,8 @@ import { useStateStore } from "@/stores/state-store";
 import { evaluateGoalFeasibility } from "@/lib/engine/goal-feasibility";
 import type { GoalFeasibilityReport } from "@/lib/types";
 import type { MomentState } from "@/lib/types";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 
 // ─── Stage types ──────────────────────────────────────────────────────────────
 
@@ -818,6 +820,8 @@ export default function Onboarding() {
                     {understanding.confidence}
                   </span>
                 </div>
+
+                <AuthPanel />
               </div>
             )}
           </motion.div>
@@ -859,6 +863,94 @@ export default function Onboarding() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function AuthPanel() {
+  const { uid, user } = useAuth();
+  const [mode, setMode] = useState<"sign_up" | "sign_in">("sign_up");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+
+  // Reset messages when toggling mode
+  useEffect(() => { setErr(null); setInfo(null); }, [mode]);
+
+  if (uid) {
+    return (
+      <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+        <p className="text-xs uppercase tracking-widest text-emerald-400/70 mb-1">Signed in</p>
+        <p className="text-sm text-white/80">Your moment will save to {user?.email}.</p>
+      </div>
+    );
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setErr(null); setInfo(null); setBusy(true);
+    try {
+      if (mode === "sign_up") {
+        const { error } = await supabase.auth.signUp({
+          email, password,
+          options: { emailRedirectTo: `${window.location.origin}/app` },
+        });
+        if (error) throw error;
+        setInfo("Check your email to confirm, then sign in.");
+        setMode("sign_in");
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      }
+    } catch (e: any) {
+      setErr(e.message ?? "Something went wrong.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+      <div>
+        <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Save your moment</p>
+        <p className="text-sm text-white/60">
+          Create an account so your goal, plan, and progress sync across devices. Optional — you can skip and stay local.
+        </p>
+      </div>
+      <form onSubmit={submit} className="flex flex-col gap-2">
+        <input
+          type="email" required placeholder="Email" value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full bg-white/5 border border-white/15 rounded-lg px-3 py-2 text-white placeholder-white/30 text-sm focus:outline-none focus:border-amber-400/50"
+        />
+        <input
+          type="password" required minLength={8}
+          placeholder={mode === "sign_up" ? "Password (8+ chars)" : "Password"}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full bg-white/5 border border-white/15 rounded-lg px-3 py-2 text-white placeholder-white/30 text-sm focus:outline-none focus:border-amber-400/50"
+        />
+        {err && <p className="text-xs text-rose-300">{err}</p>}
+        {info && <p className="text-xs text-emerald-300">{info}</p>}
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => setMode(mode === "sign_up" ? "sign_in" : "sign_up")}
+            className="text-xs text-white/40 hover:text-white/70"
+          >
+            {mode === "sign_up" ? "Already have an account? Sign in" : "New here? Create an account"}
+          </button>
+          <button
+            type="submit"
+            disabled={busy}
+            className="rounded-lg bg-white/10 hover:bg-white/15 text-white text-xs px-3 py-1.5 disabled:opacity-50"
+          >
+            {busy ? "…" : mode === "sign_up" ? "Create account" : "Sign in"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
