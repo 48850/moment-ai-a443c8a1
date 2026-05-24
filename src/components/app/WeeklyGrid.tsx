@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Plus, Trash2, Lock, RefreshCw, Sparkles, X, GraduationCap, Target, CalendarClock, Music, Moon, Loader2 } from "lucide-react";
+import { Plus, Trash2, Lock, RefreshCw, Sparkles, X, GraduationCap, Target, CalendarClock, Music, Moon, Loader2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { useStateStore } from "@/stores/state-store";
 import { sortBlocks } from "@/lib/engine/week-plan";
