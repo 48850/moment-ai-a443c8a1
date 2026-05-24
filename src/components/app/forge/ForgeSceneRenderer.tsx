@@ -5,7 +5,7 @@ import { ForgeCaption } from "./ForgeCaption";
 
 const TRANSITION_VARIANTS: Record<
   ForgeSceneTransition,
-  { initial: object; animate: object; exit: object; transition?: object }
+  { initial: any; animate: any; exit: any; transition?: any }
 > = {
   fade:       { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.4 } },
   zoom:       { initial: { opacity: 0, scale: 0.88 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 1.08 }, transition: { duration: 0.35 } },

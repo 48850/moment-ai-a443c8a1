@@ -116,7 +116,7 @@ export function selectForgeContextSnapshot(state: MomentState): ForgeContextSnap
     recentReflections: recentReflections.map((r) => ({
       id: r.id,
       date: r.date,
-      content: typeof r.content === "string" ? r.content : undefined,
+      content: r.accomplishment ?? r.win ?? r.tomorrow_intention ?? undefined,
     })),
     schedulePressure,
     alignmentState: state.alignment
