@@ -11,7 +11,7 @@ import { AlignedPeople } from "@/components/app/social/AlignedPeople";
 import { EmptyConnections } from "@/components/app/social/EmptyConnections";
 import { MomentStar } from "@/components/app/Mote";
 import { DEMO_FRIEND_EVENTS } from "@/lib/social/sample-friends";
-import { ArrowRight, ShieldCheck, Sparkles, LogIn } from "lucide-react";
+import { ArrowRight, ShieldCheck, Sparkles } from "lucide-react";
 import type { FeedItem } from "@/lib/social/api";
 
 const PHONE_CAP = 5;
