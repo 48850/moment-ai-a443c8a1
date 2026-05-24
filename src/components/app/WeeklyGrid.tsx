@@ -275,18 +275,6 @@ export function WeeklyGrid() {
             <Sparkles className="h-3.5 w-3.5" /> Reseed
           </button>
         </div>
-            <RefreshCw className="h-3.5 w-3.5" /> Reform
-          </button>
-          <button
-            onClick={() => {
-              dispatch({ type: "week/seed" });
-              toast.success("Week reseeded", { description: "Fresh layout generated from your constraints." });
-            }}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
-          >
-            <Sparkles className="h-3.5 w-3.5" /> Reseed
-          </button>
-        </div>
       </div>
 
       {/* AI Reform panel */}
