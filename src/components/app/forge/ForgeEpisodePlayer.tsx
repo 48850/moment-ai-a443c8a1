@@ -64,8 +64,7 @@ export function ForgeEpisodePlayer({ episode, onFinalAction, onRegenerate }: Pro
 
   return (
     <div
-      className="relative mx-auto overflow-hidden rounded-2xl bg-zinc-900 shadow-2xl"
-      style={{ aspectRatio: "9/16", maxHeight: "70vh" }}
+      className="relative min-h-[520px] w-full overflow-hidden rounded-lg border border-border bg-foreground text-background shadow-elevated sm:min-h-[620px] lg:min-h-[640px]"
     >
       {/* Subtle grain */}
       <div
@@ -96,21 +95,21 @@ export function ForgeEpisodePlayer({ episode, onFinalAction, onRegenerate }: Pro
             progress={progress}
           />
         </div>
-        <div className="flex items-center justify-between px-4">
-          <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-white/40">
+        <div className="flex items-center justify-between px-4 sm:px-6">
+          <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-background/50">
             {episode.format.replace(/_/g, " ")}
           </span>
           <div className="flex items-center gap-2">
             <button
               onClick={handleReplay}
-              className="rounded-full p-1 text-white/50 transition hover:text-white/80"
+              className="rounded-full p-1 text-background/50 transition hover:text-background/80"
               aria-label="Replay"
             >
               <RotateCcw className="h-3.5 w-3.5" />
             </button>
             <button
               onClick={() => setPlaying((p) => !p)}
-              className="rounded-full p-1 text-white/50 transition hover:text-white/80"
+              className="rounded-full p-1 text-background/50 transition hover:text-background/80"
               aria-label={playing ? "Pause" : "Play"}
             >
               {playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
@@ -120,13 +119,13 @@ export function ForgeEpisodePlayer({ episode, onFinalAction, onRegenerate }: Pro
       </div>
 
       {/* Title */}
-      <div className="absolute bottom-24 inset-x-0 z-20 px-4">
+      <div className="absolute inset-x-0 bottom-24 z-20 px-4 sm:bottom-28">
         <AnimatePresence>
           {!finished && (
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-center text-[10px] font-mono uppercase tracking-[0.15em] text-white/30"
+              className="text-center text-[10px] font-mono uppercase tracking-[0.15em] text-background/35"
             >
               {episode.title}
             </motion.p>
@@ -140,9 +139,9 @@ export function ForgeEpisodePlayer({ episode, onFinalAction, onRegenerate }: Pro
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            className="absolute inset-x-0 bottom-8 z-20 flex flex-col gap-3 px-5"
+            className="absolute inset-x-0 bottom-8 z-20 mx-auto flex max-w-md flex-col gap-3 px-5"
           >
-            <p className="text-center text-[10px] font-mono uppercase tracking-[0.2em] text-white/40">
+            <p className="text-center text-[10px] font-mono uppercase tracking-[0.2em] text-background/50">
               Next move
             </p>
             <ForgeFinalActionButton
@@ -151,7 +150,7 @@ export function ForgeEpisodePlayer({ episode, onFinalAction, onRegenerate }: Pro
             />
             <button
               onClick={onRegenerate}
-              className="text-center text-[11px] text-white/40 underline underline-offset-2 transition hover:text-white/60"
+              className="text-center text-[11px] text-background/45 underline underline-offset-2 transition hover:text-background/70"
             >
               Generate another
             </button>
