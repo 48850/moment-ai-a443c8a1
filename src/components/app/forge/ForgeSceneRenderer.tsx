@@ -1,11 +1,12 @@
 import { AnimatePresence, motion } from "motion/react";
+import type { MotionProps } from "motion/react";
 import type { ForgeScene, ForgeSceneTransition } from "@/lib/types/forge-episode";
 import { ForgeCharacterSprite } from "./ForgeCharacterSprite";
 import { ForgeCaption } from "./ForgeCaption";
 
 const TRANSITION_VARIANTS: Record<
   ForgeSceneTransition,
-  { initial: any; animate: any; exit: any; transition?: any }
+  Pick<MotionProps, "initial" | "animate" | "exit" | "transition">
 > = {
   fade:       { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.4 } },
   zoom:       { initial: { opacity: 0, scale: 0.88 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 1.08 }, transition: { duration: 0.35 } },
