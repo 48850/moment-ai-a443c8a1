@@ -60,33 +60,56 @@ const TONE: Record<StarTone, { fill: string; glow: string; ring: string; chip: s
   dim:     { fill: "#cbd5e1", glow: "rgba(148,163,184,0.55)", ring: "ring-white/25",       chip: "border-white/12 bg-white/[0.04] text-white/55" },
 };
 
-/** Distribute n nodes across a width×height canvas using a snake grid + jitter. */
-function layout(n: number, width: number, height: number) {
+const TONE_VALUE: Record<StarTone, number> = {
+  bright: 85, emerald: 78, warm: 62, amber: 70, violet: 55, rose: 30, dim: 22,
+};
+
+/** Stock-chart layout: x = chronological index, y = meta value (or tone-derived). */
+function layout(nodes: StarNode[], width: number, height: number) {
+  const n = nodes.length;
   if (n === 0) return [];
-  const padX = 70, padY = 70;
+  const padX = 56, padTop = 56, padBottom = 64;
   const innerW = Math.max(120, width - padX * 2);
-  const innerH = Math.max(120, height - padY * 2);
-  if (n === 1) return [{ x: width / 2, y: height / 2 }];
+  const innerH = Math.max(120, height - padTop - padBottom);
+  if (n === 1) return [{ x: width / 2, y: padTop + innerH / 2 }];
 
-  // Choose grid roughly matching canvas aspect ratio.
-  const aspect = innerW / innerH;
-  const cols = Math.max(2, Math.min(n, Math.round(Math.sqrt(n * aspect))));
-  const rows = Math.ceil(n / cols);
-  const colStep = innerW / Math.max(1, cols - 1 || 1);
-  const rowStep = rows > 1 ? innerH / (rows - 1) : 0;
-
-  return Array.from({ length: n }, (_, i) => {
-    const row = Math.floor(i / cols);
-    const colInRow = i % cols;
-    // Snake: alternate direction so the spine flows L→R then R→L.
-    const col = row % 2 === 0 ? colInRow : cols - 1 - colInRow;
-    const baseX = padX + (cols === 1 ? innerW / 2 : col * colStep);
-    const baseY = rows === 1 ? height / 2 : padY + row * rowStep;
-    // Deterministic jitter so it doesn't look like a grid.
-    const jx = Math.sin(i * 12.9898) * Math.min(colStep * 0.18, 28);
-    const jy = Math.cos(i * 78.233)  * Math.min((rowStep || 60) * 0.18, 24);
-    return { x: baseX + jx, y: baseY + jy };
+  // Derive y values: prefer numeric meta, else tone score, with small deterministic noise.
+  const vals = nodes.map((node, i) => {
+    const parsed = node.meta != null ? parseFloat(String(node.meta)) : NaN;
+    const base = Number.isFinite(parsed)
+      ? Math.max(0, Math.min(100, parsed))
+      : TONE_VALUE[node.tone ?? "bright"];
+    const noise = Math.sin(i * 12.9898) * 6 + Math.cos(i * 4.221) * 4;
+    return Math.max(4, Math.min(100, base + noise));
   });
+
+  const step = n === 1 ? 0 : innerW / (n - 1);
+  return nodes.map((_, i) => {
+    const x = padX + i * step;
+    // Invert: high value = up.
+    const y = padTop + (1 - vals[i] / 100) * innerH;
+    return { x, y };
+  });
+}
+
+/** Smooth cardinal-spline path through points. */
+function smoothPath(pts: { x: number; y: number }[]) {
+  if (pts.length === 0) return "";
+  if (pts.length === 1) return `M ${pts[0].x} ${pts[0].y}`;
+  const t = 0.2;
+  let d = `M ${pts[0].x} ${pts[0].y}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] ?? pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] ?? p2;
+    const c1x = p1.x + (p2.x - p0.x) * t;
+    const c1y = p1.y + (p2.y - p0.y) * t;
+    const c2x = p2.x - (p3.x - p1.x) * t;
+    const c2y = p2.y - (p3.y - p1.y) * t;
+    d += ` C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2.x} ${p2.y}`;
+  }
+  return d;
 }
 
 
