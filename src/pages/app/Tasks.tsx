@@ -474,7 +474,15 @@ const Tasks = () => {
             </button>
           );
         })}
+        <button
+          onClick={declutter}
+          className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1 text-amber-200 transition-colors hover:bg-amber-400/15"
+          title="Archive stale tasks and bump your top 3 to high priority"
+        >
+          <Wand2 className="h-3 w-3" /> Declutter
+        </button>
       </div>
+
 
       <AIInsight
         label="ai task suggestions"
