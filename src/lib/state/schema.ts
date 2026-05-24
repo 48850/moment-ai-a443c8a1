@@ -556,4 +556,16 @@ export const momentStateSchema = z.object({
     })
     .nullable()
     .default(null),
+  /** Pending adaptation when no next task existed at signal time. */
+  pending_adaptation: z
+    .object({
+      from_task_id: z.string().default(""),
+      from_task_title: z.string().default(""),
+      from_feedback: z.string().default(""),
+      rule_id: z.string().default(""),
+      reason: z.string().default(""),
+      created_at: z.string().default(""),
+    })
+    .nullable()
+    .default(null),
 });
