@@ -246,6 +246,16 @@ export function WeeklyGrid() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => {
+              if (!confirm("Declutter the week? This removes duplicates, time overlaps and micro blocks. Locked items stay put.")) return;
+              declutterWeek();
+            }}
+            className="inline-flex items-center gap-1.5 rounded-md border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-xs font-medium text-amber-200 hover:bg-amber-400/15"
+            title="Remove duplicates, overlaps and micro blocks"
+          >
+            <Wand2 className="h-3.5 w-3.5" /> Declutter
+          </button>
+          <button
             onClick={() => setReformOpen((v) => !v)}
             className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium ${
               reformOpen
@@ -253,6 +263,18 @@ export function WeeklyGrid() {
                 : "border-border bg-card hover:border-primary/50 hover:bg-card/80"
             }`}
           >
+            <RefreshCw className="h-3.5 w-3.5" /> Reform
+          </button>
+          <button
+            onClick={() => {
+              dispatch({ type: "week/seed" });
+              toast.success("Week reseeded", { description: "Fresh layout generated from your constraints." });
+            }}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
+          >
+            <Sparkles className="h-3.5 w-3.5" /> Reseed
+          </button>
+        </div>
             <RefreshCw className="h-3.5 w-3.5" /> Reform
           </button>
           <button
