@@ -407,6 +407,11 @@ const Mission = () => {
     [analytics],
   );
 
+  /* Save goal horizon edit — persists to onboarding answers (used by every AI prompt) */
+  const saveHorizon = (key: "short_term_goal" | "medium_term_goal" | "long_term_goal", value: string) => {
+    dispatch({ type: "onboarding/set_answer", payload: { key, value } });
+  };
+
   /* Create task helper */
   const createTaskFromProof = (workstreamId: string, proof: string) => {
     if (!state) return;
