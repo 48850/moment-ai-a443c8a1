@@ -140,6 +140,84 @@ export function WeeklyGrid() {
   const hours = Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, i) => HOUR_START + i);
   const totalHeight = hours.length * hourPx;
 
+  const declutterWeek = () => {
+    const CATEGORY_PRIORITY: Record<WeekCategory, number> = {
+      school: 5, commitment: 4, goal: 3, hobby: 2, rest: 1,
+    };
+    const norm = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").slice(0, 60);
+    const score = (b: WeekBlock) =>
+      (b.is_locked ? 100 : 0) +
+      CATEGORY_PRIORITY[b.category] * 10 +
+      Math.min(toMinutes(b.end_time) - toMinutes(b.start_time), 240) / 30;
+
+    const original = blocks.slice();
+    let removed = 0;
+    const kept: WeekBlock[] = [];
+
+    for (let day = 0; day < 7; day++) {
+      const dayBlocks = original
+        .filter((b) => b.day_index === day)
+        .slice()
+        .sort((a, b) => toMinutes(a.start_time) - toMinutes(b.start_time));
+
+      // 1. Drop micro blocks (<15 min) unless locked
+      let pruned = dayBlocks.filter((b) => {
+        const dur = toMinutes(b.end_time) - toMinutes(b.start_time);
+        if (dur < 15 && !b.is_locked) { removed++; return false; }
+        return true;
+      });
+
+      // 2. Drop near-duplicates (same normalized title + category) — keep the higher-scored one
+      const seen = new Map<string, WeekBlock>();
+      const afterDupes: WeekBlock[] = [];
+      for (const b of pruned) {
+        const key = `${b.category}::${norm(b.title)}`;
+        const prev = seen.get(key);
+        if (!prev) { seen.set(key, b); afterDupes.push(b); continue; }
+        if (score(b) > score(prev)) {
+          const i = afterDupes.indexOf(prev);
+          if (i >= 0) afterDupes.splice(i, 1, b);
+          seen.set(key, b);
+        }
+        removed++;
+      }
+      pruned = afterDupes;
+
+      // 3. Resolve overlaps — keep higher-scored block, drop the loser
+      const accepted: WeekBlock[] = [];
+      for (const b of pruned.sort((a, b) => score(b) - score(a))) {
+        const bStart = toMinutes(b.start_time);
+        const bEnd = toMinutes(b.end_time);
+        const overlaps = accepted.some((a) => {
+          const aStart = toMinutes(a.start_time);
+          const aEnd = toMinutes(a.end_time);
+          return bStart < aEnd && bEnd > aStart;
+        });
+        if (overlaps) { removed++; continue; }
+        accepted.push(b);
+      }
+
+      // 4. Cap blocks per day at 8 (keep highest-scored)
+      const MAX_PER_DAY = 8;
+      let final = accepted;
+      if (final.length > MAX_PER_DAY) {
+        final = final.sort((a, b) => score(b) - score(a)).slice(0, MAX_PER_DAY);
+        removed += accepted.length - final.length;
+      }
+
+      kept.push(...final.sort((a, b) => toMinutes(a.start_time) - toMinutes(b.start_time)));
+    }
+
+    if (removed === 0) {
+      toast.message("Already tidy", { description: "Nothing to declutter — your week is clean." });
+      return;
+    }
+    dispatch({ type: "week/set", payload: kept });
+    toast.success(`Decluttered ${removed} block${removed === 1 ? "" : "s"}`, {
+      description: "Removed duplicates, overlaps and micro blocks. Locked items were preserved.",
+    });
+  };
+
   const addBlock = (dayIdx: number, startMin: number) => {
     const startTotal = Math.max(HOUR_START * 60, Math.min(HOUR_END * 60 - 60, startMin));
     const start = snapTime(startTotal);
