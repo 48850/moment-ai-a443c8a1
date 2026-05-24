@@ -36,9 +36,10 @@ interface Props {
   scene: ForgeScene;
   elapsed: number; // seconds elapsed in this scene
   sceneIndex: number;
+  showCaption?: boolean;
 }
 
-export function ForgeSceneRenderer({ scene, elapsed, sceneIndex }: Props) {
+export function ForgeSceneRenderer({ scene, elapsed, sceneIndex, showCaption = true }: Props) {
   const progress = Math.min(1, elapsed / scene.durationSeconds);
   const variant = TRANSITION_VARIANTS[scene.transition ?? "fade"];
   const bg = bgForSetting(scene.setting);
@@ -110,9 +111,11 @@ export function ForgeSceneRenderer({ scene, elapsed, sceneIndex }: Props) {
         </div>
 
         {/* Caption */}
-        <div className="absolute inset-x-0 bottom-3 z-20 sm:bottom-4">
-          <ForgeCaption text={scene.caption} />
-        </div>
+        {showCaption && (
+          <div className="absolute inset-x-0 bottom-3 z-20 sm:bottom-4">
+            <ForgeCaption text={scene.caption} />
+          </div>
+        )}
       </motion.div>
     </AnimatePresence>
   );
