@@ -158,7 +158,12 @@ export function ProgressEventCard({ event }: { event: ProgressEvent }) {
               type="button"
               className="ml-auto inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
               aria-label="More"
-              onClick={() => alert("Report and block arrive with the friend system.")}
+              title="Report and block arrive with the friend system"
+              onClick={() =>
+                toast.message("Coming soon", {
+                  description: "Report and block arrive with the friend system.",
+                })
+              }
             >
               <MoreHorizontal className="h-4 w-4" />
             </button>
