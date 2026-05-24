@@ -154,6 +154,20 @@ export function WeeklyGrid() {
     let removed = 0;
     const kept: WeekBlock[] = [];
 
+    // 0. WEEK-WIDE dedupe: a task with the same normalized title should appear ONCE.
+    //    Keep the highest-scored instance; drop the rest. School blocks are exempt
+    //    (one "School" per weekday is expected).
+    const weekSeen = new Map<string, WeekBlock>();
+    const weekDeduped: WeekBlock[] = [];
+    for (const b of original.slice().sort((a, b) => score(b) - score(a))) {
+      if (b.category === "school") { weekDeduped.push(b); continue; }
+      const key = norm(b.title);
+      if (!key) { weekDeduped.push(b); continue; }
+      if (weekSeen.has(key)) { removed++; continue; }
+      weekSeen.set(key, b);
+      weekDeduped.push(b);
+    }
+
     for (let day = 0; day < 7; day++) {
       const dayBlocks = original
         .filter((b) => b.day_index === day)
