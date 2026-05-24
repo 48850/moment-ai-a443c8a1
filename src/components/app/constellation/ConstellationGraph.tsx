@@ -205,18 +205,6 @@ export function ConstellationGraph({
           viewBox={`0 0 ${size.w} ${size.h}`}
           preserveAspectRatio="none"
         >
-          <defs>
-            <radialGradient id="cg-star-bright" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="rgba(255,255,255,1)" />
-              <stop offset="40%" stopColor="rgba(220,235,255,0.7)" />
-              <stop offset="100%" stopColor="rgba(120,160,255,0)" />
-            </radialGradient>
-            <linearGradient id="cg-spine" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="rgba(147,197,253,0.0)" />
-              <stop offset="50%" stopColor="rgba(191,219,254,0.85)" />
-              <stop offset="100%" stopColor="rgba(147,197,253,0.0)" />
-            </linearGradient>
-          </defs>
 
           <defs>
             <radialGradient id="cg-star-bright" cx="50%" cy="50%" r="50%">
