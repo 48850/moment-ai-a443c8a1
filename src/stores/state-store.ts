@@ -127,6 +127,15 @@ function syncActiveTasksToWeek(state: MomentState): MomentState {
 
   let tasks = state.tasks ?? [];
   let synthState: MomentState = { ...state, tasks, schedule_state: { ...state.schedule_state, week_plan: week } };
+  // Track normalized titles of every block currently on the week so we never
+  // schedule a second block for a task whose work is already represented.
+  const titlesOnWeek = new Set<string>(
+    week.map((b: any) => normTitle(b.title)).filter(Boolean) as string[],
+  );
+  // Also track normalized titles of TASKS we've already scheduled in this pass,
+  // so two same-titled tasks can't both produce a block.
+  const scheduledTaskTitles = new Set<string>();
+
   for (const task of tasks) {
     if (task.status === "done" || task.status === "skipped") continue;
     // Already represented by an explicit task_id link?
@@ -135,8 +144,8 @@ function syncActiveTasksToWeek(state: MomentState): MomentState {
       tasks = tasks.map((t) => (t.id === task.id && t.scheduled_block_id !== existingById.id ? { ...t, scheduled_block_id: existingById.id } : t));
       continue;
     }
-    // Already represented by an identically-titled block? Adopt it instead of creating a duplicate.
     const taskKey = normTitle(task.title);
+    // Already represented by an identically-titled block? Adopt it instead of creating a duplicate.
     const existingByTitle = week.find((b: any) => !b.task_id && normTitle(b.title) === taskKey);
     if (existingByTitle) {
       existingByTitle.task_id = task.id;
@@ -144,9 +153,16 @@ function syncActiveTasksToWeek(state: MomentState): MomentState {
       synthState = { ...synthState, tasks, schedule_state: { ...synthState.schedule_state, week_plan: week } };
       continue;
     }
+    // HARD GUARD: skip if any block on the week already has this title, OR if
+    // we've already scheduled another task with the same title in this pass.
+    if (taskKey && (titlesOnWeek.has(taskKey) || scheduledTaskTitles.has(taskKey))) continue;
     const block = scheduleTaskInWeek(synthState, task);
     if (!block) continue;
     week = [...week, block].sort(weekSort);
+    if (taskKey) {
+      titlesOnWeek.add(taskKey);
+      scheduledTaskTitles.add(taskKey);
+    }
     tasks = tasks.map((t) => (t.id === task.id ? { ...t, scheduled_block_id: block.id } : t));
     synthState = { ...synthState, tasks, schedule_state: { ...synthState.schedule_state, week_plan: week } };
   }
