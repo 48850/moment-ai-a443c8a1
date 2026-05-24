@@ -64,7 +64,7 @@ export function ForgeEpisodePlayer({ episode, onFinalAction, onRegenerate }: Pro
 
   return (
     <div
-      className="relative min-h-[520px] w-full overflow-hidden rounded-lg border border-border bg-foreground text-background shadow-elevated sm:min-h-[620px] lg:min-h-[640px]"
+      className="relative h-[clamp(460px,68vh,640px)] w-full overflow-hidden rounded-lg border border-border bg-foreground text-background shadow-elevated"
     >
       {/* Subtle grain */}
       <div
@@ -139,7 +139,7 @@ export function ForgeEpisodePlayer({ episode, onFinalAction, onRegenerate }: Pro
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            className="absolute inset-x-0 bottom-8 z-20 mx-auto flex max-w-md flex-col gap-3 px-5"
+            className="absolute inset-x-0 bottom-5 z-20 mx-auto flex max-w-md flex-col gap-2 px-5 sm:bottom-7 sm:gap-3"
           >
             <p className="text-center text-[10px] font-mono uppercase tracking-[0.2em] text-background/50">
               Next move
