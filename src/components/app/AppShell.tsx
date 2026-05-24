@@ -52,7 +52,11 @@ export const AppShell = () => {
   const reset = useStateStore((s) => s.reset);
   const { theme, toggle: toggleTheme } = useTheme();
   // forge/:featureId routes should keep the Plan group (Forge sub-tab) active
-  const normalizedPath = pathname.startsWith("/app/forge/") ? "/app/forge" : pathname;
+  const normalizedPath = pathname.startsWith("/app/forge/")
+    ? "/app/forge"
+    : pathname.startsWith("/app/settings")
+      ? "/app/settings"
+      : pathname;
   const activeGroup =
     tabs.find((t) => t.match.includes(normalizedPath)) ??
     tabs.find((t) => normalizedPath.startsWith(t.to) && t.to !== "/app") ??
