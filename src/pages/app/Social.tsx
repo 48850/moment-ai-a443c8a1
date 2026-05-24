@@ -33,7 +33,7 @@ function feedRowToEvent(r: FeedItem) {
 }
 
 export default function Social() {
-  const { uid, loading: authLoading } = useAuth();
+  const { uid } = useAuth();
   useProgressEmitter();
 
   const state = useStateStore((s) => s.state);
