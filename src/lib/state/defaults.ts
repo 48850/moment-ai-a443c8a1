@@ -162,6 +162,8 @@ export function createDemoState(userId: string, displayName: string, timezone: s
       completed_at: "",
       due_date: "",
       created_by: "user",
+      resource_url: "https://www.collegeessayguy.com/blog/stanford-why-us-essay",
+      resource_label: "College Essay Guy — Stanford 'Why Us' Guide",
     },
     {
       id: "t1",
@@ -192,6 +194,8 @@ export function createDemoState(userId: string, displayName: string, timezone: s
       completed_at: "",
       due_date: "",
       created_by: "user",
+      resource_url: "https://www.khanacademy.org/math/ap-calculus-ab",
+      resource_label: "Khan Academy — AP Calculus AB",
     },
     {
       id: "t3",
@@ -222,6 +226,8 @@ export function createDemoState(userId: string, displayName: string, timezone: s
       completed_at: "",
       due_date: "",
       created_by: "user",
+      resource_url: "https://www.amazon.com/s?k=SAT+prep+book+2025",
+      resource_label: "Amazon — SAT Prep Books 2025",
     },
   ];
 

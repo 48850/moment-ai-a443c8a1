@@ -572,6 +572,8 @@ const Plan = () => {
               created_by: "ai",
               why_now: d.detail ?? "",
               pathway_node: d.when ?? "",
+              resource_url: (d as any).resource_url ?? "",
+              resource_label: (d as any).resource_label ?? "",
               ...(firstWorkstreamId ? { workstream_id: firstWorkstreamId } : {}),
             },
           });

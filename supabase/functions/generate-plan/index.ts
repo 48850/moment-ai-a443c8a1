@@ -25,6 +25,8 @@ const PLAN_TOOL = {
               detail: { type: "string", description: "Why this matters and how to do it." },
               when: { type: "string", description: "Day label, e.g. 'Today', 'Mon', 'Tue+Thu'." },
               estimated_minutes: { type: "number" },
+              resource_url: { type: "string", description: "REQUIRED when the task involves any online work (watching, reading, a course lesson, a signup, a specific article or video). Deep-link to ONE specific consumable item — not a homepage, search page, or category index. Omit only when the action is genuinely offline and self-contained." },
+              resource_label: { type: "string", description: "Short descriptive label naming the specific resource, e.g. '3Blue1Brown — Essence of Calculus Ch.1'. Required when resource_url is set." },
             },
             required: ["title", "detail", "when", "estimated_minutes"],
           },
@@ -142,7 +144,11 @@ Deno.serve(async (req) => {
 - Preferences: tone=${prefs.tone ?? "?"} · strictness=${prefs.strictness ?? "?"} · schedule_style=${prefs.schedule_style ?? "?"} · support_style=${prefs.support_style ?? "?"}
 - Onboarding ${ob.completed ? "complete" : "incomplete"} · unknowns: ${(ob.understanding?.unknowns ?? []).join(", ") || "(none)"}`;
 
-    const system = `You are an elite life-design coach for ambitious teenagers. You translate a goal trio into a phased plan across four horizons: days, weeks, months, years. Be concrete, specific, age-appropriate, energising, never preachy. Every item should be doable and unmistakably move the goal forward. Avoid generic productivity fluff. ALWAYS calibrate to the user profile provided — never propose actions that conflict with their age, schedule, or onboarding-confirmed reality. Use short-term as the main source for days/weeks, medium-term for month-level milestones, and long-term only as the anchor/why. HARD CAP: the days array is today's work and must contain no more than 3 tasks.${isMobile ? " MOBILE SURFACE: the user is on a small phone screen — clutter is the enemy. Trim ruthlessly: days ≤ 2 items, weeks ≤ 2 items, months ≤ 2 items, years ≤ 2 items. Each title ≤ 7 words, each detail ≤ 22 words. Drop anything that isn't the single most decisive move for that horizon." : ""}`;
+    const system = `You are an elite life-design coach for ambitious teenagers. You translate a goal trio into a phased plan across four horizons: days, weeks, months, years. Be concrete, specific, age-appropriate, energising, never preachy. Every item should be doable and unmistakably move the goal forward. Avoid generic productivity fluff. ALWAYS calibrate to the user profile provided — never propose actions that conflict with their age, schedule, or onboarding-confirmed reality. Use short-term as the main source for days/weeks, medium-term for month-level milestones, and long-term only as the anchor/why. HARD CAP: the days array is today's work and must contain no more than 3 tasks.
+
+HYPERLINK MAJORITY RULE: At least 2 of every 3 days items MUST include a real, specific resource_url. A days item may omit resource_url ONLY when the action is genuinely offline and self-contained (e.g. "Write a reflection", "Call the school office"). Never use a homepage, search results page, or category index as resource_url — deep-link to ONE specific consumable item (a specific YouTube video, a specific Khan Academy lesson, a specific Wikipedia article, a specific official page). resource_label must name the specific resource (e.g. "Khan Academy — Intro to Limits", "3Blue1Brown — Essence of Calculus Ch.1").
+
+ZERO-RESEARCH-BURDEN: You do the research, not the user. Never output tasks like "research X", "look up Y", "find resources on Z". Instead, name the specific resource yourself and provide its real URL.${isMobile ? "\n\nMOBILE SURFACE: the user is on a small phone screen — clutter is the enemy. Trim ruthlessly: days ≤ 2 items, weeks ≤ 2 items, months ≤ 2 items, years ≤ 2 items. Each title ≤ 7 words, each detail ≤ 22 words. Drop anything that isn't the single most decisive move for that horizon." : ""}`;
 
     const portfolioBlock = renderPortfolio(snapshot?.learning_portfolio);
 
