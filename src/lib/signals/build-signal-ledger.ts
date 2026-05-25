@@ -104,7 +104,7 @@ export function buildSignalLedger(state: MomentState | null): SignalLedger {
       related_task_id: f.task_id || undefined,
       value: { feedback: f.feedback, note: f.note },
       confidence: 1,
-      user_facing_meaning: `Feedback: ${f.feedback.replaceAll("_", " ")}`,
+      user_facing_meaning: `Feedback: ${f.feedback.split("_").join(" ")}`,
       downstream_consumers: ["today", "plan", "coach", "portfolio"],
     });
   }

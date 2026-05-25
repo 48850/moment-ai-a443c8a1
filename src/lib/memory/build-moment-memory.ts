@@ -102,7 +102,7 @@ export function buildMomentMemory(state: MomentState | null): MomentMemory {
       rejectionReasonCounts[f.feedback] = (rejectionReasonCounts[f.feedback] ?? 0) + 1;
     }
   }
-  const commonRejectionReasons = topKeys(rejectionReasonCounts, 4).map((s) => s.replaceAll("_", " "));
+  const commonRejectionReasons = topKeys(rejectionReasonCounts, 4).map((s) => s.split("_").join(" "));
 
   // ---------- time_profile ----------
   const windowOutcomes: Record<string, { done: number; missed: number }> = {};
@@ -169,7 +169,7 @@ export function buildMomentMemory(state: MomentState | null): MomentMemory {
   for (const r of reflections) for (const tag of r.friction_tags ?? []) frictionTags.push(tag);
   const frictionCount: Record<string, number> = {};
   for (const t of frictionTags) frictionCount[t] = (frictionCount[t] ?? 0) + 1;
-  const commonFriction = topKeys(frictionCount, 3).map((s) => s.replaceAll("_", " "));
+  const commonFriction = topKeys(frictionCount, 3).map((s) => s.split("_").join(" "));
 
   const rescueTriggerCount: Record<string, number> = {};
   for (const r of rescues) rescueTriggerCount[r.reason] = (rescueTriggerCount[r.reason] ?? 0) + 1;
