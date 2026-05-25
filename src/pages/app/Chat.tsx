@@ -9,6 +9,7 @@ import { selectChatSnapshot } from "@/lib/selectors/chat";
 import { buildContextPacket } from "@/lib/ai/context-packet";
 import { ChatContextBanner } from "@/components/app/chat/ChatContextBanner";
 import type { ChatMessage } from "@/lib/types";
+import { CoachPanel } from "@/components/app/coach/CoachPanel";
 
 const SCHEDULE_FIELDS: { key: string; label: string }[] = [
   { key: "school_end_time", label: "School end time" },
