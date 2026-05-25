@@ -1,6 +1,13 @@
 import type { MomentState, GoalFeasibilityReport } from "@/lib/types";
 import { computeStallPattern } from "@/lib/selectors/audit";
 import { buildLearningPortfolio, type LearningPortfolio } from "@/lib/ai/learning-portfolio";
+import { buildSignalLedger } from "@/lib/signals/build-signal-ledger";
+import { buildMomentMemory } from "@/lib/memory/build-moment-memory";
+import { buildEvidenceVault } from "@/lib/portfolio/build-evidence-vault";
+import { selectPathProof } from "@/lib/decisions/select-path-proof";
+import { selectPlanRepair } from "@/lib/decisions/select-plan-repair";
+import type { MomentMemory } from "@/lib/memory/types";
+import type { PortfolioEntry } from "@/lib/portfolio/types";
 
 export interface MomentContextPacket {
   user: {
@@ -92,6 +99,41 @@ export interface MomentContextPacket {
   };
   recent_chat: Array<{ role: "user" | "assistant"; content: string }>;
   learning_portfolio: LearningPortfolio;
+
+  // ─── Intelligence layer (Signal Ledger → Memory → Vault → Decisions) ────────
+  signal_ledger_summary: {
+    total: number;
+    last_7d: number;
+    by_type: Record<string, number>;
+    top_consumers: Array<{ surface: string; count: number }>;
+  };
+  moment_memory: MomentMemory;
+  evidence_vault_summary: {
+    headline: string;
+    proof_this_week: number;
+    memories_saved: number;
+    artifacts_created: number;
+    recoveries: number;
+    total_entries: number;
+  };
+  portfolio_recent_entries: PortfolioEntry[];
+  review_queue: Array<{ task_id: string; title: string; key_lesson: string; days_since_saved: number }>;
+  path_proof: {
+    hero_title: string;
+    this_week_proof: Array<{ title: string; when: string }>;
+    next_milestone: string;
+    evidence_collected: string[];
+    bottleneck_human: string;
+  };
+  plan_pressure: {
+    pressure_detected: boolean;
+    pressure_score: number;
+    pressure_message: string;
+    actions: Array<"repair_today" | "make_lighter" | "move_one_task">;
+    reasons: string[];
+  };
+  current_patterns: MomentMemory["current_patterns"];
+  recent_adaptations: string[];
 }
 
 function horizonFromState(s: MomentState, key: "long" | "medium" | "short") {
@@ -256,5 +298,38 @@ export function buildContextPacket(s: MomentState | null): MomentContextPacket |
       .filter((m) => m.role === "user" || m.role === "assistant")
       .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
     learning_portfolio: buildLearningPortfolio(s),
+
+    // ─── Intelligence layer ──
+    ...(() => {
+      const ledger = buildSignalLedger(s);
+      const memory = buildMomentMemory(s);
+      const vault = buildEvidenceVault(s);
+      const pathProof = selectPathProof(s);
+      const planPressure = selectPlanRepair(s);
+      // recent_adaptations = last 3 task tune_notes (chronological reverse)
+      const adaptations: string[] = [];
+      for (const t of s.tasks ?? []) {
+        for (const n of t.tune_notes ?? []) {
+          adaptations.push(`${n.at.slice(0, 10)}: ${n.change} (after "${n.feedback}")`);
+        }
+      }
+      adaptations.sort().reverse();
+      return {
+        signal_ledger_summary: {
+          total: ledger.summary.total,
+          last_7d: ledger.summary.last_7d,
+          by_type: ledger.summary.by_type,
+          top_consumers: ledger.summary.top_consumers,
+        },
+        moment_memory: memory,
+        evidence_vault_summary: vault.summary,
+        portfolio_recent_entries: vault.entries.slice(0, 10),
+        review_queue: vault.review_queue,
+        path_proof: pathProof,
+        plan_pressure: planPressure,
+        current_patterns: memory.current_patterns,
+        recent_adaptations: adaptations.slice(0, 3),
+      };
+    })(),
   };
 }

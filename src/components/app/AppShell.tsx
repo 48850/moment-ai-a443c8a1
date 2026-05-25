@@ -1,26 +1,23 @@
-import { NavLink, Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { Home, Calendar, Target, ArrowLeft, MessageSquare, Heart, LifeBuoy, ListChecks, Hammer, Sun, Moon, Settings, Users } from "lucide-react";
+import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
+import { Home, Calendar, Target, ArrowLeft, MessageSquare, Heart, LifeBuoy, ListChecks, Hammer, Sun, Moon, Settings, BookOpenText } from "lucide-react";
 import { MomentStar } from "@/components/app/Mote";
-import { useStateStore } from "@/stores/state-store";
 import { useTheme } from "@/hooks/use-theme";
 import { FlameBurstOverlay } from "@/components/app/FlameBurstOverlay";
 import { AppTutorial } from "@/components/app/AppTutorial";
 
 type SubTab = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; end?: boolean };
 
+// 5 primary worlds: Today · Plan · Coach · Portfolio · Path
 const tabs: { to: string; label: string; icon: React.ComponentType<{ className?: string }>; end?: boolean; match: string[]; sub: SubTab[] }[] = [
   {
     to: "/app",
     label: "Today",
     icon: Home,
     end: true,
-    match: ["/app", "/app/chat", "/app/reflect", "/app/rescue", "/app/social"],
+    match: ["/app", "/app/rescue"],
     sub: [
       { to: "/app", label: "Today", icon: Home, end: true },
-      { to: "/app/chat", label: "Chat", icon: MessageSquare },
-      { to: "/app/reflect", label: "Reflect", icon: Heart },
       { to: "/app/rescue", label: "Rescue", icon: LifeBuoy },
-      { to: "/app/social", label: "Social", icon: Users },
     ],
   },
   {
@@ -35,29 +32,50 @@ const tabs: { to: string; label: string; icon: React.ComponentType<{ className?:
     ],
   },
   {
-    to: "/app/mission",
-    label: "Mission",
-    icon: Target,
-    match: ["/app/mission", "/app/mission/summary", "/app/settings"],
+    to: "/app/chat",
+    label: "Coach",
+    icon: MessageSquare,
+    match: ["/app/chat"],
     sub: [
-      { to: "/app/mission", label: "Mission", icon: Target },
-      { to: "/app/mission/summary", label: "Summary clips", icon: Target },
-      { to: "/app/settings", label: "Settings", icon: Settings },
+      { to: "/app/chat", label: "Coach", icon: MessageSquare },
+    ],
+  },
+  {
+    to: "/app/portfolio",
+    label: "Portfolio",
+    icon: BookOpenText,
+    match: ["/app/portfolio", "/app/reflect"],
+    sub: [
+      { to: "/app/portfolio", label: "Portfolio", icon: BookOpenText },
+      { to: "/app/reflect", label: "Reflect", icon: Heart },
+    ],
+  },
+  {
+    to: "/app/path",
+    label: "Path",
+    icon: Target,
+    match: ["/app/path", "/app/mission", "/app/mission/summary"],
+    sub: [
+      { to: "/app/path", label: "Path", icon: Target },
+      { to: "/app/mission/summary", label: "Recap", icon: Target },
     ],
   },
 ];
 
 export const AppShell = () => {
   const { pathname } = useLocation();
-  const navigate = useNavigate();
-  const reset = useStateStore((s) => s.reset);
   const { theme, toggle: toggleTheme } = useTheme();
-  // forge/:featureId routes should keep the Plan group (Forge sub-tab) active
   const normalizedPath = pathname.startsWith("/app/forge/")
     ? "/app/forge"
     : pathname.startsWith("/app/settings")
       ? "/app/settings"
-      : pathname;
+      : pathname.startsWith("/app/mission/summary")
+        ? "/app/mission/summary"
+        : pathname.startsWith("/app/mission")
+          ? "/app/path"
+          : pathname.startsWith("/app/social")
+            ? "/app/portfolio"
+            : pathname;
   const activeGroup =
     tabs.find((t) => t.match.includes(normalizedPath)) ??
     tabs.find((t) => normalizedPath.startsWith(t.to) && t.to !== "/app") ??
@@ -102,9 +120,8 @@ export const AppShell = () => {
         </div>
       </header>
 
-
       <div className="flex">
-        {/* Desktop sidebar — three primary tabs */}
+        {/* Desktop sidebar — 5 primary tabs */}
         <aside className="sticky top-[52px] hidden h-[calc(100vh-52px)] w-56 shrink-0 flex-col gap-1 overflow-y-auto border-r border-border/60 px-3 py-6 md:flex">
           {tabs.map((t) => {
             const isActive = activeGroup.to === t.to;
@@ -145,7 +162,6 @@ export const AppShell = () => {
         </aside>
 
         <main className="min-h-[calc(100vh-52px)] flex-1 px-4 pb-28 pt-6 md:px-8 md:pb-12">
-          {/* Contextual sub-nav (mobile + desktop) */}
           {activeGroup.sub.length > 1 && (
             <div className="mb-6 flex flex-wrap gap-1.5">
               {activeGroup.sub.map((s) => (
@@ -171,9 +187,9 @@ export const AppShell = () => {
         </main>
       </div>
 
-      {/* Mobile bottom nav — three tabs only */}
+      {/* Mobile bottom nav — 5 tabs */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-border/60 bg-background/95 px-2 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-border/60 bg-background/95 px-1 pb-[env(safe-area-inset-bottom)] pt-2 backdrop-blur md:hidden"
         aria-label="Primary"
       >
         {tabs.map((t) => {
@@ -183,7 +199,7 @@ export const AppShell = () => {
               key={t.to}
               to={t.to}
               end={t.end}
-              className={`flex min-h-[44px] min-w-[44px] flex-1 flex-col items-center justify-center gap-0.5 rounded-md py-1 text-[10px] ${
+              className={`flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 rounded-md py-1 text-[10px] ${
                 isActive ? "text-primary" : "text-muted-foreground"
               }`}
             >

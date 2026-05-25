@@ -12,6 +12,7 @@ import Dashboard from "./pages/app/Dashboard";
 import Chat from "./pages/app/Chat";
 import Plan from "./pages/app/Plan";
 import Mission from "./pages/app/Mission";
+import Portfolio from "./pages/app/Portfolio";
 import Tasks from "./pages/app/Tasks";
 import Reflect from "./pages/app/Reflect";
 import Rescue from "./pages/app/Rescue";
@@ -91,6 +92,8 @@ const App = () => {
               <Route path="chat" element={<Chat />} />
               <Route path="plan" element={<Plan />} />
               <Route path="mission" element={<Mission />} />
+              <Route path="path" element={<Mission />} />
+              <Route path="portfolio" element={<Portfolio />} />
               <Route path="tasks" element={<Tasks />} />
               <Route path="reflect" element={<Reflect />} />
               <Route path="rescue" element={<Rescue />} />
