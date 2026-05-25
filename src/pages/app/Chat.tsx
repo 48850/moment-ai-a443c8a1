@@ -9,6 +9,7 @@ import { selectChatSnapshot } from "@/lib/selectors/chat";
 import { buildContextPacket } from "@/lib/ai/context-packet";
 import { ChatContextBanner } from "@/components/app/chat/ChatContextBanner";
 import type { ChatMessage } from "@/lib/types";
+import { CoachPanel } from "@/components/app/coach/CoachPanel";
 
 const SCHEDULE_FIELDS: { key: string; label: string }[] = [
   { key: "school_end_time", label: "School end time" },
@@ -505,7 +506,7 @@ const Chat = () => {
 
   // ── Default mode (non-specialisation): use the new Coach kernel UI ──────
   if (!isSpecialisation) {
-    const { CoachPanel } = require("@/components/app/coach/CoachPanel") as typeof import("@/components/app/coach/CoachPanel");
+
     return (
       <div className="mx-auto max-w-2xl">
         <div className="mb-3">
