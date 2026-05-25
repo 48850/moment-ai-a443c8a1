@@ -1,6 +1,5 @@
 import { motion } from "motion/react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/use-auth";
+import { Link } from "react-router-dom";
 
 const links = [
   { label: "The system", href: "#why" },
@@ -9,9 +8,6 @@ const links = [
 ];
 
 export const Nav = () => {
-  const { user, uid, loading } = useAuth();
-  const navigate = useNavigate();
-
   return (
     <motion.header
       initial={{ y: -20, opacity: 0 }}
@@ -37,31 +33,13 @@ export const Nav = () => {
       </nav>
 
       <div className="flex items-center gap-3">
-        {!loading && uid ? (
-          <Link
-            to="/app"
-            className="group inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-medium text-paper transition-transform hover:-translate-y-0.5"
-          >
-            Open Moment
-            <span className="transition-transform group-hover:translate-x-0.5">→</span>
-          </Link>
-        ) : (
-          <>
-            <button
-              onClick={() => navigate("/auth")}
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Log in
-            </button>
-            <button
-              onClick={() => navigate("/auth?mode=sign_up")}
-              className="group inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-medium text-paper transition-transform hover:-translate-y-0.5"
-            >
-              Sign up
-              <span className="transition-transform group-hover:translate-x-0.5">→</span>
-            </button>
-          </>
-        )}
+        <Link
+          to="/app"
+          className="group inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-medium text-paper transition-transform hover:-translate-y-0.5"
+        >
+          Open Moment
+          <span className="transition-transform group-hover:translate-x-0.5">→</span>
+        </Link>
       </div>
     </motion.header>
   );
