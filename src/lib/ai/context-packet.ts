@@ -298,5 +298,38 @@ export function buildContextPacket(s: MomentState | null): MomentContextPacket |
       .filter((m) => m.role === "user" || m.role === "assistant")
       .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
     learning_portfolio: buildLearningPortfolio(s),
+
+    // ─── Intelligence layer ──
+    ...(() => {
+      const ledger = buildSignalLedger(s);
+      const memory = buildMomentMemory(s);
+      const vault = buildEvidenceVault(s);
+      const pathProof = selectPathProof(s);
+      const planPressure = selectPlanRepair(s);
+      // recent_adaptations = last 3 task tune_notes (chronological reverse)
+      const adaptations: string[] = [];
+      for (const t of s.tasks ?? []) {
+        for (const n of t.tune_notes ?? []) {
+          adaptations.push(`${n.at.slice(0, 10)}: ${n.change} (after "${n.feedback}")`);
+        }
+      }
+      adaptations.sort().reverse();
+      return {
+        signal_ledger_summary: {
+          total: ledger.summary.total,
+          last_7d: ledger.summary.last_7d,
+          by_type: ledger.summary.by_type,
+          top_consumers: ledger.summary.top_consumers,
+        },
+        moment_memory: memory,
+        evidence_vault_summary: vault.summary,
+        portfolio_recent_entries: vault.entries.slice(0, 10),
+        review_queue: vault.review_queue,
+        path_proof: pathProof,
+        plan_pressure: planPressure,
+        current_patterns: memory.current_patterns,
+        recent_adaptations: adaptations.slice(0, 3),
+      };
+    })(),
   };
 }
