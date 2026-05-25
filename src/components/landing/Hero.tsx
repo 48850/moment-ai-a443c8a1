@@ -1,11 +1,8 @@
 import { motion } from "motion/react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { DecisiveMoveCard } from "./DecisiveMoveCard";
-import { useAuth } from "@/hooks/use-auth";
 
 export const Hero = () => {
-  const { uid, loading } = useAuth();
-  const navigate = useNavigate();
 
   return (
     <section className="relative overflow-hidden">
