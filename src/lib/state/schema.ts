@@ -540,16 +540,4 @@ export const momentStateSchema = z.object({
     last_updated: "",
     understanding: { knowns: [], unknowns: [], assumptions: [], confidence: "low" },
   }),
-  /** Moment Core v1 — Visible Adaptation Loop. One sentence + provenance. */
-  last_adaptation: z
-    .object({
-      from_task_id: z.string().default(""),
-      from_task_title: z.string().default(""),
-      from_feedback: z.string().default(""),
-      rule_id: z.string().default(""),
-      summary: z.string().default(""),
-      created_at: z.string().default(""),
-    })
-    .nullable()
-    .default(null),
 });
