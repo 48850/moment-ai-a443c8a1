@@ -1,10 +1,7 @@
 import { motion } from "motion/react";
-import { useState } from "react";
 import { Link } from "react-router-dom";
 
 export const CTA = () => {
-  const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
 
   return (
     <section id="cta" className="relative mx-auto w-full max-w-7xl px-6 pb-28 md:px-10">
