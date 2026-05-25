@@ -129,12 +129,4 @@ export type MomentAction =
       rule_id: string;
       summary: string;
       created_at: string;
-    } | null }
-  | { type: "adaptation/setPending"; payload: {
-      from_task_id: string;
-      from_task_title: string;
-      from_feedback: string;
-      rule_id: string;
-      reason: string;
-      created_at: string;
     } | null };

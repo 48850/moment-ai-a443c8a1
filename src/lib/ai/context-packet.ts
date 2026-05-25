@@ -92,30 +92,6 @@ export interface MomentContextPacket {
   };
   recent_chat: Array<{ role: "user" | "assistant"; content: string }>;
   learning_portfolio: LearningPortfolio;
-  /** Moment Core v1 — Visible Adaptation Loop context for Coach. */
-  adaptation: {
-    last: {
-      from_task_id: string;
-      from_task_title: string;
-      from_feedback: string;
-      rule_id: string;
-      summary: string;
-      created_at: string;
-    } | null;
-    pending: {
-      from_task_id: string;
-      from_task_title: string;
-      from_feedback: string;
-      rule_id: string;
-      reason: string;
-      created_at: string;
-    } | null;
-    visibly_applied: boolean;
-    hard_to_start_streak: number;
-    next_move: { id: string; title: string; estimated_minutes: number } | null;
-    latest_completed: { id: string; title: string; completed_at: string } | null;
-    latest_core_feedback: string;
-  };
 }
 
 function horizonFromState(s: MomentState, key: "long" | "medium" | "short") {
@@ -280,36 +256,5 @@ export function buildContextPacket(s: MomentState | null): MomentContextPacket |
       .filter((m) => m.role === "user" || m.role === "assistant")
       .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
     learning_portfolio: buildLearningPortfolio(s),
-    adaptation: buildAdaptationContext(s),
-  };
-}
-
-function buildAdaptationContext(s: MomentState): MomentContextPacket["adaptation"] {
-  const CORE = new Set(["hard_to_start", "too_long", "distracted", "felt_pointless", "useful", "easy"]);
-  const fb = (s.execution_feedback ?? []).slice().sort((a, b) => b.created_at.localeCompare(a.created_at));
-  const coreFb = fb.filter((f) => CORE.has(f.feedback));
-  let streak = 0;
-  for (const f of coreFb) {
-    if (f.feedback === "hard_to_start") streak++;
-    else break;
-  }
-  const doneTasks = (s.tasks ?? []).filter((t) => t.status === "done" && t.completed_at)
-    .sort((a, b) => b.completed_at.localeCompare(a.completed_at));
-  const latestDone = doneTasks[0] ?? null;
-  const pendingHigh = (s.tasks ?? []).find((t) => t.status === "pending");
-  const last = s.last_adaptation ?? null;
-  const pending = (s as any).pending_adaptation ?? null;
-  return {
-    last: last as MomentContextPacket["adaptation"]["last"],
-    pending: pending as MomentContextPacket["adaptation"]["pending"],
-    visibly_applied: !!(last && last.rule_id && last.rule_id !== "noop_v1" && last.summary),
-    hard_to_start_streak: streak,
-    next_move: pendingHigh
-      ? { id: pendingHigh.id, title: pendingHigh.title, estimated_minutes: pendingHigh.estimated_minutes }
-      : null,
-    latest_completed: latestDone
-      ? { id: latestDone.id, title: latestDone.title, completed_at: latestDone.completed_at }
-      : null,
-    latest_core_feedback: coreFb[0]?.feedback ?? "",
   };
 }

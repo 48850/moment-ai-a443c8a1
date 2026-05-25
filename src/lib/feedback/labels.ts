@@ -3,11 +3,6 @@ import { FEEDBACK_OPTIONS } from "@/lib/state/schema";
 export type FeedbackKey = (typeof FEEDBACK_OPTIONS)[number];
 
 export const FEEDBACK_LABELS: Record<FeedbackKey, string> = {
-  hard_to_start: "Hard to start",
-  too_long: "Took too long",
-  distracted: "Got distracted",
-  felt_pointless: "Felt pointless",
-  useful: "Useful",
   easy: "Easy",
   hard: "Hard",
   too_vague: "Too vague",
@@ -31,11 +26,6 @@ export const FEEDBACK_LABELS: Record<FeedbackKey, string> = {
 
 /** Calm, non-shaming response after each tap. Always plan-blaming, not user-blaming. */
 export const FEEDBACK_RESPONSE: Record<FeedbackKey, string> = {
-  hard_to_start: "Got it — I'll shrink the next move so it's easy to begin.",
-  too_long: "Noted — I'll cut the next one shorter.",
-  distracted: "Okay — I'll make the next step sharper and smaller.",
-  felt_pointless: "Useful signal — I'll re-check whether this move still fits.",
-  useful: "Good — I'll lean into this kind of move.",
   easy: "Noted — I'll nudge the next one a touch harder.",
   hard: "Got it. Useful signal — I'll lower the activation cost next time.",
   too_vague: "Thanks. I'll define the first concrete action more clearly.",
