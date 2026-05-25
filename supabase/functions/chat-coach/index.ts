@@ -844,13 +844,153 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, snapshot, context_packet, mode } = await req.json();
+    const body = await req.json();
+    const { messages, snapshot, context_packet, mode, kernel, coach_context } = body ?? {};
     if (!Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: "messages required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // ── KERNEL PATH: relational Coach with structured JSON response ──────────
+    if (kernel === true && coach_context) {
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+
+      const ctx = coach_context as {
+        surface: string;
+        inferred: { state: string; confidence: number; evidence: string[] };
+        packet: Record<string, unknown>;
+      };
+      const p = ctx.packet ?? {};
+      const goal = (p as any).active_goal ?? {};
+      const memory = (p as any).moment_memory ?? {};
+      const planPressure = (p as any).plan_pressure ?? {};
+      const portfolioRecent = ((p as any).portfolio_recent_entries ?? []) as Array<{ title: string; type: string }>;
+      const reviewQueue = ((p as any).review_queue ?? []) as Array<{ title: string; key_lesson: string }>;
+      const adaptations = ((p as any).recent_adaptations ?? []) as string[];
+
+      const goalLine = goal.statement
+        ? `${goal.statement}${goal.why_it_matters ? ` · why: ${goal.why_it_matters}` : ""}`
+        : "(no goal locked yet)";
+
+      const tone = (() => {
+        switch (ctx.inferred?.state) {
+          case "overloaded": return "User is overloaded. Do NOT motivate. Simplify. Protect the next 10 minutes.";
+          case "stuck": return "User is stuck. No lecturing. Make the first step under 10 minutes, concrete.";
+          case "drifting": return "User is drifting. No shame. Reconnect the next task to identity in ONE line.";
+          case "recovering": return "User is recovering. Don't overpush. Acknowledge the comeback specifically.";
+          case "confused": return "User is confused. Separate task from confusion. Plain ≤2 sentences.";
+          case "low_confidence": return "User is low-confidence. Reference past proof. Tiny re-entry move.";
+          case "avoidant": return "User is avoiding. Name it gently. Offer smaller version of the same task.";
+          case "proud": return "User is proud. Celebrate specifically by task title. Offer next proof.";
+          case "frustrated": return "User is frustrated. Acknowledge in one line. Name what's actually broken.";
+          default: return "User is steady. Don't interrupt momentum. Tight reply.";
+        }
+      })();
+
+      const system = `You are Moment Coach — not a chatbot. You are the voice of the user's own goal system, the friend who actually remembers, notices, and stays with them.
+
+CORE STANCE
+- Warmth + memory + logic + action — all four, or you have failed.
+- Friendliness without intelligence feels fake. Intelligence without warmth feels cold. Be both.
+- You are a loyal companion in the user's becoming. Not a therapist. Not a productivity bot.
+
+EVERY TURN
+1. Mirror the user briefly (one short, human line).
+2. Reference one REAL specific from their state — task title, exact count, recent feedback, named pattern.
+3. Give one honest interpretation.
+4. Offer ONE next move (not five).
+5. Attach 1–3 real actions when they help.
+6. Ask AT MOST one follow-up question, only if the context cannot answer it.
+
+HARD RULES
+- NEVER re-ask anything already in the context. NEVER produce generic motivation ("you got this", "stay consistent", "follow your dreams"). NEVER diagnose. NEVER claim to be the user's only support. NEVER lecture.
+- ≤2 sentences of prose. Hard cap ~50 words. Plain text. No emojis unless they used one first.
+- If user shows serious distress, respond warmly and gently encourage them to talk to a trusted person.
+
+CURRENT SURFACE: ${ctx.surface}
+
+INFERRED STATE: ${ctx.inferred?.state} (confidence ${(ctx.inferred?.confidence ?? 0).toFixed(2)})
+EVIDENCE: ${(ctx.inferred?.evidence ?? []).join(" · ")}
+
+TONE RULE: ${tone}
+
+GOAL: ${goalLine}
+STAGE: ${goal.current_stage ?? "(unset)"} → ${goal.target_stage ?? "(unset)"}
+NEXT PROOF: ${memory?.goal_profile?.next_proof ?? "(none)"}
+BOTTLENECK: ${memory?.goal_profile?.bottleneck ?? "(none)"}
+
+RECENT WINS: ${(memory?.recent_wins ?? []).slice(0, 3).join(" · ") || "(none)"}
+RECENT STRUGGLES: ${(memory?.recent_struggles ?? []).slice(0, 3).join(" · ") || "(none)"}
+
+PATTERNS: ${(memory?.current_patterns ?? []).slice(0, 3).map((x: any) => x.message).join(" · ") || "(none)"}
+
+OPEN LOOPS: ${(memory?.open_loops ?? []).slice(0, 3).map((l: any) => `${l.title} (${l.days_open}d)`).join(" · ") || "(none)"}
+
+REVIEW QUEUE: ${reviewQueue.slice(0, 3).map((r) => `${r.title} — ${r.key_lesson}`).join(" · ") || "(empty)"}
+
+PORTFOLIO RECENT: ${portfolioRecent.slice(0, 5).map((e) => `${e.type}: ${e.title}`).join(" · ") || "(empty)"}
+
+RECENT ADAPTATIONS: ${adaptations.slice(0, 3).join(" · ") || "(none)"}
+
+PLAN PRESSURE: ${planPressure.pressure_detected ? `${planPressure.pressure_score}/10 — ${planPressure.pressure_message}` : "low"}
+
+OUTPUT FORMAT — STRUCTURED JSON ONLY. Return exactly this shape, no prose outside the JSON object:
+{
+  "mode": "next_move|plan_repair|emotional_support|review_memory|path_explanation|task_breakdown|forge_artifact|rescue|clarifying_question|celebrate",
+  "reply": "string — the visible message",
+  "inferred_state": "steady|stuck|overloaded|drifting|recovering|confused|low_confidence|avoidant|proud|frustrated",
+  "confidence": 0..1,
+  "evidence_used": ["short refs to real state"],
+  "next_move": { "label": "string", "task_id": "optional", "estimated_minutes": optional } | null,
+  "suggested_actions": [
+    { "type": "task.shrink|task.split|task.mark_done|task.reject|task.create_proof|plan.repair_today|plan.make_lighter|plan.move_one_task|review.save_memory|forge.create_artifact|rescue.trigger|path.show_proof|explain.why_this_matters", "label": "≤22 chars", "task_id": "optional", "needs_confirmation": optional }
+  ],
+  "memory_to_save": { "type": "friction|goal_clarity|learning_gap|win|open_loop", "content": "string", "confidence": 0..1 } | null,
+  "follow_up_question": "string or null"
+}
+Max 3 suggested_actions. Action labels read like buttons.`;
+
+      const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          max_tokens: 1500,
+          response_format: { type: "json_object" },
+          messages: [
+            { role: "system", content: system },
+            ...(messages as Array<{ role: string; content: string }>).slice(-12),
+          ],
+        }),
+      });
+
+      if (!resp.ok) {
+        const status = resp.status;
+        const errText = await resp.text();
+        console.error("coach kernel gateway error", status, errText);
+        if (status === 429) return new Response(JSON.stringify({ error: "Rate limited." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        if (status === 402) return new Response(JSON.stringify({ error: "Out of AI credits." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: "AI gateway error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const data = await resp.json();
+      const content = data?.choices?.[0]?.message?.content ?? "";
+      let parsed: unknown = null;
+      try { parsed = JSON.parse(content); } catch { parsed = null; }
+
+      return new Response(
+        JSON.stringify({
+          reply: (parsed as any)?.reply ?? content,
+          response: parsed,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // ── LEGACY PATH continues below ────────────────────────────────────────
 
     const isSpecialisation = mode === "goal_specialisation";
     const latestUser = latestUserMessage(messages as Array<{ role: string; content: string }>);

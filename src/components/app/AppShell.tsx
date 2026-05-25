@@ -4,6 +4,7 @@ import { MomentStar } from "@/components/app/Mote";
 import { useTheme } from "@/hooks/use-theme";
 import { FlameBurstOverlay } from "@/components/app/FlameBurstOverlay";
 import { AppTutorial } from "@/components/app/AppTutorial";
+import { CoachLauncher } from "@/components/app/coach/CoachLauncher";
 
 type SubTab = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; end?: boolean };
 
@@ -209,6 +210,8 @@ export const AppShell = () => {
           );
         })}
       </nav>
+
+      <CoachLauncher />
     </div>
   );
 };

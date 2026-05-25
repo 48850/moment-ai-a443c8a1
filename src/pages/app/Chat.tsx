@@ -503,32 +503,39 @@ const Chat = () => {
     }
   };
 
+  // ── Default mode (non-specialisation): use the new Coach kernel UI ──────
+  if (!isSpecialisation) {
+    const { CoachPanel } = require("@/components/app/coach/CoachPanel") as typeof import("@/components/app/coach/CoachPanel");
+    return (
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-3">
+          <div className="text-xs text-muted-foreground">/ coach</div>
+          <h1 className="mt-1 flex items-center gap-3 text-2xl font-semibold tracking-tight">
+            <Mote size={56} bounce mood="calm" />Moment is with you
+          </h1>
+          <p className="mt-1 text-xs text-muted-foreground">
+            A friend who remembers your goal, notices your patterns, and helps you make the next real move.
+          </p>
+        </div>
+        <CoachPanel surface="coach" />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto flex h-[calc(100vh-9rem)] max-w-2xl flex-col md:h-[calc(100vh-7rem)]">
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
           <div className="text-xs text-muted-foreground">/ chat</div>
-          {isSpecialisation ? (
-            <>
-              <h1 className="mt-1 flex items-center gap-3 text-2xl font-semibold tracking-tight"><Mote size={56} bounce mood="focused" />Goal calibration</h1>
-              <p className="mt-1 text-xs text-muted-foreground">
-                One conversation to map where you are and activate your first move.
-              </p>
-            </>
-          ) : (
-            <>
-              <h1 className="mt-1 flex items-center gap-3 text-2xl font-semibold tracking-tight"><Mote size={56} bounce mood="calm" />Talk it out with Moment</h1>
-              <p className="mt-1 text-xs text-muted-foreground">
-                What you share here flows into your plan, schedule, and goal.
-              </p>
-            </>
-          )}
+          <h1 className="mt-1 flex items-center gap-3 text-2xl font-semibold tracking-tight"><Mote size={56} bounce mood="focused" />Goal calibration</h1>
+          <p className="mt-1 text-xs text-muted-foreground">
+            One conversation to map where you are and activate your first move.
+          </p>
         </div>
         <button
           type="button"
           onClick={() => {
-            const greeting = isSpecialisation ? specialisationGreeting : defaultGreeting;
-            setMessages([greeting]);
+            setMessages([specialisationGreeting]);
             dispatch({ type: "chat/clear_messages" });
           }}
           className="shrink-0 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
@@ -537,54 +544,21 @@ const Chat = () => {
         </button>
       </div>
 
-      {/* Specialisation status banner */}
-      {isSpecialisation && (
-        <section className="mb-3 rounded-xl border border-border bg-card p-3">
-          <div className="mb-2 flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-            <Target className="h-3 w-3 text-primary" /> goal pathway calibration
-          </div>
-          {specialisationDone ? (
-            <p className="text-xs text-foreground flex items-center gap-2">
-              <CheckCircle2 className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-              Calibration complete — your first task is live. Head to Home or Tasks to start.
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              Moment will ask you a few short questions, then add your first move to your task list.
-            </p>
-          )}
-        </section>
-      )}
-
-      {/* Default mode: show portfolio context banner when schedule is complete, schedule-info checklist while still missing fields */}
-      {!isSpecialisation && state && missing.length === 0 && (
-        <ChatContextBanner snapshot={selectChatSnapshot(state)} />
-      )}
-
-      {!isSpecialisation && missing.length > 0 && (
-        <section className="mb-3 rounded-xl border border-border bg-card p-3">
-          <div className="mb-2 flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-            <Sparkles className="h-3 w-3 text-primary" /> schedule info
-          </div>
-          <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-3">
-            {SCHEDULE_FIELDS.map((f) => {
-              const done = filled[f.key];
-              return (
-                <li key={f.key} className="flex items-center gap-2 text-xs">
-                  {done ? (
-                    <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                  ) : (
-                    <span className="h-3.5 w-3.5 rounded-full border border-muted-foreground/40" />
-                  )}
-                  <span className={done ? "text-foreground" : "text-muted-foreground"}>
-                    {f.label}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
+      <section className="mb-3 rounded-xl border border-border bg-card p-3">
+        <div className="mb-2 flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+          <Target className="h-3 w-3 text-primary" /> goal pathway calibration
+        </div>
+        {specialisationDone ? (
+          <p className="text-xs text-foreground flex items-center gap-2">
+            <CheckCircle2 className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+            Calibration complete — your first task is live. Head to Home or Tasks to start.
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Moment will ask you a few short questions, then add your first move to your task list.
+          </p>
+        )}
+      </section>
 
       <div className="flex-1 space-y-3 overflow-y-auto rounded-2xl border border-border bg-card p-4">
         {messages.map((m) => (
@@ -613,7 +587,7 @@ const Chat = () => {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-            if (isTyping) return;
+          if (isTyping) return;
           onSendMessage(input);
         }}
         className="mt-3 flex gap-2"
@@ -621,21 +595,13 @@ const Chat = () => {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={
-            isTyping
-              ? "Moment is thinking…"
-              : isSpecialisation
-              ? "Reply to Moment…"
-              : missing.length
-              ? `Tell Moment your ${missing[0].toLowerCase()}…`
-              : "Message Moment…"
-          }
+          placeholder={isTyping ? "Moment is thinking…" : "Reply to Moment…"}
           className="flex-1 rounded-full border border-border bg-card px-4 py-2.5 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-          disabled={isTyping || (isSpecialisation && specialisationDone)}
+          disabled={isTyping || specialisationDone}
         />
         <button
           type="submit"
-          disabled={isTyping || !input.trim() || (isSpecialisation && specialisationDone)}
+          disabled={isTyping || !input.trim() || specialisationDone}
           className="inline-flex items-center justify-center rounded-full bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
           aria-label="Send"
         >
