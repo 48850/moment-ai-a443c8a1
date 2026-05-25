@@ -44,7 +44,14 @@ export function CoachPanel({ surface = "coach", compact = false }: Props) {
   const persisted = state?.chat_messages ?? [];
   const [messages, setMessages] = useState<RichMessage[]>(() =>
     persisted.length
-      ? persisted.map((m) => ({ ...m, role: m.role as "user" | "assistant" }))
+      ? persisted
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .map((m) => ({
+            id: m.id ?? crypto.randomUUID(),
+            role: m.role as "user" | "assistant",
+            content: m.content ?? "",
+            created_at: m.created_at ?? new Date().toISOString(),
+          }))
       : [],
   );
   const [input, setInput] = useState("");
