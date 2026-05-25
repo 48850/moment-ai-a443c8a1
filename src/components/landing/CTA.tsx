@@ -1,10 +1,8 @@
 import { motion } from "motion/react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "@/hooks/use-auth";
 
 export const CTA = () => {
-  const { uid, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
 
