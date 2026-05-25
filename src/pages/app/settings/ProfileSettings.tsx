@@ -178,6 +178,19 @@ export default function ProfileSettings() {
           </div>
         </div>
       </SectionCard>
+
+      <SectionCard title="Reset">
+        <p className="text-xs text-muted-foreground">
+          Start over from scratch. Clears your goal, plan, tasks, and progress, then takes you back through onboarding.
+        </p>
+        <button
+          type="button"
+          onClick={handleResetOnboarding}
+          className="self-start rounded-full border border-destructive/40 bg-destructive/10 px-4 py-2 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20"
+        >
+          Reset onboarding
+        </button>
+      </SectionCard>
     </div>
   );
 }
