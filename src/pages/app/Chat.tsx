@@ -506,7 +506,7 @@ const Chat = () => {
 
   // ── Default mode (non-specialisation): use the new Coach kernel UI ──────
   if (!isSpecialisation) {
-    const { CoachPanel } = require("@/components/app/coach/CoachPanel") as typeof import("@/components/app/coach/CoachPanel");
+
     return (
       <div className="mx-auto max-w-2xl">
         <div className="mb-3">
