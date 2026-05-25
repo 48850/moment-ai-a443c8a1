@@ -31,52 +31,17 @@ export const CTA = () => {
             </p>
           </div>
 
-          {!loading && uid ? (
-            <div className="flex flex-col items-start gap-4">
-              <div className="rounded-2xl border border-paper/15 bg-paper/5 p-6 text-paper">
-                <div className="font-display text-2xl">You're in.</div>
-                <p className="mt-2 text-sm text-paper/60">Your Moment is waiting.</p>
-              </div>
-              <Link
-                to="/app"
-                className="inline-flex items-center gap-2 rounded-full bg-paper px-6 py-3.5 text-sm font-medium text-ink transition-transform hover:-translate-y-0.5"
-              >
-                Go to your Moment →
-              </Link>
-            </div>
-          ) : (
-            <form
-              onSubmit={(e) => { e.preventDefault(); if (email) setSent(true); }}
-              className="relative"
+          <div className="flex flex-col items-start gap-4">
+            <Link
+              to="/app"
+              className="inline-flex items-center gap-2 rounded-full bg-paper px-6 py-3.5 text-sm font-medium text-ink transition-transform hover:-translate-y-0.5"
             >
-              {sent ? (
-                <div className="rounded-2xl border border-paper/15 bg-paper/5 p-6 text-paper">
-                  <div className="font-display text-2xl">You're in.</div>
-                  <p className="mt-2 text-sm text-paper/60">We'll email <span className="text-paper">{email}</span> when your moment opens.</p>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@school.edu"
-                    className="flex-1 rounded-full border border-paper/15 bg-paper/5 px-5 py-3.5 text-sm text-paper placeholder:text-paper/40 focus:border-primary-glow focus:outline-none"
-                  />
-                  <button
-                    type="submit"
-                    className="rounded-full bg-paper px-6 py-3.5 text-sm font-medium text-ink transition-transform hover:-translate-y-0.5"
-                  >
-                    Claim my spot →
-                  </button>
-                </div>
-              )}
-              <p className="mt-3 font-mono text-[10px] uppercase tracking-wider text-paper/40">
-                No credit card. Quit anytime. Built by people who almost didn't make it.
-              </p>
-            </form>
-          )}
+              Open Moment →
+            </Link>
+            <p className="font-mono text-[10px] uppercase tracking-wider text-paper/40">
+              No signup. No friction. Just momentum.
+            </p>
+          </div>
         </div>
       </motion.div>
     </section>
