@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useSettingsStore, validateUsername } from "@/stores/settings-store";
+import { useStateStore } from "@/stores/state-store";
 import { MomentStar } from "@/components/app/Mote";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,8 +9,19 @@ import { supabase } from "@/integrations/supabase/client";
 export default function ProfileSettings() {
   const profile = useSettingsStore((s) => s.profile);
   const update = useSettingsStore((s) => s.updateProfile);
+  const resetState = useStateStore((s) => s.reset);
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const { uid } = useAuth();
+  const navigate = useNavigate();
+
+  const handleResetOnboarding = () => {
+    const ok = window.confirm(
+      "Reset onboarding? This clears your goal, plan, and progress, then sends you back to the start.",
+    );
+    if (!ok) return;
+    resetState();
+    navigate("/onboarding", { replace: true });
+  };
 
   // Hydrate from server once
   useEffect(() => {
@@ -164,6 +177,19 @@ export default function ProfileSettings() {
             <p className="text-xs text-muted-foreground">{profile.star_hue}°</p>
           </div>
         </div>
+      </SectionCard>
+
+      <SectionCard title="Reset">
+        <p className="text-xs text-muted-foreground">
+          Start over from scratch. Clears your goal, plan, tasks, and progress, then takes you back through onboarding.
+        </p>
+        <button
+          type="button"
+          onClick={handleResetOnboarding}
+          className="self-start rounded-full border border-destructive/40 bg-destructive/10 px-4 py-2 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20"
+        >
+          Reset onboarding
+        </button>
       </SectionCard>
     </div>
   );
