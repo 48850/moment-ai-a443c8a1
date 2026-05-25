@@ -1,6 +1,13 @@
 import type { MomentState, GoalFeasibilityReport } from "@/lib/types";
 import { computeStallPattern } from "@/lib/selectors/audit";
 import { buildLearningPortfolio, type LearningPortfolio } from "@/lib/ai/learning-portfolio";
+import { buildSignalLedger } from "@/lib/signals/build-signal-ledger";
+import { buildMomentMemory } from "@/lib/memory/build-moment-memory";
+import { buildEvidenceVault } from "@/lib/portfolio/build-evidence-vault";
+import { selectPathProof } from "@/lib/decisions/select-path-proof";
+import { selectPlanRepair } from "@/lib/decisions/select-plan-repair";
+import type { MomentMemory } from "@/lib/memory/types";
+import type { PortfolioEntry } from "@/lib/portfolio/types";
 
 export interface MomentContextPacket {
   user: {
@@ -92,6 +99,41 @@ export interface MomentContextPacket {
   };
   recent_chat: Array<{ role: "user" | "assistant"; content: string }>;
   learning_portfolio: LearningPortfolio;
+
+  // ─── Intelligence layer (Signal Ledger → Memory → Vault → Decisions) ────────
+  signal_ledger_summary: {
+    total: number;
+    last_7d: number;
+    by_type: Record<string, number>;
+    top_consumers: Array<{ surface: string; count: number }>;
+  };
+  moment_memory: MomentMemory;
+  evidence_vault_summary: {
+    headline: string;
+    proof_this_week: number;
+    memories_saved: number;
+    artifacts_created: number;
+    recoveries: number;
+    total_entries: number;
+  };
+  portfolio_recent_entries: PortfolioEntry[];
+  review_queue: Array<{ task_id: string; title: string; key_lesson: string; days_since_saved: number }>;
+  path_proof: {
+    hero_title: string;
+    this_week_proof: Array<{ title: string; when: string }>;
+    next_milestone: string;
+    evidence_collected: string[];
+    bottleneck_human: string;
+  };
+  plan_pressure: {
+    pressure_detected: boolean;
+    pressure_score: number;
+    pressure_message: string;
+    actions: Array<"repair_today" | "make_lighter" | "move_one_task">;
+    reasons: string[];
+  };
+  current_patterns: MomentMemory["current_patterns"];
+  recent_adaptations: string[];
 }
 
 function horizonFromState(s: MomentState, key: "long" | "medium" | "short") {
