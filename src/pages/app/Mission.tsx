@@ -577,6 +577,9 @@ const Mission = () => {
         </div>
       </section>
 
+      {/* ── 1b. WHY TODAY MATTERS — shared heartbeat ─────────────────────────── */}
+      <HeartbeatBanner variant="full" />
+
       {/* ── 2. NEXT PROOF (dominant card) ────────────────────────────────────── */}
       <NextProofCard
         proof={nextProof}
