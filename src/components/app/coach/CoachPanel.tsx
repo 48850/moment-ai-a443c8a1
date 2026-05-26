@@ -7,7 +7,11 @@ import { buildCoachContext, type CoachSurface } from "@/lib/coach/build-coach-co
 import { selectSeedActions } from "@/lib/coach/select-coach-actions";
 import { parseCoachResponse } from "@/lib/coach/coach-response-schema";
 import type { CoachAction, CoachResponse, CoachRescuePlan } from "@/lib/coach/coach-action-types";
-import type { ChatMessage } from "@/lib/types";
+import type { ChatMessage, ExamEmergency } from "@/lib/types";
+import { buildExamEmergencyFromIntake } from "@/lib/exam/build-exam-emergency";
+import { detectExamIntent } from "@/lib/exam/detect-exam-intent";
+import { examEmergencySchema } from "@/lib/state/schema";
+import { ExamEmergencyCard } from "@/components/chat/ExamEmergencyCard";
 import { CoachMessage } from "./CoachMessage";
 import { CoachActionChip } from "./CoachActionChip";
 import { Mote } from "@/components/app/Mote";
@@ -23,6 +27,7 @@ interface RichMessage {
   content: string;
   created_at: string;
   response?: CoachResponse;
+  examEmergency?: ExamEmergency;
 }
 
 const DONE_FEEDBACK_OPTIONS = [
@@ -160,12 +165,106 @@ export function CoachPanel({ surface = "coach", compact = false }: Props) {
         (data as any).reply ?? "",
       );
 
+      let examEmergency: ExamEmergency | undefined;
+
+      if (parsed.exam_intake) {
+        if (parsed.exam_intake.action === "ready_to_build") {
+          examEmergency = buildExamEmergencyFromIntake(parsed.exam_intake);
+          dispatch({ type: "exam/create", payload: examEmergency });
+        } else {
+          const existing = (state.exam_emergencies as ExamEmergency[] | undefined)?.find(
+            (e) => e.status === "intake",
+          );
+          const intake = parsed.exam_intake;
+          if (existing) {
+            const changes: Partial<ExamEmergency> = { updated_at: new Date().toISOString() };
+            if (intake.subject) changes.subject = intake.subject;
+            if (intake.exam_date_time) changes.exam_date_time = intake.exam_date_time;
+            if (intake.preparedness_score !== undefined) changes.preparedness_score = intake.preparedness_score;
+            if (intake.target_outcome) changes.target_outcome = intake.target_outcome;
+            if (intake.topics?.length) {
+              const newTopics = intake.topics.map((t) => ({
+                id: crypto.randomUUID(),
+                name: t.name,
+                confidence: (t.confidence ?? 3) as 1 | 2 | 3 | 4 | 5,
+                mark_value: t.mark_value,
+                likelihood: t.likelihood,
+                time_cost: t.time_cost,
+                quick_win_potential: t.quick_win_potential,
+                priority: "medium" as const,
+              }));
+              changes.topics = [
+                ...existing.topics,
+                ...newTopics.filter(
+                  (nt) => !existing.topics.some((et) => et.name.toLowerCase() === nt.name.toLowerCase()),
+                ),
+              ];
+            }
+            if (intake.available_study_windows?.length) {
+              changes.available_study_windows = intake.available_study_windows;
+            }
+            dispatch({ type: "exam/update", payload: { id: existing.id, changes } });
+          } else {
+            const now = new Date().toISOString();
+            const partial = examEmergencySchema.parse({
+              id: crypto.randomUUID(),
+              subject: intake.subject ?? "Unknown",
+              exam_date_time: intake.exam_date_time ?? new Date(Date.now() + 86_400_000).toISOString(),
+              status: "intake",
+              intake_status: intake.subject
+                ? intake.exam_date_time
+                  ? "needs_topics"
+                  : "needs_exam_time"
+                : "needs_subject",
+              preparedness_score: intake.preparedness_score,
+              target_outcome: intake.target_outcome,
+              topics: (intake.topics ?? []).map((t) => ({
+                id: crypto.randomUUID(),
+                name: t.name,
+                confidence: t.confidence ?? 3,
+                mark_value: t.mark_value,
+                likelihood: t.likelihood,
+                time_cost: t.time_cost,
+                quick_win_potential: t.quick_win_potential,
+                priority: "medium",
+              })),
+              available_study_windows: intake.available_study_windows ?? [],
+              feedback: [],
+              created_at: now,
+              updated_at: now,
+            });
+            dispatch({ type: "exam/create", payload: partial });
+          }
+        }
+      } else if (parsed.exam_plan) {
+        const result = examEmergencySchema.safeParse((parsed.exam_plan as any).emergency);
+        if (result.success) {
+          examEmergency = result.data;
+          dispatch({ type: "exam/create", payload: examEmergency });
+        }
+      } else {
+        const intent = detectExamIntent(trimmed);
+        if (intent.detected && intent.subject && intent.urgencyLevel !== "low") {
+          const existing = (state.exam_emergencies as ExamEmergency[] | undefined)?.find(
+            (e) => e.status === "intake" || e.status === "active",
+          );
+          if (!existing) {
+            examEmergency = buildExamEmergencyFromIntake({
+              action: "start",
+              subject: intent.subject,
+            });
+            dispatch({ type: "exam/create", payload: examEmergency });
+          }
+        }
+      }
+
       const assistantMsg: RichMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
         content: parsed.reply || "…",
         created_at: new Date().toISOString(),
         response: parsed,
+        examEmergency,
       };
 
       setMessages((m) => [...m, assistantMsg]);
@@ -202,6 +301,20 @@ export function CoachPanel({ surface = "coach", compact = false }: Props) {
     };
     const text = prompts[action.type] ?? action.label;
     void send(text);
+  };
+
+  const handleExamBlockFeedback = (emergencyId: string, blockId: string, result: import("@/lib/types/exam-emergency").ExamBlockFeedbackResult) => {
+    dispatch({
+      type: "exam/add_feedback",
+      payload: {
+        emergencyId,
+        feedback: { block_id: blockId, result, created_at: new Date().toISOString() },
+      },
+    } as any);
+  };
+
+  const handleExamStartBlock = (emergencyId: string, blockId: string) => {
+    dispatch({ type: "exam/set_active_block", payload: { emergencyId, blockId } } as any);
   };
 
   const handleAfterAction = (action: CoachAction) => {
@@ -312,6 +425,17 @@ export function CoachPanel({ surface = "coach", compact = false }: Props) {
                     />
                     {m.response.rescue_plan && (
                       <RescuePlanCard plan={m.response.rescue_plan} />
+                    )}
+                    {m.examEmergency && (
+                      <ExamEmergencyCard
+                        emergency={m.examEmergency}
+                        onBlockFeedback={(blockId, result) =>
+                          handleExamBlockFeedback(m.examEmergency!.id, blockId, result)
+                        }
+                        onStartBlock={(blockId) =>
+                          handleExamStartBlock(m.examEmergency!.id, blockId)
+                        }
+                      />
                     )}
                   </>
                 ) : (

@@ -268,6 +268,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
         } as ForgeState,
         pursuit_model: "pursuit_model" in saved ? saved.pursuit_model : null,
         rescue_signals: (saved as any).rescue_signals ?? [],
+        exam_emergencies: (saved as any).exam_emergencies ?? [],
         chat_preferences: (saved as any).chat_preferences ?? { tone: "default" },
         chat_state: (saved as any).chat_state ?? {
           post_onboarding_specialisation_required: false,
@@ -1090,6 +1091,69 @@ export const useStateStore = create<StateStore>((set, get) => ({
 
       case "rescue/log": {
         next = { ...s, rescue_signals: [...(s.rescue_signals ?? []), action.payload] };
+        break;
+      }
+
+      case "exam/create": {
+        const exams = (s as any).exam_emergencies ?? [];
+        next = { ...s, exam_emergencies: [...exams, action.payload] };
+        break;
+      }
+
+      case "exam/update": {
+        const { id: eid, changes } = action.payload;
+        next = {
+          ...s,
+          exam_emergencies: ((s as any).exam_emergencies ?? []).map((e: any) =>
+            e.id === eid ? { ...e, ...changes, updated_at: now() } : e,
+          ),
+        };
+        break;
+      }
+
+      case "exam/add_feedback": {
+        next = {
+          ...s,
+          exam_emergencies: ((s as any).exam_emergencies ?? []).map((e: any) =>
+            e.id === action.payload.emergencyId
+              ? { ...e, feedback: [...(e.feedback ?? []), action.payload.feedback], updated_at: now() }
+              : e,
+          ),
+        };
+        break;
+      }
+
+      case "exam/set_active_block": {
+        next = {
+          ...s,
+          exam_emergencies: ((s as any).exam_emergencies ?? []).map((e: any) =>
+            e.id === action.payload.emergencyId
+              ? { ...e, active_block_id: action.payload.blockId, updated_at: now() }
+              : e,
+          ),
+        };
+        break;
+      }
+
+      case "exam/complete": {
+        next = {
+          ...s,
+          exam_emergencies: ((s as any).exam_emergencies ?? []).map((e: any) =>
+            e.id === action.payload.id
+              ? { ...e, status: "completed", updated_at: now() }
+              : e,
+          ),
+        };
+        break;
+      }
+
+      case "exam/delete": {
+        next = {
+          ...s,
+          exam_emergencies: ((s as any).exam_emergencies ?? []).filter(
+            (e: any) => e.id !== action.payload.id,
+          ),
+        };
         break;
       }
 

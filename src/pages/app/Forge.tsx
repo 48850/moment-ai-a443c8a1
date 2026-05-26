@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { buildContextPacket } from "@/lib/ai/context-packet";
 import { buildContextualForgeSuggestions } from "@/components/app/HeartbeatBanner";
+import { ExamToolBuilder } from "@/components/forge/ExamToolBuilder";
 import { buildContextSnapshot } from "@/lib/coach/context-snapshot";
 import {
   Hammer, Sparkles, Loader2, Plus, Archive, Pencil, Play,
@@ -828,6 +829,17 @@ const Forge = () => {
         </p>
       </div>
 
+
+      {/* Exam study tool builder — shown when active exam emergency exists */}
+      {!building && (
+        <ExamToolBuilder
+          onBuildTool={(type, hint) => {
+            setPreselectedType(type);
+            setPrefilledDescription(hint);
+            setBuilding(true);
+          }}
+        />
+      )}
 
       {/* Contextual suggestions — based on user's current situation */}
       {!building && contextualSuggestions.length > 0 && (

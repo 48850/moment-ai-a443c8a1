@@ -3,6 +3,8 @@
  * The edge function returns raw JSON; this guards against bad shapes.
  */
 import type { CoachAction, CoachResponse, CoachRescuePlan, ExecutionState, CoachMode } from "./coach-action-types";
+import type { ExamIntakePayload, ExamPlanFromCoach } from "@/lib/types/exam-emergency";
+import { examEmergencySchema } from "@/lib/state/schema";
 
 const VALID_MODES: CoachMode[] = [
   "next_move",
@@ -44,6 +46,9 @@ const VALID_ACTION_TYPES = new Set([
   "rescue.trigger",
   "path.show_proof",
   "explain.why_this_matters",
+  "exam.start_intake",
+  "exam.mark_block_done",
+  "exam.add_feedback",
 ]);
 
 function asString(v: unknown, fallback = ""): string {
@@ -113,6 +118,62 @@ export function parseCoachResponse(raw: unknown, fallbackReply = ""): CoachRespo
     };
   }
 
+  // Parse exam_intake (primary path — AI returns collected fields)
+  const rawIntake = obj.exam_intake as Record<string, unknown> | null | undefined;
+  let exam_intake: ExamIntakePayload | null = null;
+  if (rawIntake && typeof rawIntake === "object" && typeof rawIntake.action === "string") {
+    const validActions = ["start", "update", "ready_to_build"];
+    exam_intake = {
+      action: validActions.includes(rawIntake.action as string)
+        ? (rawIntake.action as ExamIntakePayload["action"])
+        : "start",
+      subject: typeof rawIntake.subject === "string" ? rawIntake.subject : undefined,
+      exam_date_time: typeof rawIntake.exam_date_time === "string" ? rawIntake.exam_date_time : undefined,
+      preparedness_score: typeof rawIntake.preparedness_score === "number" ? rawIntake.preparedness_score : undefined,
+      target_outcome: (["survive", "solid", "high_score"].includes(String(rawIntake.target_outcome))
+        ? rawIntake.target_outcome
+        : undefined) as ExamIntakePayload["target_outcome"],
+      topics: Array.isArray(rawIntake.topics)
+        ? (rawIntake.topics as unknown[]).filter((t): t is Record<string, unknown> =>
+            Boolean(t) && typeof t === "object" && typeof (t as Record<string, unknown>).name === "string",
+          ).map((t) => ({
+            name: t.name as string,
+            confidence: typeof t.confidence === "number" ? t.confidence as 1|2|3|4|5 : undefined,
+            mark_value: typeof t.mark_value === "number" ? t.mark_value as 1|2|3|4|5 : undefined,
+            likelihood: typeof t.likelihood === "number" ? t.likelihood as 1|2|3|4|5 : undefined,
+            time_cost: typeof t.time_cost === "number" ? t.time_cost as 1|2|3|4|5 : undefined,
+            quick_win_potential: typeof t.quick_win_potential === "number" ? t.quick_win_potential as 1|2|3|4|5 : undefined,
+          }))
+        : undefined,
+      available_study_windows: Array.isArray(rawIntake.available_study_windows)
+        ? (rawIntake.available_study_windows as unknown[]).filter((w): w is Record<string, unknown> => Boolean(w) && typeof w === "object").map((w) => ({
+            start_time: asString(w.start_time, "18:00"),
+            end_time: asString(w.end_time, "22:00"),
+            day_label: asString(w.day_label, "Today"),
+            available_minutes: asNumber(w.available_minutes, 120),
+          }))
+        : undefined,
+      missing_fields: Array.isArray(rawIntake.missing_fields)
+        ? (rawIntake.missing_fields as unknown[]).filter((s): s is string => typeof s === "string")
+        : undefined,
+    };
+  }
+
+  // Parse exam_plan (optional AI shortcut — validated defensively)
+  const rawExamPlan = obj.exam_plan as Record<string, unknown> | null | undefined;
+  let exam_plan: ExamPlanFromCoach | null = null;
+  if (rawExamPlan && typeof rawExamPlan === "object" && rawExamPlan.emergency) {
+    const parsed = examEmergencySchema.safeParse(rawExamPlan.emergency);
+    if (parsed.success) {
+      exam_plan = {
+        action: (["create", "update", "complete"].includes(String(rawExamPlan.action))
+          ? rawExamPlan.action
+          : "create") as ExamPlanFromCoach["action"],
+        emergency: parsed.data,
+      };
+    }
+  }
+
   return {
     mode,
     reply: asString(obj.reply, fallbackReply),
@@ -129,5 +190,7 @@ export function parseCoachResponse(raw: unknown, fallbackReply = ""): CoachRespo
         ? obj.follow_up_question.trim()
         : null,
     rescue_plan,
+    exam_intake,
+    exam_plan,
   };
 }

@@ -170,9 +170,48 @@ export function executeCoachAction(action: CoachAction): { ok: boolean; message:
 
     case "forge.create_artifact":
     case "path.show_proof":
-    case "explain.why_this_matters": {
-      // Pure conversational actions — handled by sending a follow-up to Coach.
+    case "explain.why_this_matters":
+    case "exam.start_intake": {
       return { ok: true, message: "" };
+    }
+
+    case "exam.mark_block_done": {
+      const blockId = action.payload?.block_id as string | undefined;
+      if (!blockId) return { ok: false, message: "No block specified." };
+      const emergencies = (state as any).exam_emergencies ?? [];
+      const activeEmergency = emergencies.find(
+        (e: any) => e.status === "active" || e.status === "intake",
+      );
+      if (!activeEmergency) return { ok: false, message: "No active exam emergency." };
+      dispatch({
+        type: "exam/add_feedback",
+        payload: {
+          emergencyId: activeEmergency.id,
+          feedback: {
+            block_id: blockId,
+            result: "completed",
+            created_at: new Date().toISOString(),
+          },
+        },
+      } as any);
+      return { ok: true, message: "Block marked done" };
+    }
+
+    case "exam.add_feedback": {
+      const { emergencyId, blockId, result } = (action.payload ?? {}) as Record<string, string>;
+      if (!emergencyId || !blockId) return { ok: false, message: "Missing exam feedback payload." };
+      dispatch({
+        type: "exam/add_feedback",
+        payload: {
+          emergencyId,
+          feedback: {
+            block_id: blockId,
+            result: result as any,
+            created_at: new Date().toISOString(),
+          },
+        },
+      } as any);
+      return { ok: true, message: "Feedback recorded" };
     }
 
     default:
