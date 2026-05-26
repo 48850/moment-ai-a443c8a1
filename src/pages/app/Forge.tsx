@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { buildContextPacket } from "@/lib/ai/context-packet";
-import { buildContextualForgeSuggestions } from "@/components/app/HeartbeatBanner";
+import { buildContextualForgeSuggestions, HeartbeatBanner } from "@/components/app/HeartbeatBanner";
 import { ExamToolBuilder } from "@/components/forge/ExamToolBuilder";
 import { buildContextSnapshot } from "@/lib/coach/context-snapshot";
 import {
@@ -830,6 +830,9 @@ const Forge = () => {
       </div>
 
 
+      {/* Heartbeat — shared context pulse */}
+      <HeartbeatBanner />
+
       {/* Exam study tool builder — shown when active exam emergency exists */}
       {!building && (
         <ExamToolBuilder
@@ -844,16 +847,7 @@ const Forge = () => {
       {/* Contextual suggestions — based on user's current situation */}
       {!building && contextualSuggestions.length > 0 && (
         <section>
-          <div className="mb-3 flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${
-                contextSnap.inferred_situation === "overwhelmed" || contextSnap.is_rescue_situation
-                  ? "bg-red-500"
-                  : contextSnap.inferred_situation === "drifting"
-                  ? "bg-amber-500"
-                  : "bg-primary"
-              }`}
-            />
+          <div className="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
             for your situation right now
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -861,12 +855,12 @@ const Forge = () => {
               <div
                 key={s.title}
                 className={`rounded-xl border bg-card p-4 flex flex-col gap-2 ${
-                  s.urgency === "high" ? "border-amber-500/30" : "border-border"
+                  s.urgency === "high" ? "border-amber-500/40" : "border-border"
                 }`}
               >
                 {s.urgency === "high" && (
-                  <div className="flex items-center gap-1 text-[10px] font-medium text-amber-400">
-                    <AlertCircle className="h-3 w-3" /> urgent
+                  <div className="inline-flex w-fit items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-400">
+                    urgent
                   </div>
                 )}
                 <div className="text-sm font-medium text-foreground">{s.title}</div>

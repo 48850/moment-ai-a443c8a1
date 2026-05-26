@@ -56,127 +56,108 @@ const PRESSURE_COLOR: Record<string, string> = {
   critical: "text-red-500",
 };
 
+type Snap = ReturnType<typeof buildContextSnapshot>;
+
 export function HeartbeatBanner({ variant = "compact" }: Props) {
   const state = useStateStore((s) => s.state);
   const snap = useMemo(() => buildContextSnapshot(state, ""), [state]);
-
   if (!state) return null;
-
-  if (variant === "full") {
-    return <FullHeartbeat snap={snap} />;
-  }
-
+  if (variant === "full") return <FullHeartbeat snap={snap} />;
   return <CompactHeartbeat snap={snap} />;
 }
 
-function CompactHeartbeat({ snap }: { snap: ReturnType<typeof buildContextSnapshot> }) {
+function CompactHeartbeat({ snap }: { snap: Snap }) {
   const hasRescue = snap.is_rescue_situation;
   const hasPressure = snap.plan_pressure !== "low";
 
   return (
-    <div className="rounded-xl border border-border bg-card px-3.5 py-2.5">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+    <div className="rounded-2xl border border-border bg-card/60 p-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
         {/* Situation */}
-        <div className="flex items-center gap-1.5 text-[11px]">
-          <span
-            className={`h-1.5 w-1.5 rounded-full ${SITUATION_DOT[snap.inferred_situation]}`}
-          />
-          <span className={`font-medium uppercase tracking-[0.12em] ${SITUATION_COLOR[snap.inferred_situation]}`}>
+        <div className="flex items-center gap-2">
+          <span className={`h-2 w-2 rounded-full ${SITUATION_DOT[snap.inferred_situation]}`} />
+          <span className={`font-medium ${SITUATION_COLOR[snap.inferred_situation]}`}>
             {SITUATION_LABEL[snap.inferred_situation]}
           </span>
         </div>
 
         {/* Rescue alert */}
         {hasRescue && (
-          <div className="flex items-center gap-1 text-[11px] text-amber-400">
-            <AlertTriangle className="h-3 w-3" />
-            <span>rescue needed</span>
-            <Link to="/app/chat" className="ml-1 text-primary underline-offset-2 hover:underline">
-              Open Chat →
-            </Link>
+          <div className="flex items-center gap-1.5 text-red-400">
+            <Flame className="h-3.5 w-3.5" />
+            <span className="font-medium">rescue needed</span>
+            <Link to="/app/chat" className="ml-1 underline">Open Chat →</Link>
           </div>
         )}
 
         {/* Exam countdown */}
         {snap.active_exam_emergency && (
-          <div className="flex items-center gap-1 text-[11px] text-amber-400">
-            <AlertTriangle className="h-3 w-3" />
+          <div className="flex items-center gap-1.5 text-amber-400">
+            <AlertTriangle className="h-3.5 w-3.5" />
             <span>
               {snap.active_exam_emergency.subject} exam ·{" "}
               {snap.active_exam_emergency.hoursUntilExam < 1
                 ? "< 1h"
                 : `${Math.round(snap.active_exam_emergency.hoursUntilExam)}h`}
             </span>
-            <Link to="/app/plan" className="ml-1 text-primary underline-offset-2 hover:underline">
-              Study plan →
-            </Link>
+            <Link to="/app/plan" className="ml-1 underline">Study plan →</Link>
           </div>
         )}
 
         {/* Next task */}
         {snap.next_best_task && !hasRescue && (
-          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-            <span className="text-foreground/60">next ·</span>
-            <span className="font-medium text-foreground">{snap.next_best_task.title}</span>
-            <span className="text-muted-foreground/60">~{snap.next_best_task.minutes}m</span>
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <span>next ·</span>
+            <span className="text-foreground">{snap.next_best_task.title}</span>
+            <span className="text-muted-foreground/70">~{snap.next_best_task.minutes}m</span>
           </div>
         )}
 
         {/* Overdue warning */}
         {snap.overdue_task_count > 0 && (
-          <div className="flex items-center gap-1 text-[11px] text-amber-400">
-            <Clock className="h-3 w-3" />
+          <div className="flex items-center gap-1.5 text-amber-400">
+            <AlertTriangle className="h-3.5 w-3.5" />
             <span>{snap.overdue_task_count} overdue</span>
           </div>
         )}
 
         {/* Pressure */}
         {hasPressure && (
-          <div className={`text-[11px] font-medium ${PRESSURE_COLOR[snap.plan_pressure]}`}>
+          <span className={PRESSURE_COLOR[snap.plan_pressure]}>
             {PRESSURE_LABEL[snap.plan_pressure]}
-          </div>
+          </span>
         )}
       </div>
 
-      {/* Friction notice (shown when overwhelmed with friction patterns) */}
+      {/* Friction notice */}
       {snap.inferred_situation === "overwhelmed" && snap.active_friction.length > 0 && (
-        <p className="mt-1.5 text-[11px] text-muted-foreground">
+        <div className="mt-2 text-[11px] text-muted-foreground">
           Recurring pattern:{" "}
           <span className="text-foreground">
             {snap.active_friction.slice(0, 2).map((f) => f.description).join(", ")}
           </span>
-          . Chat can help you work through it.
-        </p>
+          . <Link to="/app/chat" className="underline">Chat can help you work through it.</Link>
+        </div>
       )}
     </div>
   );
 }
 
-function FullHeartbeat({ snap }: { snap: ReturnType<typeof buildContextSnapshot> }) {
-  const today = new Date();
-  const today10 = today.toISOString().slice(0, 10);
-
-  const completedToday = snap.todays_tasks
-    .filter((t) => (t as unknown as { status?: string }).status === "done")
-    .length;
-
+function FullHeartbeat({ snap }: { snap: Snap }) {
   const pendingCount = snap.todays_tasks.length;
-
   const hasBlocking =
     snap.active_friction.length > 0 ||
     snap.overdue_task_count > 0 ||
-    snap.current_bottleneck;
+    Boolean(snap.current_bottleneck);
 
   return (
     <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-          <span
-            className={`h-1.5 w-1.5 rounded-full ${SITUATION_DOT[snap.inferred_situation]}`}
-          />
+      <div className="flex items-center justify-between">
+        <div className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
           why today matters · {snap.current_day}
         </div>
-        <div className={`text-[11px] font-medium ${SITUATION_COLOR[snap.inferred_situation]}`}>
+        <div className={`flex items-center gap-1.5 text-xs ${SITUATION_COLOR[snap.inferred_situation]}`}>
+          <span className={`h-2 w-2 rounded-full ${SITUATION_DOT[snap.inferred_situation]}`} />
           {SITUATION_LABEL[snap.inferred_situation]}
         </div>
       </div>
@@ -184,46 +165,44 @@ function FullHeartbeat({ snap }: { snap: ReturnType<typeof buildContextSnapshot>
       {/* Decisive move */}
       {snap.decisive_move ? (
         <div>
-          <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground mb-1">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-primary mb-1">
             today's decisive move
-          </p>
-          <p className="text-base font-semibold text-foreground">{snap.decisive_move}</p>
-          {snap.next_best_task && snap.next_best_task.why_now && (
-            <p className="mt-1 text-sm text-muted-foreground">{snap.next_best_task.why_now}</p>
+          </div>
+          <p className="text-sm font-medium text-foreground leading-snug">{snap.decisive_move}</p>
+          {snap.next_best_task?.why_now && (
+            <p className="mt-1 text-xs text-muted-foreground">{snap.next_best_task.why_now}</p>
           )}
         </div>
       ) : snap.next_best_task ? (
         <div>
-          <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground mb-1">
-            next move
-          </p>
-          <div className="flex items-center gap-2">
-            <span className="text-base font-semibold text-foreground">{snap.next_best_task.title}</span>
-            <span className="text-sm text-muted-foreground">~{snap.next_best_task.minutes}m</span>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-primary mb-1">next move</div>
+          <div className="flex items-baseline gap-2">
+            <p className="text-sm font-medium text-foreground">{snap.next_best_task.title}</p>
+            <span className="text-xs text-muted-foreground">~{snap.next_best_task.minutes}m</span>
           </div>
           {snap.next_best_task.why_now && (
-            <p className="mt-1 text-sm text-muted-foreground">{snap.next_best_task.why_now}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{snap.next_best_task.why_now}</p>
           )}
         </div>
       ) : null}
 
       {/* Stats row */}
-      <div className="flex flex-wrap gap-4 text-sm">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
         {pendingCount > 0 && (
           <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Clock className="h-3.5 w-3.5 shrink-0" />
+            <CheckCircle2 className="h-3.5 w-3.5" />
             <span>{pendingCount} task{pendingCount !== 1 ? "s" : ""} today</span>
           </div>
         )}
         {snap.overdue_task_count > 0 && (
           <div className="flex items-center gap-1.5 text-amber-400">
-            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+            <AlertTriangle className="h-3.5 w-3.5" />
             <span>{snap.overdue_task_count} overdue</span>
           </div>
         )}
         {snap.plan_pressure !== "low" && (
           <div className={`flex items-center gap-1.5 ${PRESSURE_COLOR[snap.plan_pressure]}`}>
-            <Flame className="h-3.5 w-3.5 shrink-0" />
+            <Clock className="h-3.5 w-3.5" />
             <span>{PRESSURE_LABEL[snap.plan_pressure]}</span>
           </div>
         )}
@@ -231,21 +210,21 @@ function FullHeartbeat({ snap }: { snap: ReturnType<typeof buildContextSnapshot>
 
       {/* Blocking */}
       {hasBlocking && (
-        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 space-y-1">
-          <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-amber-400/80">
+        <div className="rounded-xl border border-border/60 bg-background/40 p-3">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-amber-400 mb-1">
             what is blocking progress
-          </p>
+          </div>
           {snap.current_bottleneck && (
-            <p className="text-sm text-foreground">{snap.current_bottleneck}</p>
+            <p className="text-xs text-foreground">{snap.current_bottleneck}</p>
           )}
           {snap.active_friction.length > 0 && (
-            <p className="text-sm text-muted-foreground">
+            <p className="mt-1 text-xs text-muted-foreground">
               Friction pattern:{" "}
               {snap.active_friction.slice(0, 2).map((f) => f.description).join(", ")}.
             </p>
           )}
           {snap.overdue_task_count > 0 && !snap.current_bottleneck && (
-            <p className="text-sm text-foreground">
+            <p className="mt-1 text-xs text-muted-foreground">
               {snap.overdue_task_count} overdue task{snap.overdue_task_count !== 1 ? "s" : ""} need attention.
             </p>
           )}
@@ -254,14 +233,14 @@ function FullHeartbeat({ snap }: { snap: ReturnType<typeof buildContextSnapshot>
 
       {/* Rescue alert */}
       {snap.is_rescue_situation && (
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-red-500/25 bg-red-500/5 px-3 py-2.5">
-          <div className="flex items-center gap-2 text-sm text-red-300">
-            <AlertTriangle className="h-4 w-4 shrink-0" />
-            <span>Urgent deadline detected.</span>
+        <div className="flex items-center justify-between rounded-xl border border-red-500/40 bg-red-500/5 p-3">
+          <div className="flex items-center gap-2 text-sm text-red-400">
+            <Flame className="h-4 w-4" />
+            <span className="font-medium">Urgent deadline detected.</span>
           </div>
           <Link
             to="/app/chat"
-            className="flex items-center gap-1 rounded-md bg-red-500/15 px-2.5 py-1 text-xs font-medium text-red-300 hover:bg-red-500/25"
+            className="inline-flex items-center gap-1 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/20"
           >
             Get rescue plan <ArrowRight className="h-3 w-3" />
           </Link>
@@ -272,9 +251,9 @@ function FullHeartbeat({ snap }: { snap: ReturnType<typeof buildContextSnapshot>
       {(snap.plan_needs_repair || snap.overdue_task_count > 0) && !snap.is_rescue_situation && (
         <Link
           to="/app/plan"
-          className="inline-flex items-center gap-1.5 text-[11px] text-primary hover:underline"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
         >
-          <TrendingUp className="h-3 w-3" /> Review today's plan
+          <TrendingUp className="h-3.5 w-3.5" /> Review today's plan
         </Link>
       )}
     </section>
@@ -283,8 +262,7 @@ function FullHeartbeat({ snap }: { snap: ReturnType<typeof buildContextSnapshot>
 
 /**
  * Contextual tool suggestions for Forge — powered by ContextSnapshot.
- * Shows 1-3 tool ideas based on the user's current situation, not their
- * overall goal (that's handled by detectSystemGap already).
+ * Shows 1-3 tool ideas based on the user's current situation.
  */
 export interface ContextualSuggestion {
   title: string;
@@ -295,23 +273,21 @@ export interface ContextualSuggestion {
 }
 
 export function buildContextualForgeSuggestions(
-  snap: ReturnType<typeof buildContextSnapshot>,
+  snap: Snap,
   existingActiveTypes: Set<string>,
 ): ContextualSuggestion[] {
   const suggestions: ContextualSuggestion[] = [];
 
-  // Rescue situation → essay rescue planner
   if (snap.is_rescue_situation && !existingActiveTypes.has("control_room")) {
     suggestions.push({
       title: "Deadline Rescue Board",
-      why: `You have an urgent deadline. This tool turns panic into a timed step-by-step plan.`,
+      why: "You have an urgent deadline. This tool turns panic into a timed step-by-step plan.",
       feature_type: "control_room",
       description_hint: "Help me rescue an assignment with an urgent deadline — create a timed step plan",
       urgency: "high",
     });
   }
 
-  // Overwhelmed or high schedule pressure → triage tool
   if (
     (snap.inferred_situation === "overwhelmed" || ["high", "critical"].includes(snap.plan_pressure)) &&
     !existingActiveTypes.has("planner")
@@ -325,7 +301,6 @@ export function buildContextualForgeSuggestions(
     });
   }
 
-  // Drifting → reconnect tool
   if (snap.inferred_situation === "drifting" && !existingActiveTypes.has("coach_lens")) {
     suggestions.push({
       title: "Goal Reconnect Session",
@@ -349,7 +324,6 @@ export function buildContextualForgeSuggestions(
     });
   }
 
-  // Repeated "too_big" friction → task breakdown tool
   const tooBig = snap.active_friction.find((f) => f.tag === "too_big" && f.count >= 2);
   if (tooBig && !existingActiveTypes.has("protocol")) {
     suggestions.push({
@@ -361,7 +335,6 @@ export function buildContextualForgeSuggestions(
     });
   }
 
-  // Recovering + next_best_task → momentum builder
   if (
     snap.inferred_situation === "recovering" &&
     snap.next_best_task &&

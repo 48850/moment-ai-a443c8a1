@@ -739,6 +739,7 @@ const Mission = () => {
         dispatch={dispatch}
       />
 
+
       {/* ── 2. NEXT PROOF (dominant card) ────────────────────────────────────── */}
       <NextProofCard
         proof={nextProof}
