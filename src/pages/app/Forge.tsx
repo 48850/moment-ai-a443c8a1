@@ -829,7 +829,6 @@ const Forge = () => {
       </div>
 
 
-      </div>
 
       {/* Heartbeat — shared context pulse */}
       <HeartbeatBanner />
