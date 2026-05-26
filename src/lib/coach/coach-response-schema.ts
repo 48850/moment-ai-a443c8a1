@@ -2,7 +2,7 @@
  * Runtime validation + safe-parse for CoachResponse.
  * The edge function returns raw JSON; this guards against bad shapes.
  */
-import type { CoachAction, CoachResponse, ExecutionState, CoachMode } from "./coach-action-types";
+import type { CoachAction, CoachResponse, CoachRescuePlan, ExecutionState, CoachMode } from "./coach-action-types";
 
 const VALID_MODES: CoachMode[] = [
   "next_move",
@@ -98,6 +98,21 @@ export function parseCoachResponse(raw: unknown, fallbackReply = ""): CoachRespo
       }
     : undefined;
 
+  const rawRescue = obj.rescue_plan as Record<string, unknown> | null | undefined;
+  let rescue_plan: CoachRescuePlan | null = null;
+  if (rawRescue && typeof rawRescue === "object" && typeof rawRescue.task_title === "string") {
+    rescue_plan = {
+      task_title: asString(rawRescue.task_title),
+      due_description: asString(rawRescue.due_description),
+      first_move: asString(rawRescue.first_move),
+      steps: Array.isArray(rawRescue.steps)
+        ? rawRescue.steps.filter((s): s is string => typeof s === "string").slice(0, 6)
+        : [],
+      estimated_total_minutes: asNumber(rawRescue.estimated_total_minutes, 60),
+      panic_reduction: asString(rawRescue.panic_reduction),
+    };
+  }
+
   return {
     mode,
     reply: asString(obj.reply, fallbackReply),
@@ -113,5 +128,6 @@ export function parseCoachResponse(raw: unknown, fallbackReply = ""): CoachRespo
       typeof obj.follow_up_question === "string" && obj.follow_up_question.trim()
         ? obj.follow_up_question.trim()
         : null,
+    rescue_plan,
   };
 }
