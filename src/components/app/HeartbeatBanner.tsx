@@ -90,6 +90,20 @@ function CompactHeartbeat({ snap }: { snap: Snap }) {
           </div>
         )}
 
+        {/* Exam countdown */}
+        {snap.active_exam_emergency && (
+          <div className="flex items-center gap-1.5 text-amber-400">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            <span>
+              {snap.active_exam_emergency.subject} exam ·{" "}
+              {snap.active_exam_emergency.hoursUntilExam < 1
+                ? "< 1h"
+                : `${Math.round(snap.active_exam_emergency.hoursUntilExam)}h`}
+            </span>
+            <Link to="/app/plan" className="ml-1 underline">Study plan →</Link>
+          </div>
+        )}
+
         {/* Next task */}
         {snap.next_best_task && !hasRescue && (
           <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -295,6 +309,18 @@ export function buildContextualForgeSuggestions(
       description_hint:
         "Help me reconnect with my goal after losing momentum — what should I do in the next 20 minutes?",
       urgency: "normal",
+    });
+  }
+
+  // Active exam emergency → study tools
+  const examSnap = (snap as any).active_exam_emergency;
+  if (examSnap && !existingActiveTypes.has("drill_lab")) {
+    suggestions.push({
+      title: `${examSnap.subject} Study Tools`,
+      why: `${Math.round(examSnap.hoursUntilExam)}h until your ${examSnap.subject} exam. Build a practice quiz now.`,
+      feature_type: "drill_lab",
+      description_hint: `Build a 10-question practice quiz for ${examSnap.subject} with worked answers`,
+      urgency: examSnap.hoursUntilExam < 24 ? "high" : "normal",
     });
   }
 

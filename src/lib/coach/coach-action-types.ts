@@ -20,7 +20,10 @@ export type CoachActionType =
   | "forge.create_artifact"
   | "rescue.trigger"
   | "path.show_proof"
-  | "explain.why_this_matters";
+  | "explain.why_this_matters"
+  | "exam.start_intake"
+  | "exam.mark_block_done"
+  | "exam.add_feedback";
 
 export interface CoachAction {
   type: CoachActionType;
@@ -90,4 +93,6 @@ export interface CoachResponse {
   memory_to_save?: CoachMemoryToSave;
   follow_up_question?: string | null;
   rescue_plan?: CoachRescuePlan | null;
+  exam_intake?: import("@/lib/types/exam-emergency").ExamIntakePayload | null;
+  exam_plan?: import("@/lib/types/exam-emergency").ExamPlanFromCoach | null;
 }

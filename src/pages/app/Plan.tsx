@@ -17,6 +17,7 @@ import { WeeklyGrid } from "@/components/app/WeeklyGrid";
 import { buildContextPacket } from "@/lib/ai/context-packet";
 import { QuickReviewNotes } from "@/components/app/QuickReviewNotes";
 import { HeartbeatBanner } from "@/components/app/HeartbeatBanner";
+import { ExamStudyBlocks } from "@/components/plan/ExamStudyBlocks";
 
 /* ----- pursuit tiles (kept) ----- */
 interface PursuitTile {
@@ -626,6 +627,9 @@ const Plan = () => {
       )}
 
       <PatternBanner />
+
+      {/* Exam emergency study blocks — shown when active exam emergency exists */}
+      <ExamStudyBlocks />
 
       {/* Heartbeat — shared context pulse */}
       <HeartbeatBanner />

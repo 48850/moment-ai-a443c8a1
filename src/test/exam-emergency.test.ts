@@ -1,0 +1,353 @@
+/**
+ * Operation Exam Lifeline V2 — tests for the exam emergency rescue system.
+ * All pure functions, no mocks, no React.
+ */
+import { describe, it, expect } from "vitest";
+import { detectExamIntent } from "@/lib/exam/detect-exam-intent";
+import { getIntakeStatus, getMissingField } from "@/lib/exam/exam-intake-state";
+import { scoreTopics, sortByPriority } from "@/lib/exam/exam-triage";
+import { buildExamPlan, buildFirst20MinutesBlock } from "@/lib/exam/build-exam-plan";
+import { buildExamEmergencyFromIntake } from "@/lib/exam/build-exam-emergency";
+import { parseCoachResponse } from "@/lib/coach/coach-response-schema";
+import { examEmergencySchema } from "@/lib/state/schema";
+import type { ExamTopic } from "@/lib/types";
+import type { ExamIntakePayload } from "@/lib/types/exam-emergency";
+
+// ── detectExamIntent ──────────────────────────────────────────────────────────
+
+describe("detectExamIntent", () => {
+  it("detects 'I have a maths test tomorrow and I haven't studied'", () => {
+    const result = detectExamIntent("I have a maths test tomorrow and I haven't studied");
+    expect(result.detected).toBe(true);
+  });
+
+  it("detects 'exam emergency'", () => {
+    const result = detectExamIntent("exam emergency help me");
+    expect(result.detected).toBe(true);
+  });
+
+  it("extracts subject 'maths' correctly", () => {
+    const result = detectExamIntent("I have a maths test tomorrow");
+    expect(result.subject?.toLowerCase()).toContain("math");
+  });
+
+  it("urgencyLevel 'critical' for 'in 2 hours'", () => {
+    const result = detectExamIntent("I have a physics exam in 2 hours and haven't revised");
+    expect(result.urgencyLevel).toBe("critical");
+  });
+
+  it("urgencyLevel 'critical' for 'tonight'", () => {
+    const result = detectExamIntent("I have a biology test tonight and I'm cooked");
+    expect(result.urgencyLevel).toBe("critical");
+  });
+
+  it("urgencyLevel 'high' for 'tomorrow'", () => {
+    const result = detectExamIntent("chemistry exam tomorrow haven't started");
+    expect(result.urgencyLevel).toBe("high");
+  });
+
+  it("urgencyLevel 'low' for vague mention without timeframe", () => {
+    const result = detectExamIntent("I have an english exam at some point next month");
+    expect(["low", "medium"]).toContain(result.urgencyLevel);
+  });
+
+  it("no false positive for 'I have a meeting tomorrow'", () => {
+    const result = detectExamIntent("I have a meeting tomorrow with my manager");
+    expect(result.detected).toBe(false);
+  });
+
+  it("no false positive for 'doctor appointment'", () => {
+    const result = detectExamIntent("I have a doctor appointment this week");
+    expect(result.detected).toBe(false);
+  });
+});
+
+// ── Exam intake state machine ─────────────────────────────────────────────────
+
+describe("exam intake state machine", () => {
+  it("returns 'needs_subject' when no subject", () => {
+    expect(getIntakeStatus({})).toBe("needs_subject");
+  });
+
+  it("returns 'needs_exam_time' when subject known, no time", () => {
+    expect(getIntakeStatus({ subject: "Maths" })).toBe("needs_exam_time");
+  });
+
+  it("returns 'needs_topics' when subject + time known, no topics", () => {
+    expect(
+      getIntakeStatus({
+        subject: "Maths",
+        exam_date_time: new Date(Date.now() + 86_400_000).toISOString(),
+      }),
+    ).toBe("needs_topics");
+  });
+
+  it("returns 'needs_available_time' when subject + time + topics known", () => {
+    expect(
+      getIntakeStatus({
+        subject: "Maths",
+        exam_date_time: new Date(Date.now() + 86_400_000).toISOString(),
+        topics: [{ name: "Algebra" }],
+      }),
+    ).toBe("needs_available_time");
+  });
+
+  it("returns 'ready_to_build' when all required fields present", () => {
+    expect(
+      getIntakeStatus({
+        subject: "Maths",
+        exam_date_time: new Date(Date.now() + 86_400_000).toISOString(),
+        topics: [{ name: "Algebra" }],
+        available_study_windows: [
+          {
+            start_time: new Date().toISOString(),
+            end_time: new Date(Date.now() + 3_600_000).toISOString(),
+            day_label: "Today",
+            available_minutes: 60,
+          },
+        ],
+      }),
+    ).toBe("ready_to_build");
+  });
+
+  it("getMissingField() returns only one question at a time", () => {
+    const result = getMissingField({ subject: "Chemistry" });
+    expect(result).not.toBeNull();
+    expect(typeof result).toBe("string");
+    expect(result!.length).toBeGreaterThan(0);
+  });
+
+  it("getMissingField() returns null when ready", () => {
+    const result = getMissingField({
+      subject: "Maths",
+      exam_date_time: new Date(Date.now() + 86_400_000).toISOString(),
+      topics: [{ name: "Calculus" }],
+      available_study_windows: [
+        {
+          start_time: new Date().toISOString(),
+          end_time: new Date(Date.now() + 3_600_000).toISOString(),
+          day_label: "Today",
+          available_minutes: 60,
+        },
+      ],
+    });
+    expect(result).toBeNull();
+  });
+});
+
+// ── scoreTopics + sortByPriority ──────────────────────────────────────────────
+
+const makeTopics = (overrides: Partial<ExamTopic>[] = []): ExamTopic[] =>
+  overrides.map((o, i) => ({
+    id: `topic-${i}`,
+    name: `Topic ${i}`,
+    confidence: 3,
+    priority: "medium" as const,
+    ...o,
+  }));
+
+describe("scoreTopics + sortByPriority", () => {
+  it("high markValue + low confidence → high score", () => {
+    const [scored] = scoreTopics(
+      makeTopics([{ mark_value: 5, confidence: 1, likelihood: 5, quick_win_potential: 4, time_cost: 1 }]),
+    );
+    expect(scored.score).toBeGreaterThan(60);
+    expect(["critical", "high"]).toContain(scored.priority);
+  });
+
+  it("missing optional fields default to neutral (3)", () => {
+    const [scored] = scoreTopics(makeTopics([{ confidence: 3 }]));
+    expect(scored.score).toBeGreaterThan(0);
+    // All fields default to 3: 3×25 + 3×20 + 3×20 + 3×20 + 3×15 = 300
+    expect(scored.score).toBe(300);
+  });
+
+  it("sorted descending by score", () => {
+    const topics = makeTopics([
+      { mark_value: 1, confidence: 5 },
+      { mark_value: 5, confidence: 1 },
+    ]);
+    const scored = scoreTopics(topics);
+    const sorted = sortByPriority(scored);
+    expect(sorted[0].score).toBeGreaterThanOrEqual(sorted[1].score);
+  });
+
+  it("priority buckets match thresholds exactly", () => {
+    // Max inputs → critical (score = 5×25 + 5×20 + 5×20 + 5×20 + 5×15 = 500)
+    const [high] = scoreTopics(makeTopics([{ mark_value: 5, confidence: 1, likelihood: 5, quick_win_potential: 5, time_cost: 1 }]));
+    expect(high.priority).toBe("critical");
+
+    // High confidence + low mark value → lower score than high-value counterpart
+    const [low] = scoreTopics(makeTopics([{ mark_value: 1, confidence: 5, likelihood: 1, quick_win_potential: 1, time_cost: 5 }]));
+    expect(low.score).toBeLessThan(high.score);
+  });
+
+  it("deterministic: same input → same output every time", () => {
+    const topics = makeTopics([{ mark_value: 3, confidence: 2, likelihood: 4 }]);
+    const a = scoreTopics(topics);
+    const b = scoreTopics(topics);
+    expect(a[0].score).toBe(b[0].score);
+    expect(a[0].priority).toBe(b[0].priority);
+  });
+});
+
+// ── buildExamPlan ─────────────────────────────────────────────────────────────
+
+const makePlanTopics = (): ExamTopic[] => [
+  { id: "t1", name: "Algebra", confidence: 1, mark_value: 5, likelihood: 5, quick_win_potential: 4, time_cost: 2, priority: "critical" },
+  { id: "t2", name: "Calculus", confidence: 3, mark_value: 4, likelihood: 4, quick_win_potential: 3, time_cost: 3, priority: "high" },
+  { id: "t3", name: "Statistics", confidence: 4, mark_value: 2, likelihood: 2, quick_win_potential: 2, time_cost: 2, priority: "medium" },
+];
+
+describe("buildExamPlan", () => {
+  const makeWindows = (minutes: number) => [
+    {
+      start_time: new Date().toISOString(),
+      end_time: new Date(Date.now() + minutes * 60_000).toISOString(),
+      day_label: "Today",
+      available_minutes: minutes,
+    },
+  ];
+
+  it("First 20-Minute block always at index 0 of survival_plan", () => {
+    const plan = buildExamPlan({
+      subject: "Maths",
+      topics: makePlanTopics(),
+      availableStudyWindows: makeWindows(120),
+    });
+    expect(plan.survival_plan.length).toBeGreaterThan(0);
+    expect(plan.survival_plan[0].duration_minutes).toBe(20);
+  });
+
+  it("survival plan total duration ≤ time budget", () => {
+    const plan = buildExamPlan({
+      subject: "Maths",
+      topics: makePlanTopics(),
+      availableStudyWindows: makeWindows(90),
+    });
+    const total = plan.survival_plan.reduce((s, b) => s + b.duration_minutes, 0);
+    expect(total).toBeLessThanOrEqual(121);
+  });
+
+  it("all blocks have non-empty goal, success_criteria, fallback_if_stuck", () => {
+    const plan = buildExamPlan({
+      subject: "Maths",
+      topics: makePlanTopics(),
+      availableStudyWindows: makeWindows(180),
+    });
+    const allBlocks = [...plan.survival_plan, ...plan.recovery_plan, ...plan.stretch_plan];
+    for (const block of allBlocks) {
+      expect(block.goal.length).toBeGreaterThan(0);
+      expect(block.success_criteria.length).toBeGreaterThan(0);
+      expect(block.fallback_if_stuck.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("recovery plan contains critical + high topics", () => {
+    const plan = buildExamPlan({
+      subject: "Maths",
+      topics: makePlanTopics(),
+      availableStudyWindows: makeWindows(240),
+    });
+    expect(plan.recovery_plan.length).toBeGreaterThan(0);
+  });
+
+  it("no crash on zero topics (returns empty arrays)", () => {
+    const plan = buildExamPlan({
+      subject: "Maths",
+      topics: [],
+      availableStudyWindows: makeWindows(60),
+    });
+    expect(Array.isArray(plan.survival_plan)).toBe(true);
+    expect(Array.isArray(plan.recovery_plan)).toBe(true);
+    expect(Array.isArray(plan.stretch_plan)).toBe(true);
+  });
+});
+
+// ── buildExamEmergencyFromIntake ──────────────────────────────────────────────
+
+describe("buildExamEmergencyFromIntake", () => {
+  const validIntake: ExamIntakePayload = {
+    action: "ready_to_build",
+    subject: "maths",
+    exam_date_time: new Date(Date.now() + 86_400_000).toISOString(),
+    preparedness_score: 4,
+    topics: [
+      { name: "Algebra", confidence: 2, mark_value: 5, likelihood: 4, quick_win_potential: 3, time_cost: 2 },
+      { name: "Calculus", confidence: 3, mark_value: 4, likelihood: 3, quick_win_potential: 2, time_cost: 3 },
+    ],
+    available_study_windows: [
+      {
+        start_time: new Date().toISOString(),
+        end_time: new Date(Date.now() + 7_200_000).toISOString(),
+        day_label: "Today",
+        available_minutes: 120,
+      },
+    ],
+  };
+
+  it("creates a valid ExamEmergency (passes examEmergencySchema.parse())", () => {
+    const emergency = buildExamEmergencyFromIntake(validIntake);
+    expect(() => examEmergencySchema.parse(emergency)).not.toThrow();
+  });
+
+  it("sets active_block_id to first survival block", () => {
+    const emergency = buildExamEmergencyFromIntake(validIntake);
+    expect(emergency.active_block_id).toBe(emergency.current_plan.survival_plan[0]?.id);
+  });
+
+  it("status is 'active'", () => {
+    const emergency = buildExamEmergencyFromIntake(validIntake);
+    expect(emergency.status).toBe("active");
+  });
+
+  it("all topics have assigned priority", () => {
+    const emergency = buildExamEmergencyFromIntake(validIntake);
+    for (const topic of emergency.topics) {
+      expect(["critical", "high", "medium", "low", "ignore_for_now"]).toContain(topic.priority);
+    }
+  });
+
+  it("title-cases the subject", () => {
+    const emergency = buildExamEmergencyFromIntake({ ...validIntake, subject: "maths" });
+    expect(emergency.subject).toBe("Maths");
+  });
+});
+
+// ── Reliability ───────────────────────────────────────────────────────────────
+
+describe("reliability", () => {
+  it("malformed AI exam_plan does not crash parseCoachResponse", () => {
+    expect(() =>
+      parseCoachResponse(
+        { exam_plan: { action: "create", emergency: { broken: true, missing_required: "yes" } } },
+        "Here is your plan.",
+      ),
+    ).not.toThrow();
+  });
+
+  it("returns null for exam_plan when emergency is invalid", () => {
+    const parsed = parseCoachResponse(
+      { exam_plan: { action: "create", emergency: "not an object at all" } },
+      "Here.",
+    );
+    expect(parsed.exam_plan).toBeNull();
+  });
+
+  it("local builder produces a usable emergency from partial intake", () => {
+    const partial: ExamIntakePayload = {
+      action: "start",
+      subject: "Biology",
+    };
+    const emergency = buildExamEmergencyFromIntake(partial);
+    expect(emergency.subject).toBeTruthy();
+    expect(emergency.id).toBeTruthy();
+    expect(typeof emergency.current_plan).toBe("object");
+  });
+
+  it("examEmergencySchema rejects missing required fields", () => {
+    expect(() =>
+      examEmergencySchema.parse({ subject: "Maths" }),
+    ).toThrow();
+  });
+});

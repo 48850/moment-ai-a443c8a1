@@ -23,6 +23,11 @@ import {
   chatMessageSchema,
   goalFeasibilityReportSchema,
   onboardingSchema,
+  examEmergencySchema,
+  examTopicSchema,
+  studyBlockSchema,
+  studyWindowSchema,
+  examBlockFeedbackSchema,
 } from "@/lib/state/schema";
 
 export type MomentState = z.infer<typeof momentStateSchema>;
@@ -48,6 +53,11 @@ export type EvidenceSignal = z.infer<typeof evidenceSignalSchema>;
 export type OperatingMode = z.infer<typeof operatingModeSchema>;
 export type CompiledPursuitModel = z.infer<typeof compiledPursuitModelSchema>;
 export type RescueSignal = z.infer<typeof rescueSignalSchema>;
+export type ExamEmergency = z.infer<typeof examEmergencySchema>;
+export type ExamTopic = z.infer<typeof examTopicSchema>;
+export type StudyBlock = z.infer<typeof studyBlockSchema>;
+export type StudyWindow = z.infer<typeof studyWindowSchema>;
+export type ExamBlockFeedback = z.infer<typeof examBlockFeedbackSchema>;
 export type ChatPreferences = z.infer<typeof chatPreferencesSchema>;
 export type { PursuitFamily } from "@/lib/pursuit/families";
 

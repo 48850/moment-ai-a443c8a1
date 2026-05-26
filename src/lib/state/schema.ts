@@ -319,6 +319,81 @@ export const rescueSignalSchema = z.object({
   note: z.string().default(""),
 });
 
+// ─── Exam Emergency schemas ───────────────────────────────────────────────────
+
+const triScore = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]);
+
+export const examTopicSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  confidence: triScore,
+  mark_value: triScore.optional(),
+  likelihood: triScore.optional(),
+  time_cost: triScore.optional(),
+  quick_win_potential: triScore.optional(),
+  priority: z.enum(["critical", "high", "medium", "low", "ignore_for_now"]).default("medium"),
+});
+
+export const studyBlockSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  topic_ids: z.array(z.string()).default([]),
+  duration_minutes: z.number().default(25),
+  method: z.enum([
+    "active_recall", "practice_questions", "summary",
+    "flashcards", "essay_plan", "formula_drill",
+  ]),
+  goal: z.string(),
+  success_criteria: z.string(),
+  fallback_if_stuck: z.string(),
+});
+
+export const studyWindowSchema = z.object({
+  start_time: z.string(),
+  end_time: z.string(),
+  day_label: z.string(),
+  available_minutes: z.number(),
+});
+
+export const examBlockFeedbackSchema = z.object({
+  block_id: z.string(),
+  result: z.enum(["easy", "hard", "confused", "avoided", "too_long", "completed"]),
+  note: z.string().optional(),
+  created_at: z.string(),
+});
+
+export const examCurrentPlanSchema = z.object({
+  survival_plan: z.array(studyBlockSchema).default([]),
+  recovery_plan: z.array(studyBlockSchema).default([]),
+  stretch_plan: z.array(studyBlockSchema).default([]),
+});
+
+export const examEmergencySchema = z.object({
+  id: z.string(),
+  subject: z.string(),
+  exam_date_time: z.string(),
+  status: z.enum(["intake", "active", "recovering", "completed"]).default("intake"),
+  preparedness_score: z.number().min(1).max(10).optional(),
+  topics: z.array(examTopicSchema).default([]),
+  available_study_windows: z.array(studyWindowSchema).default([]),
+  target_outcome: z.enum(["survive", "solid", "high_score"]).optional(),
+  current_plan: examCurrentPlanSchema.default({ survival_plan: [], recovery_plan: [], stretch_plan: [] }),
+  active_block_id: z.string().optional(),
+  feedback: z.array(examBlockFeedbackSchema).default([]),
+  intake_status: z.enum([
+    "needs_subject", "needs_exam_time", "needs_topics",
+    "needs_available_time", "ready_to_build", "active",
+  ]).default("needs_subject"),
+  reflection: z.object({
+    result: z.enum(["easy", "okay", "hard", "very_hard"]).optional(),
+    surprise: z.string().optional(),
+    next_time: z.string().optional(),
+    created_at: z.string().optional(),
+  }).optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
 export const chatPreferencesSchema = z.object({
   tone: z.enum(["default", "gentler", "more_direct"]).default("default"),
 });
@@ -527,6 +602,7 @@ export const momentStateSchema = z.object({
   }),
   pursuit_model: compiledPursuitModelSchema.nullable(),
   rescue_signals: z.array(rescueSignalSchema).default([]),
+  exam_emergencies: z.array(examEmergencySchema).optional().default([]),
   chat_messages: z.array(chatMessageSchema).default([]),
   chat_preferences: chatPreferencesSchema.default({ tone: "default" }),
   chat_state: chatStateSchema.default({

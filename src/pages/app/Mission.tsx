@@ -12,7 +12,7 @@ import { selectMissionViewModel } from "@/lib/selectors/mission";
 import { analyzeMission, type WorkstreamAnalytics } from "@/lib/selectors/mission-analytics";
 import { MissionConstellation } from "@/components/app/MissionConstellation";
 import { StreakFlame } from "@/components/app/StreakFlame";
-import type { CapabilityCluster, EvidenceSignal, PursuitRisk, PursuitStandard, PursuitWorkstream, Task } from "@/lib/types";
+import type { CapabilityCluster, EvidenceSignal, ExamEmergency, PursuitRisk, PursuitStandard, PursuitWorkstream, Task } from "@/lib/types";
 import { FeedbackChips } from "@/components/app/FeedbackChips";
 import { PatternBanner } from "@/components/app/PatternBanner";
 import { AIInsight } from "@/components/app/AIInsight";
@@ -343,6 +343,159 @@ function EditableGoalHorizon({
   );
 }
 
+/* ─── Exam Recovery Section ────────────────────────────────────────────────── */
+
+const REFLECTION_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "easy", label: "Easy" },
+  { value: "okay", label: "Okay" },
+  { value: "hard", label: "Hard" },
+  { value: "very_hard", label: "Very hard" },
+];
+
+function ExamRecoverySection({
+  emergencies,
+  dispatch,
+}: {
+  emergencies: ExamEmergency[];
+  dispatch: (action: unknown) => void;
+}) {
+  const [surpriseText, setSurpriseText] = useState("");
+  const [nextTimeText, setNextTimeText] = useState("");
+
+  const active = emergencies.find(
+    (e) => e.status === "active" || e.status === "intake" || e.status === "recovering",
+  );
+  const completed = emergencies.find((e) => e.status === "completed");
+  const target = active ?? completed;
+
+  if (!target) return null;
+
+  const hoursUntilExam = Math.max(
+    0,
+    (new Date(target.exam_date_time).getTime() - Date.now()) / 3_600_000,
+  );
+  const countdownText =
+    hoursUntilExam < 1 ? "< 1h" : hoursUntilExam < 24 ? `${Math.round(hoursUntilExam)}h` : `${Math.round(hoursUntilExam / 24)}d`;
+
+  const completedBlockIds = new Set(
+    target.feedback.filter((f) => f.result === "completed").map((f) => f.block_id),
+  );
+  const survivalTotal = target.current_plan.survival_plan.length;
+  const survivalDone = target.current_plan.survival_plan.filter((b) => completedBlockIds.has(b.id)).length;
+
+  const avoidedIds = new Set(
+    target.feedback.filter((f) => f.result === "avoided").map((f) => f.block_id),
+  );
+  const allBlocks = [
+    ...target.current_plan.survival_plan,
+    ...target.current_plan.recovery_plan,
+    ...target.current_plan.stretch_plan,
+  ];
+  const mostAvoided = allBlocks.find((b) => avoidedIds.has(b.id))?.title ?? null;
+
+  const submitReflection = (result: string) => {
+    dispatch({
+      type: "exam/update",
+      payload: {
+        id: target.id,
+        changes: {
+          reflection: {
+            result: result as "easy" | "okay" | "hard" | "very_hard",
+            surprise: surpriseText || undefined,
+            next_time: nextTimeText || undefined,
+            created_at: new Date().toISOString(),
+          },
+          status: "completed",
+          updated_at: new Date().toISOString(),
+        },
+      },
+    } as any);
+  };
+
+  return (
+    <section className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5 space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.2em] text-amber-400/80">
+          <AlertTriangle className="h-3 w-3" /> exam recovery · {target.subject}
+        </div>
+        {target.status !== "completed" && (
+          <span className="text-[11px] text-muted-foreground">{countdownText} remaining</span>
+        )}
+      </div>
+
+      <p className="text-sm text-muted-foreground italic leading-relaxed">
+        This exam is not your whole future. But learning how to recover under pressure is part of becoming serious.
+      </p>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-sm">
+        <div className="rounded-lg border border-border bg-card/50 px-3 py-2">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Blocks done</div>
+          <div className="font-semibold text-foreground">{survivalDone} / {survivalTotal}</div>
+        </div>
+        <div className="rounded-lg border border-border bg-card/50 px-3 py-2">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Topics triaged</div>
+          <div className="font-semibold text-foreground">{target.topics.length}</div>
+        </div>
+        {target.preparedness_score && (
+          <div className="rounded-lg border border-border bg-card/50 px-3 py-2">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Confidence before</div>
+            <div className="font-semibold text-foreground">{target.preparedness_score} / 10</div>
+          </div>
+        )}
+        {mostAvoided && (
+          <div className="rounded-lg border border-border bg-card/50 px-3 py-2">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Most avoided</div>
+            <div className="text-xs font-medium text-foreground truncate">{mostAvoided}</div>
+          </div>
+        )}
+      </div>
+
+      {target.status === "completed" && !target.reflection?.result && (
+        <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+          <p className="text-sm font-medium text-foreground">How did the exam go?</p>
+          <div className="flex flex-wrap gap-1.5">
+            {REFLECTION_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => submitReflection(opt.value)}
+                className="rounded-full border border-border bg-secondary px-3 py-1 text-xs text-foreground hover:border-primary hover:text-primary"
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <input
+            value={surpriseText}
+            onChange={(e) => setSurpriseText(e.target.value)}
+            placeholder="What surprised you? (optional)"
+            className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+          />
+          <input
+            value={nextTimeText}
+            onChange={(e) => setNextTimeText(e.target.value)}
+            placeholder="What will you do differently next time? (optional)"
+            className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+          />
+        </div>
+      )}
+
+      {target.reflection?.result && (
+        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2.5 space-y-1">
+          <p className="text-[10px] uppercase tracking-wider text-emerald-400/80 font-medium">Post-exam reflection</p>
+          <p className="text-sm text-foreground">Felt: {target.reflection.result.replace(/_/g, " ")}</p>
+          {target.reflection.surprise && (
+            <p className="text-xs text-muted-foreground">Surprised by: {target.reflection.surprise}</p>
+          )}
+          {target.reflection.next_time && (
+            <p className="text-xs text-muted-foreground">Next time: {target.reflection.next_time}</p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 /* ─── Main page ────────────────────────────────────────────────────────────── */
 
 const Mission = () => {
@@ -579,6 +732,13 @@ const Mission = () => {
 
       {/* ── 1b. WHY TODAY MATTERS — shared heartbeat ─────────────────────────── */}
       <HeartbeatBanner variant="full" />
+
+      {/* ── 1c. EXAM RECOVERY ────────────────────────────────────────────────── */}
+      <ExamRecoverySection
+        emergencies={(state.exam_emergencies as ExamEmergency[] | undefined) ?? []}
+        dispatch={dispatch}
+      />
+
 
       {/* ── 2. NEXT PROOF (dominant card) ────────────────────────────────────── */}
       <NextProofCard

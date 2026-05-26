@@ -12,8 +12,9 @@
  * Q6: What should Moment remember from this exchange?
  * Q7: How should the plan change because of this?
  */
-import type { MomentState } from "@/lib/types";
+import type { MomentState, StudyBlock } from "@/lib/types";
 import type { ExecutionState } from "./coach-action-types";
+import type { ExamEmergencyStatus } from "@/lib/types/exam-emergency";
 
 export type UserSituation =
   | "aligned"     // on track, making progress
@@ -74,6 +75,18 @@ export interface ContextSnapshot {
   /** Rescue: is this an urgent deadline situation? */
   is_rescue_situation: boolean;
   deadline_urgency?: string;
+
+  /** Exam Emergency: active emergency context */
+  active_exam_emergency: {
+    id: string;
+    subject: string;
+    examDateTime: string;
+    status: ExamEmergencyStatus;
+    hoursUntilExam: number;
+    topicsCount: number;
+    completedBlocksCount: number;
+    nextBlock: StudyBlock | null;
+  } | null;
 }
 
 const URGENCY_PATTERNS = [
@@ -83,6 +96,8 @@ const URGENCY_PATTERNS = [
   /panick?ing|freaking out|stressed about/i,
   /need to finish|gotta finish|must finish/i,
   /in (\d+) (hours?|days?)/i,
+  /(maths?|bio|chem|physics|history|english) (test|exam|mock) (tomorrow|tonight|today)/i,
+  /exam emergency/i,
 ];
 
 const FRICTION_DESCRIPTIONS: Record<string, string> = {
@@ -206,6 +221,36 @@ export function buildContextSnapshot(
     /(?:due|by|before|until)\s+([a-z0-9 ]+?)(?:[.,;!?]|$)/i,
   );
 
+  // Active exam emergency context
+  const examEmergencies = (state as any).exam_emergencies ?? [];
+  const activeExam = examEmergencies.find(
+    (e: any) => e.status === "active" || e.status === "intake",
+  ) ?? null;
+  let activeExamEmergency: ContextSnapshot["active_exam_emergency"] = null;
+  if (activeExam) {
+    const hoursUntilExam =
+      (new Date(activeExam.exam_date_time).getTime() - Date.now()) / 3_600_000;
+    const allBlocks: any[] = [
+      ...(activeExam.current_plan?.survival_plan ?? []),
+    ];
+    const completedBlockIds = new Set(
+      (activeExam.feedback ?? [])
+        .filter((f: any) => f.result === "completed")
+        .map((f: any) => f.block_id),
+    );
+    const nextBlock = (allBlocks.find((b: any) => !completedBlockIds.has(b.id)) ?? null) as StudyBlock | null;
+    activeExamEmergency = {
+      id: activeExam.id,
+      subject: activeExam.subject,
+      examDateTime: activeExam.exam_date_time,
+      status: activeExam.status,
+      hoursUntilExam: Math.max(0, hoursUntilExam),
+      topicsCount: (activeExam.topics ?? []).length,
+      completedBlocksCount: completedBlockIds.size,
+      nextBlock,
+    };
+  }
+
   // Memory candidates from friction patterns
   const memoryCandidates: ContextSnapshot["memory_candidates"] = [];
   if (activeFriction.length >= 2) {
@@ -288,6 +333,7 @@ export function buildContextSnapshot(
     deadline_urgency: isRescue
       ? (deadlineMatch?.[1]?.trim() ?? latestUserText.slice(0, 100))
       : undefined,
+    active_exam_emergency: activeExamEmergency,
   };
 }
 
@@ -383,5 +429,6 @@ function emptySnapshot(): ContextSnapshot {
     memory_candidates: [],
     plan_needs_repair: false,
     is_rescue_situation: false,
+    active_exam_emergency: null,
   };
 }

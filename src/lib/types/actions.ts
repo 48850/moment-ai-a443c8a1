@@ -121,4 +121,11 @@ export type MomentAction =
       total_done: number;
       velocity_7d: number;
       workstreams: Array<Record<string, unknown>>;
-    } };
+    } }
+  // ─── Exam Emergency ───────────────────────────────────────────────────────
+  | { type: "exam/create"; payload: import("@/lib/types").ExamEmergency }
+  | { type: "exam/update"; payload: { id: string; changes: Partial<import("@/lib/types").ExamEmergency> } }
+  | { type: "exam/add_feedback"; payload: { emergencyId: string; feedback: import("@/lib/types").ExamBlockFeedback } }
+  | { type: "exam/set_active_block"; payload: { emergencyId: string; blockId: string | undefined } }
+  | { type: "exam/complete"; payload: { id: string } }
+  | { type: "exam/delete"; payload: { id: string } };

@@ -264,6 +264,59 @@ const TOOLS = [
   },
 ];
 
+const EXAM_EMERGENCY_TOOL = {
+  type: "function",
+  function: {
+    name: "create_exam_emergency",
+    description:
+      "Called when a student mentions an upcoming exam, test, or mock. Collect intake data only — do NOT build the plan. Local code builds the plan from your collected fields.",
+    parameters: {
+      type: "object",
+      properties: {
+        subject: { type: "string", description: "Subject name, e.g. 'Maths', 'Biology'" },
+        exam_date_time: { type: "string", description: "ISO 8601 datetime, e.g. '2024-11-15T09:00:00'" },
+        preparedness_score: { type: "number", description: "How prepared the student feels, 1–10" },
+        target_outcome: { type: "string", enum: ["survive", "solid", "high_score"] },
+        topics: {
+          type: "array",
+          description: "List of topics on the exam",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              confidence: { type: "number", minimum: 1, maximum: 5, description: "Student confidence 1–5" },
+              mark_value: { type: "number", minimum: 1, maximum: 5 },
+              likelihood: { type: "number", minimum: 1, maximum: 5 },
+              time_cost: { type: "number", minimum: 1, maximum: 5 },
+              quick_win_potential: { type: "number", minimum: 1, maximum: 5 },
+            },
+            required: ["name"],
+          },
+        },
+        available_study_windows: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              start_time: { type: "string" },
+              end_time: { type: "string" },
+              day_label: { type: "string" },
+              available_minutes: { type: "number" },
+            },
+          },
+        },
+        missing_fields: {
+          type: "array",
+          items: { type: "string" },
+          description: "Fields still needed from the student",
+        },
+      },
+      required: ["subject"],
+      additionalProperties: false,
+    },
+  },
+};
+
 const RESCUE_TOOL = {
   type: "function",
   function: {
@@ -981,6 +1034,18 @@ RESCUE DETECTION — if the user mentions an urgent deadline they haven't starte
 - The first_move must take under 5 minutes and require zero preparation
 - The panic_reduction must name what IS achievable, not just reassure
 
+EXAM EMERGENCY DETECTION — separate from rescue:
+- Trigger when the user mentions an upcoming exam, test, or mock (any subject)
+- Your job is to COLLECT intake data, NOT build the plan. Local code builds the plan.
+- Extract whatever was mentioned: subject, exam time, topics, preparedness, available study time
+- Set exam_intake.action to "ready_to_build" when you have subject + exam_date_time + topics
+- Set exam_intake.action to "update" when you have some but not all required fields
+- Set exam_intake.missing_fields to the list of what you still need
+- Ask only ONE question in your reply for the first missing field
+- Never ask for information already given in the conversation
+- Do NOT call exam_intake if an active exam emergency already exists for the same subject
+- Tone: "We are not trying to learn everything tonight. We are trying to protect marks."
+
 OUTPUT FORMAT — STRUCTURED JSON ONLY. Return exactly this shape, no prose outside the JSON object:
 {
   "mode": "next_move|plan_repair|emotional_support|review_memory|path_explanation|task_breakdown|forge_artifact|rescue|clarifying_question|celebrate",
@@ -990,7 +1055,7 @@ OUTPUT FORMAT — STRUCTURED JSON ONLY. Return exactly this shape, no prose outs
   "evidence_used": ["short refs to real state"],
   "next_move": { "label": "string", "task_id": "optional", "estimated_minutes": optional } | null,
   "suggested_actions": [
-    { "type": "task.shrink|task.split|task.mark_done|task.reject|task.create_proof|plan.repair_today|plan.make_lighter|plan.move_one_task|review.save_memory|forge.create_artifact|rescue.trigger|path.show_proof|explain.why_this_matters", "label": "≤22 chars", "task_id": "optional", "needs_confirmation": optional }
+    { "type": "task.shrink|task.split|task.mark_done|task.reject|task.create_proof|plan.repair_today|plan.make_lighter|plan.move_one_task|review.save_memory|forge.create_artifact|rescue.trigger|path.show_proof|explain.why_this_matters|exam.start_intake|exam.mark_block_done|exam.add_feedback", "label": "≤22 chars", "task_id": "optional", "needs_confirmation": optional }
   ],
   "memory_to_save": { "type": "friction|goal_clarity|learning_gap|win|open_loop", "content": "string", "confidence": 0..1 } | null,
   "follow_up_question": "string or null",
@@ -1001,6 +1066,16 @@ OUTPUT FORMAT — STRUCTURED JSON ONLY. Return exactly this shape, no prose outs
     "steps": ["step with time estimate", ...],
     "estimated_total_minutes": number,
     "panic_reduction": "one honest line naming what IS achievable"
+  } | null,
+  "exam_intake": {
+    "action": "start|update|ready_to_build",
+    "subject": "string or omit if unknown",
+    "exam_date_time": "ISO 8601 or omit if unknown",
+    "preparedness_score": 1-10 or omit,
+    "target_outcome": "survive|solid|high_score or omit",
+    "topics": [{ "name": "string", "confidence": 1-5, "mark_value": 1-5, "likelihood": 1-5, "time_cost": 1-5, "quick_win_potential": 1-5 }],
+    "available_study_windows": [{ "start_time": "HH:MM", "end_time": "HH:MM", "day_label": "Today/Tomorrow", "available_minutes": number }],
+    "missing_fields": ["field names still needed"]
   } | null
 }
 Max 3 suggested_actions. Action labels read like buttons. rescue_plan is null unless mode is rescue.`;
@@ -1082,7 +1157,7 @@ Max 3 suggested_actions. Action labels read like buttons. rescue_plan is null un
         { role: "system", content: extraSystem ? systemContent + "\n\n" + extraSystem : systemContent },
         ...messages.slice(-20),
       ],
-      ...(textOnly ? {} : { tools: isSpecialisation ? [...SPECIALISATION_TOOLS, ...TOOLS] : [...TOOLS, RESCUE_TOOL] }),
+      ...(textOnly ? {} : { tools: isSpecialisation ? [...SPECIALISATION_TOOLS, ...TOOLS] : [...TOOLS, RESCUE_TOOL, EXAM_EMERGENCY_TOOL] }),
     });
 
     let resp = await callGateway(buildBody(), LOVABLE_API_KEY);
