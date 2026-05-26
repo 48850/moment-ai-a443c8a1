@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
-import { Home, Calendar, Target, ArrowLeft, MessageSquare, Heart, LifeBuoy, ListChecks, Hammer, Sun, Moon, Settings, BookOpenText } from "lucide-react";
+import { Home, Calendar, Target, ArrowLeft, MessageSquare, Heart, LifeBuoy, ListChecks, Hammer, Sun, Moon, Settings, BookOpenText, AlertTriangle } from "lucide-react";
 import { MomentStar } from "@/components/app/Mote";
 import { useTheme } from "@/hooks/use-theme";
 import { FlameBurstOverlay } from "@/components/app/FlameBurstOverlay";
@@ -25,11 +25,12 @@ const tabs: { to: string; label: string; icon: React.ComponentType<{ className?:
     to: "/app/plan",
     label: "Plan",
     icon: Calendar,
-    match: ["/app/plan", "/app/tasks", "/app/forge"],
+    match: ["/app/plan", "/app/tasks", "/app/forge", "/app/exam"],
     sub: [
       { to: "/app/plan", label: "Plan", icon: Calendar },
       { to: "/app/tasks", label: "Tasks", icon: ListChecks },
       { to: "/app/forge", label: "Forge", icon: Hammer },
+      { to: "/app/exam", label: "Exam", icon: AlertTriangle },
     ],
   },
   {
@@ -66,9 +67,11 @@ const tabs: { to: string; label: string; icon: React.ComponentType<{ className?:
 export const AppShell = () => {
   const { pathname } = useLocation();
   const { theme, toggle: toggleTheme } = useTheme();
-  const normalizedPath = pathname.startsWith("/app/forge/")
-    ? "/app/forge"
-    : pathname.startsWith("/app/settings")
+  const normalizedPath = pathname === "/app/exam"
+    ? "/app/exam"
+    : pathname.startsWith("/app/forge/")
+      ? "/app/forge"
+      : pathname.startsWith("/app/settings")
       ? "/app/settings"
       : pathname.startsWith("/app/mission/summary")
         ? "/app/mission/summary"

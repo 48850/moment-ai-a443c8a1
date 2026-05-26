@@ -11,7 +11,7 @@ import type { ChatMessage, ExamEmergency } from "@/lib/types";
 import { buildExamEmergencyFromIntake } from "@/lib/exam/build-exam-emergency";
 import { detectExamIntent } from "@/lib/exam/detect-exam-intent";
 import { examEmergencySchema } from "@/lib/state/schema";
-import { ExamEmergencyCard } from "@/components/chat/ExamEmergencyCard";
+import { Link } from "react-router-dom";
 import { CoachMessage } from "./CoachMessage";
 import { CoachActionChip } from "./CoachActionChip";
 import { Mote } from "@/components/app/Mote";
@@ -307,20 +307,6 @@ export function CoachPanel({ surface = "coach", compact = false }: Props) {
     void send(text);
   };
 
-  const handleExamBlockFeedback = (emergencyId: string, blockId: string, result: import("@/lib/types/exam-emergency").ExamBlockFeedbackResult) => {
-    dispatch({
-      type: "exam/add_feedback",
-      payload: {
-        emergencyId,
-        feedback: { block_id: blockId, result, created_at: new Date().toISOString() },
-      },
-    } as any);
-  };
-
-  const handleExamStartBlock = (emergencyId: string, blockId: string) => {
-    dispatch({ type: "exam/set_active_block", payload: { emergencyId, blockId } } as any);
-  };
-
   const handleAfterAction = (action: CoachAction) => {
     if (action.type === "task.mark_done" && action.task_id) {
       const task = state?.tasks?.find((t) => t.id === action.task_id);
@@ -431,15 +417,16 @@ export function CoachPanel({ surface = "coach", compact = false }: Props) {
                       <RescuePlanCard plan={m.response.rescue_plan} />
                     )}
                     {m.examEmergency && (
-                      <ExamEmergencyCard
-                        emergency={m.examEmergency}
-                        onBlockFeedback={(blockId, result) =>
-                          handleExamBlockFeedback(m.examEmergency!.id, blockId, result)
-                        }
-                        onStartBlock={(blockId) =>
-                          handleExamStartBlock(m.examEmergency!.id, blockId)
-                        }
-                      />
+                      <Link
+                        to="/app/exam"
+                        className="flex items-center gap-2.5 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-400 hover:border-amber-500/50 hover:bg-amber-500/15 transition-colors"
+                      >
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
+                        <span className="font-medium">
+                          {m.examEmergency.subject} exam plan ready
+                        </span>
+                        <span className="ml-auto text-xs text-amber-400/70">Open Exam tab →</span>
+                      </Link>
                     )}
                   </>
                 ) : (
