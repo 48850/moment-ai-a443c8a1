@@ -16,6 +16,7 @@ import { PatternBanner } from "@/components/app/PatternBanner";
 import { WeeklyGrid } from "@/components/app/WeeklyGrid";
 import { buildContextPacket } from "@/lib/ai/context-packet";
 import { QuickReviewNotes } from "@/components/app/QuickReviewNotes";
+import { HeartbeatBanner } from "@/components/app/HeartbeatBanner";
 
 /* ----- pursuit tiles (kept) ----- */
 interface PursuitTile {
