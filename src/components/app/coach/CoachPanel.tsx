@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Send, Target, Activity, Flame, Sparkles } from "lucide-react";
+import { Send, Target, Activity, Flame, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useStateStore } from "@/stores/state-store";
 import { buildCoachContext, type CoachSurface } from "@/lib/coach/build-coach-context";
 import { selectSeedActions } from "@/lib/coach/select-coach-actions";
 import { parseCoachResponse } from "@/lib/coach/coach-response-schema";
-import type { CoachAction, CoachResponse } from "@/lib/coach/coach-action-types";
+import type { CoachAction, CoachResponse, CoachRescuePlan } from "@/lib/coach/coach-action-types";
 import type { ChatMessage } from "@/lib/types";
 import { CoachMessage } from "./CoachMessage";
 import { CoachActionChip } from "./CoachActionChip";
@@ -23,6 +23,39 @@ interface RichMessage {
   content: string;
   created_at: string;
   response?: CoachResponse;
+}
+
+const DONE_FEEDBACK_OPTIONS = [
+  { label: "Easy", value: "easy" },
+  { label: "Hard", value: "hard" },
+  { label: "Felt good", value: "felt_good" },
+  { label: "Too vague", value: "too_vague" },
+  { label: "Avoided it", value: "avoided" },
+] as const;
+
+function RescuePlanCard({ plan }: { plan: CoachRescuePlan }) {
+  return (
+    <div className="mt-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
+      <div className="mb-2 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.15em] text-amber-600">
+        <AlertTriangle className="h-3 w-3" /> rescue plan · {plan.due_description}
+      </div>
+      <p className="mb-2 text-xs text-muted-foreground italic">{plan.panic_reduction}</p>
+      <p className="mb-1.5 text-xs font-medium text-foreground">
+        First move ({plan.estimated_total_minutes > 0 ? `~${plan.estimated_total_minutes}m total` : ""}):
+      </p>
+      <p className="mb-2 rounded bg-primary/10 px-2 py-1 text-xs text-primary">{plan.first_move}</p>
+      {plan.steps.length > 0 && (
+        <ol className="space-y-1">
+          {plan.steps.map((step, i) => (
+            <li key={i} className="flex gap-2 text-xs text-muted-foreground">
+              <span className="shrink-0 font-medium text-foreground">{i + 1}.</span>
+              <span>{step}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
 }
 
 const TypingDots = () => (
@@ -58,6 +91,10 @@ export function CoachPanel({ surface = "coach", compact = false }: Props) {
   const [isTyping, setIsTyping] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const inFlight = useRef(false);
+  const [pendingFeedback, setPendingFeedback] = useState<{
+    taskId: string;
+    taskTitle: string;
+  } | null>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -167,6 +204,32 @@ export function CoachPanel({ surface = "coach", compact = false }: Props) {
     void send(text);
   };
 
+  const handleAfterAction = (action: CoachAction) => {
+    if (action.type === "task.mark_done" && action.task_id) {
+      const task = state?.tasks?.find((t) => t.id === action.task_id);
+      if (task) {
+        setPendingFeedback({ taskId: task.id, taskTitle: task.title });
+      }
+    }
+  };
+
+  const submitFeedback = (value: string) => {
+    if (!pendingFeedback || !state) return;
+    dispatch({
+      type: "feedback/add",
+      payload: {
+        id: crypto.randomUUID(),
+        task_id: pendingFeedback.taskId,
+        task_title: pendingFeedback.taskTitle,
+        feedback: value as any,
+        source: "chat",
+        created_at: new Date().toISOString(),
+      } as any,
+    });
+    setPendingFeedback(null);
+    void send(`Marked done — felt ${value.replace(/_/g, " ")}`);
+  };
+
   return (
     <div className={`flex flex-col ${compact ? "h-[70vh]" : "h-[calc(100vh-9rem)] md:h-[calc(100vh-7rem)]"}`}>
       {/* Coach knows — context header */}
@@ -241,10 +304,16 @@ export function CoachPanel({ surface = "coach", compact = false }: Props) {
             <div key={m.id} className="flex justify-start">
               <div className="max-w-[90%]">
                 {m.response ? (
-                  <CoachMessage
-                    response={m.response}
-                    onConversationalAction={handleConversational}
-                  />
+                  <>
+                    <CoachMessage
+                      response={m.response}
+                      onConversationalAction={handleConversational}
+                      onAfterAction={handleAfterAction}
+                    />
+                    {m.response.rescue_plan && (
+                      <RescuePlanCard plan={m.response.rescue_plan} />
+                    )}
+                  </>
                 ) : (
                   <div className="whitespace-pre-wrap rounded-2xl bg-secondary px-3.5 py-2 text-sm text-foreground">
                     {m.content}
@@ -262,6 +331,34 @@ export function CoachPanel({ surface = "coach", compact = false }: Props) {
         )}
         <div ref={endRef} />
       </div>
+
+      {/* Done feedback micro-prompt */}
+      {pendingFeedback && (
+        <div className="mt-2 rounded-xl border border-border bg-card px-3 py-2">
+          <p className="mb-2 text-xs text-muted-foreground">
+            How did <span className="font-medium text-foreground">"{pendingFeedback.taskTitle}"</span> feel?
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {DONE_FEEDBACK_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => submitFeedback(opt.value)}
+                className="rounded-full border border-border bg-secondary px-2.5 py-1 text-xs text-foreground hover:border-primary hover:text-primary"
+              >
+                {opt.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setPendingFeedback(null)}
+              className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Skip
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Composer */}
       <form

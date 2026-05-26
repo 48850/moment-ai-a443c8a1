@@ -66,6 +66,15 @@ export interface CoachMemoryToSave {
   confidence: number;
 }
 
+export interface CoachRescuePlan {
+  task_title: string;
+  due_description: string;
+  first_move: string;
+  steps: string[];
+  estimated_total_minutes: number;
+  panic_reduction: string;
+}
+
 export interface CoachResponse {
   mode: CoachMode;
   reply: string;
@@ -80,4 +89,5 @@ export interface CoachResponse {
   suggested_actions: CoachAction[];
   memory_to_save?: CoachMemoryToSave;
   follow_up_question?: string | null;
+  rescue_plan?: CoachRescuePlan | null;
 }

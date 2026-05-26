@@ -264,6 +264,35 @@ const TOOLS = [
   },
 ];
 
+const RESCUE_TOOL = {
+  type: "function",
+  function: {
+    name: "create_rescue_plan",
+    description:
+      "Generate a structured rescue plan when the user has an urgent deadline they haven't started. Use when user expresses panic, 'haven't started', or a specific deadline under clear time pressure. Creates tasks automatically from the rescue steps.",
+    parameters: {
+      type: "object",
+      properties: {
+        task_title: { type: "string", description: "What the user needs to rescue, e.g. 'history essay'" },
+        due_description: { type: "string", description: "When it's due, e.g. 'Friday', 'tomorrow morning', '3 hours'" },
+        current_status: { type: "string", description: "What exists so far, e.g. 'haven't started', '300 words written'" },
+        rescue_steps: {
+          type: "array",
+          items: { type: "string" },
+          description: "3-6 concrete timed steps to complete the work. Each must say what to do and roughly how long. E.g. 'Write 3-point outline (10 min)'.",
+          minItems: 3,
+          maxItems: 6,
+        },
+        first_move: { type: "string", description: "The single first action — must take under 5 minutes and require zero preparation." },
+        estimated_total_minutes: { type: "number", description: "Realistic total time to completion in minutes." },
+        panic_reduction: { type: "string", description: "One honest line that shrinks the panic by naming what is actually achievable. Never say 'you got this'." },
+      },
+      required: ["task_title", "due_description", "rescue_steps", "first_move", "panic_reduction"],
+      additionalProperties: false,
+    },
+  },
+};
+
 const SPECIALISATION_TOOLS = [
   {
     type: "function",
@@ -937,6 +966,21 @@ RECENT ADAPTATIONS: ${adaptations.slice(0, 3).join(" · ") || "(none)"}
 
 PLAN PRESSURE: ${planPressure.pressure_detected ? `${planPressure.pressure_score}/10 — ${planPressure.pressure_message}` : "low"}
 
+SITUATIONAL INTELLIGENCE — answer these before composing any reply:
+1. What does this user want to become? (their goal + stage)
+2. What are they supposed to be doing today? (active tasks, schedule)
+3. What is emotionally happening right now? (inferred state + evidence)
+4. What friction is blocking action? (repeated feedback patterns, overdue tasks)
+5. What is the smallest useful next move? (name it specifically)
+6. What should be saved from this exchange? (memory_to_save)
+7. Does the plan need to change? (suggest plan_repair if yes)
+
+RESCUE DETECTION — if the user mentions an urgent deadline they haven't started:
+- Set mode to "rescue"
+- Provide a rescue_plan with concrete steps
+- The first_move must take under 5 minutes and require zero preparation
+- The panic_reduction must name what IS achievable, not just reassure
+
 OUTPUT FORMAT — STRUCTURED JSON ONLY. Return exactly this shape, no prose outside the JSON object:
 {
   "mode": "next_move|plan_repair|emotional_support|review_memory|path_explanation|task_breakdown|forge_artifact|rescue|clarifying_question|celebrate",
@@ -949,9 +993,17 @@ OUTPUT FORMAT — STRUCTURED JSON ONLY. Return exactly this shape, no prose outs
     { "type": "task.shrink|task.split|task.mark_done|task.reject|task.create_proof|plan.repair_today|plan.make_lighter|plan.move_one_task|review.save_memory|forge.create_artifact|rescue.trigger|path.show_proof|explain.why_this_matters", "label": "≤22 chars", "task_id": "optional", "needs_confirmation": optional }
   ],
   "memory_to_save": { "type": "friction|goal_clarity|learning_gap|win|open_loop", "content": "string", "confidence": 0..1 } | null,
-  "follow_up_question": "string or null"
+  "follow_up_question": "string or null",
+  "rescue_plan": {
+    "task_title": "string",
+    "due_description": "string",
+    "first_move": "string — under 5 min, zero prep",
+    "steps": ["step with time estimate", ...],
+    "estimated_total_minutes": number,
+    "panic_reduction": "one honest line naming what IS achievable"
+  } | null
 }
-Max 3 suggested_actions. Action labels read like buttons.`;
+Max 3 suggested_actions. Action labels read like buttons. rescue_plan is null unless mode is rescue.`;
 
       const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -1030,7 +1082,7 @@ Max 3 suggested_actions. Action labels read like buttons.`;
         { role: "system", content: extraSystem ? systemContent + "\n\n" + extraSystem : systemContent },
         ...messages.slice(-20),
       ],
-      ...(textOnly ? {} : { tools: isSpecialisation ? [...SPECIALISATION_TOOLS, ...TOOLS] : TOOLS }),
+      ...(textOnly ? {} : { tools: isSpecialisation ? [...SPECIALISATION_TOOLS, ...TOOLS] : [...TOOLS, RESCUE_TOOL] }),
     });
 
     let resp = await callGateway(buildBody(), LOVABLE_API_KEY);

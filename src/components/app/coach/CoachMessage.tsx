@@ -5,6 +5,7 @@ interface Props {
   response: CoachResponse;
   onConversationalAction?: (action: CoachAction) => void;
   onAfterExecute?: () => void;
+  onAfterAction?: (action: CoachAction) => void;
 }
 
 const STATE_COLOR: Record<string, string> = {
@@ -20,7 +21,7 @@ const STATE_COLOR: Record<string, string> = {
   frustrated: "text-red-500",
 };
 
-export function CoachMessage({ response, onConversationalAction, onAfterExecute }: Props) {
+export function CoachMessage({ response, onConversationalAction, onAfterExecute, onAfterAction }: Props) {
   const stateClass = STATE_COLOR[response.inferred_state] ?? "text-muted-foreground";
 
   return (
@@ -36,7 +37,10 @@ export function CoachMessage({ response, onConversationalAction, onAfterExecute 
               key={`${a.type}-${i}`}
               action={a}
               onConversational={onConversationalAction}
-              onAfterExecute={onAfterExecute}
+              onAfterExecute={() => {
+                onAfterExecute?.();
+                onAfterAction?.(a);
+              }}
             />
           ))}
         </div>

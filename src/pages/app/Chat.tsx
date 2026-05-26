@@ -11,6 +11,11 @@ import { ChatContextBanner } from "@/components/app/chat/ChatContextBanner";
 import type { ChatMessage } from "@/lib/types";
 import { CoachPanel } from "@/components/app/coach/CoachPanel";
 
+function extractMinutes(stepText: string): number {
+  const match = stepText.match(/\((\d+)\s*min\)/i);
+  return match ? Math.min(120, Math.max(5, parseInt(match[1], 10))) : 20;
+}
+
 const SCHEDULE_FIELDS: { key: string; label: string }[] = [
   { key: "school_end_time", label: "School end time" },
   { key: "commute_minutes", label: "Commute time" },
@@ -294,6 +299,42 @@ const Chat = () => {
           why_it_matters: goalUpdate.why_it_matters ?? state.active_goal?.why_it_matters ?? "",
         },
       });
+    }
+
+    // ── Rescue plan: create tasks from steps ─────────────────────────────
+    for (const p of patches) {
+      if (p.tool === "create_rescue_plan" && p.args.rescue_steps?.length) {
+        const nowIso = new Date().toISOString();
+        const today = nowIso.slice(0, 10);
+        const steps: string[] = Array.isArray(p.args.rescue_steps) ? p.args.rescue_steps : [];
+        const rescueTasks = steps.slice(0, 6).map((step: string) => ({
+          id: crypto.randomUUID(),
+          title: step.replace(/\s*\(\d+ min\)/i, "").trim().slice(0, 80),
+          description: `Rescue step for: ${p.args.task_title ?? "task"}`,
+          status: "pending" as const,
+          priority: "high" as const,
+          goal_id: state.active_goal?.id ?? "",
+          domain_id: "",
+          estimated_minutes: extractMinutes(step),
+          category: "goal_direct" as const,
+          created_at: nowIso,
+          completed_at: "",
+          due_date: today,
+          created_by: "ai" as const,
+          why_now: `Rescue: ${p.args.due_description ?? "urgent deadline"}`,
+          notes: [],
+        }));
+        dispatch({ type: "task/bulk_add", payload: rescueTasks });
+        dispatch({
+          type: "rescue/log",
+          payload: {
+            id: crypto.randomUUID(),
+            reason: `${p.args.task_title ?? "task"} due ${p.args.due_description ?? "soon"}`,
+            created_at: nowIso,
+          } as any,
+        });
+        toast.success(`Rescue plan created — ${rescueTasks.length} steps added`);
+      }
     }
 
     // ── Omnipotent: tasks, week, profile, tone ────────────────────────────

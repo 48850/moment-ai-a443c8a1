@@ -51,15 +51,27 @@ export function inferExecutionState(state: MomentState | null, latestUserText = 
 
   const text = latestUserText.toLowerCase();
   const says = (...words: string[]) => words.some((w) => text.includes(w));
+  const matches = (pattern: RegExp) => pattern.test(text);
 
   // ── Explicit language signals win first ────────────────────────────────────
   if (says("can't", "cant", "i give up", "pointless", "what's the point", "whats the point")) {
     evidence.push(`user said: "${latestUserText.slice(0, 60)}"`);
     return { state: "drifting", confidence: 0.8, evidence };
   }
-  if (says("i'm cooked", "im cooked", "burnt out", "burned out", "too much", "overwhelmed", "drowning")) {
+  if (
+    says("i'm cooked", "im cooked", "burnt out", "burned out", "too much", "overwhelmed", "drowning") ||
+    matches(/panick?ing|freaking out/)
+  ) {
     evidence.push(`user said: "${latestUserText.slice(0, 60)}"`);
     return { state: "overloaded", confidence: 0.85, evidence };
+  }
+  // Urgent deadline + not started = overloaded
+  if (
+    matches(/haven'?t (started|begun|done any)/) &&
+    matches(/due (today|tomorrow|tonight|this week|friday|thursday|wednesday|tuesday|monday)/)
+  ) {
+    evidence.push(`urgent deadline: "${latestUserText.slice(0, 60)}"`);
+    return { state: "overloaded", confidence: 0.9, evidence };
   }
   if (says("stuck", "don't know how", "dont know how", "blank", "lost")) {
     evidence.push(`user said: "${latestUserText.slice(0, 60)}"`);
