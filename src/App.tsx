@@ -17,6 +17,7 @@ import Tasks from "./pages/app/Tasks";
 import Reflect from "./pages/app/Reflect";
 import Rescue from "./pages/app/Rescue";
 import Forge from "./pages/app/Forge";
+import ExamMode from "./pages/app/ExamMode";
 import ForgeFeature from "./pages/app/ForgeFeature";
 import ForgeVideoStudio from "./pages/app/ForgeVideoStudio";
 import Social from "./pages/app/Social";
@@ -98,6 +99,7 @@ const App = () => {
               <Route path="reflect" element={<Reflect />} />
               <Route path="rescue" element={<Rescue />} />
               <Route path="forge" element={<Forge />} />
+              <Route path="exam" element={<ExamMode />} />
               <Route path="forge/videos" element={<ForgeVideoStudio />} />
               <Route path="mission/summary" element={<ForgeVideoStudio />} />
               <Route path="forge/:featureId" element={<ForgeFeature />} />
