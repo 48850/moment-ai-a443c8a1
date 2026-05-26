@@ -829,6 +829,48 @@ const Forge = () => {
       </div>
 
 
+      </div>
+
+      {/* Heartbeat — shared context pulse */}
+      <HeartbeatBanner />
+
+      {/* Contextual suggestions — based on user's current situation */}
+      {!building && contextualSuggestions.length > 0 && (
+        <section>
+          <div className="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+            for your situation right now
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {contextualSuggestions.map((s) => (
+              <div
+                key={s.title}
+                className={`rounded-xl border bg-card p-4 flex flex-col gap-2 ${
+                  s.urgency === "high" ? "border-amber-500/40" : "border-border"
+                }`}
+              >
+                {s.urgency === "high" && (
+                  <div className="inline-flex w-fit items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-400">
+                    urgent
+                  </div>
+                )}
+                <div className="text-sm font-medium text-foreground">{s.title}</div>
+                <div className="text-xs text-muted-foreground flex-1">{s.why}</div>
+                <button
+                  onClick={() => handleBuildRecommendation(s.feature_type as ForgeFeatureType, s.description_hint)}
+                  className={`mt-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    s.urgency === "high"
+                      ? "border-amber-500/40 bg-amber-500/5 text-amber-400 hover:bg-amber-500/10"
+                      : "border-primary/40 bg-primary/5 text-primary hover:bg-primary/10"
+                  }`}
+                >
+                  Build this
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {!building && gap && (
         <SystemGapCard gap={gap} onBuild={handleBuildAroundGap} />
       )}
