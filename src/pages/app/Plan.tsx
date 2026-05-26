@@ -627,6 +627,10 @@ const Plan = () => {
 
       <PatternBanner />
 
+      {/* Heartbeat — shared context pulse */}
+      <HeartbeatBanner />
+
+
       {/* Guiding principle */}
       {aiPlan?.guiding_principle && (
         <motion.div
