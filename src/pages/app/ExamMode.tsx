@@ -2,12 +2,13 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   AlertTriangle, BookOpen, CheckCircle2, ChevronDown, ChevronUp,
-  Clock, MessageSquare, Zap, ArrowRight,
+  Clock, MessageSquare, Zap, ArrowRight, Plus,
 } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { Mote } from "@/components/app/Mote";
+import { buildExamEmergencyFromIntake } from "@/lib/exam/build-exam-emergency";
 import type { ExamEmergency, StudyBlock } from "@/lib/types";
-import type { ExamBlockFeedbackResult } from "@/lib/types/exam-emergency";
+import type { ExamBlockFeedbackResult, TargetOutcome } from "@/lib/types/exam-emergency";
 import type { ForgeFeatureType } from "@/lib/types";
 
 // ── Study block row ───────────────────────────────────────────────────────────
@@ -250,12 +251,190 @@ function ReflectionForm({ emergency, dispatch }: { emergency: ExamEmergency; dis
   );
 }
 
+// ── Quick intake form ─────────────────────────────────────────────────────────
+
+const TIME_OPTIONS: Array<{ label: string; offsetHours: number }> = [
+  { label: "In 1–2 hours", offsetHours: 1.5 },
+  { label: "Tonight", offsetHours: 5 },
+  { label: "Tomorrow morning", offsetHours: 16 },
+  { label: "Tomorrow afternoon", offsetHours: 22 },
+  { label: "In 2 days", offsetHours: 48 },
+  { label: "This week", offsetHours: 96 },
+];
+
+const STUDY_HOURS_OPTIONS = [1, 2, 3, 4] as const;
+
+const OUTCOME_OPTIONS: Array<{ value: TargetOutcome; label: string; desc: string }> = [
+  { value: "survive", label: "Survive", desc: "Pass with what I have" },
+  { value: "solid", label: "Solid", desc: "Good result with focused prep" },
+  { value: "high_score", label: "High score", desc: "Everything I can get" },
+];
+
+function QuickIntakeForm({ onCreated }: { onCreated: () => void }) {
+  const dispatch = useStateStore((s) => s.dispatch);
+  const [subject, setSubject] = useState("");
+  const [timeOffset, setTimeOffset] = useState<number>(16);
+  const [topicsRaw, setTopicsRaw] = useState("");
+  const [studyHours, setStudyHours] = useState<number>(2);
+  const [preparedness, setPreparedness] = useState<number>(3);
+  const [targetOutcome, setTargetOutcome] = useState<TargetOutcome>("solid");
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!subject.trim()) { setError("Subject is required"); return; }
+
+    const examDateTime = new Date(Date.now() + timeOffset * 3_600_000).toISOString();
+
+    const now = new Date();
+    const startTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const endHour = Math.min(now.getHours() + studyHours, 23);
+    const endTime = `${String(endHour).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+
+    const topics = topicsRaw
+      .split(/[\n,]+/)
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .map((name) => ({ name }));
+
+    const emergency = buildExamEmergencyFromIntake({
+      action: "ready_to_build",
+      subject: subject.trim(),
+      exam_date_time: examDateTime,
+      preparedness_score: preparedness,
+      target_outcome: targetOutcome,
+      topics: topics.length > 0 ? topics : undefined,
+      available_study_windows: [
+        { start_time: startTime, end_time: endTime, day_label: "Today", available_minutes: studyHours * 60 },
+      ],
+    });
+
+    dispatch({ type: "exam/create", payload: emergency } as any);
+    onCreated();
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Subject */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Subject</label>
+        <input
+          value={subject}
+          onChange={(e) => { setSubject(e.target.value); setError(null); }}
+          placeholder="e.g. Maths, Biology, History…"
+          className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+          autoFocus
+        />
+        {error && <p className="text-xs text-red-400">{error}</p>}
+      </div>
+
+      {/* When is the exam */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">When is the exam?</label>
+        <div className="flex flex-wrap gap-1.5">
+          {TIME_OPTIONS.map((opt) => (
+            <button
+              key={opt.offsetHours}
+              type="button"
+              onClick={() => setTimeOffset(opt.offsetHours)}
+              className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                timeOffset === opt.offsetHours
+                  ? "border-amber-500/60 bg-amber-500/15 text-amber-300"
+                  : "border-border bg-card text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Topics */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Topics <span className="normal-case text-muted-foreground/60">(optional — one per line or comma-separated)</span>
+        </label>
+        <textarea
+          value={topicsRaw}
+          onChange={(e) => setTopicsRaw(e.target.value)}
+          placeholder={"Algebra\nProbability\nGeometry"}
+          rows={3}
+          className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none resize-none"
+        />
+      </div>
+
+      {/* Study time available */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Study time available today</label>
+        <div className="flex gap-1.5">
+          {STUDY_HOURS_OPTIONS.map((h) => (
+            <button
+              key={h}
+              type="button"
+              onClick={() => setStudyHours(h)}
+              className={`flex-1 rounded-xl border py-2 text-sm transition-colors ${
+                studyHours === h
+                  ? "border-primary/60 bg-primary/10 text-primary"
+                  : "border-border bg-card text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {h}h{h === 4 ? "+" : ""}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Preparedness + target */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Confidence now <span className="font-normal">{preparedness}/10</span>
+          </label>
+          <input
+            type="range" min={1} max={10} value={preparedness}
+            onChange={(e) => setPreparedness(Number(e.target.value))}
+            className="w-full accent-amber-500"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Goal</label>
+          <div className="flex flex-col gap-1">
+            {OUTCOME_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setTargetOutcome(opt.value)}
+                className={`rounded-lg border px-2.5 py-1.5 text-left text-xs transition-colors ${
+                  targetOutcome === opt.value
+                    ? "border-primary/50 bg-primary/10 text-primary"
+                    : "border-border bg-card text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <span className="font-medium">{opt.label}</span>
+                <span className="block text-[10px] opacity-70">{opt.desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        className="w-full rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-white hover:bg-amber-400 transition-colors"
+      >
+        Build my rescue plan
+      </button>
+    </form>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function ExamMode() {
   const state = useStateStore((s) => s.state);
   const dispatch = useStateStore((s) => s.dispatch);
   const [activeTab, setActiveTab] = useState<"survival" | "recovery" | "stretch">("survival");
+  const [showNewForm, setShowNewForm] = useState(false);
 
   const emergency = (state?.exam_emergencies as ExamEmergency[] | undefined)?.find(
     (e) => e.status === "active" || e.status === "intake" || e.status === "recovering",
@@ -266,22 +445,33 @@ export default function ExamMode() {
 
   const target = emergency ?? completed;
 
-  if (!target) {
+  if (!target || showNewForm) {
     return (
-      <div className="mx-auto max-w-xl space-y-6 py-8">
-        <div className="text-center space-y-3">
-          <Mote size={64} mood="calm" />
-          <h1 className="text-xl font-semibold text-foreground">No exam emergency active</h1>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            Tell Moment about an upcoming exam in Chat and it will build a timed rescue plan here.
+      <div className="mx-auto max-w-xl space-y-6 py-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.2em] text-amber-400/80">
+            <AlertTriangle className="h-3 w-3" /> exam emergency
+          </div>
+          <h1 className="text-xl font-semibold text-foreground">Build a rescue plan</h1>
+          <p className="text-sm text-muted-foreground">
+            Fill in what you know. Moment will triage your topics and build a timed study plan in seconds.
           </p>
-          <Link
-            to="/app/chat"
-            className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground"
-          >
-            <MessageSquare className="h-4 w-4" /> Open Chat
-          </Link>
         </div>
+        <QuickIntakeForm onCreated={() => setShowNewForm(false)} />
+        {!showNewForm && (
+          <p className="text-center text-xs text-muted-foreground">
+            Or describe your situation in{" "}
+            <Link to="/app/chat" className="text-primary underline">Chat</Link> for a guided intake.
+          </p>
+        )}
+        {showNewForm && (
+          <button
+            onClick={() => setShowNewForm(false)}
+            className="text-xs text-muted-foreground hover:text-foreground"
+          >
+            ← Back
+          </button>
+        )}
       </div>
     );
   }
@@ -342,15 +532,24 @@ export default function ExamMode() {
               {target.subject}
             </h1>
           </div>
-          <div className="text-right">
-            <p className={`text-sm font-medium ${hoursUntilExam < 6 ? "text-red-400" : "text-amber-400"}`}>
-              {target.status === "completed" ? "completed" : `${countdownText} remaining`}
-            </p>
-            {target.preparedness_score && (
-              <p className="text-[11px] text-muted-foreground">
-                confidence before: {target.preparedness_score}/10
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <p className={`text-sm font-medium ${hoursUntilExam < 6 ? "text-red-400" : "text-amber-400"}`}>
+                {target.status === "completed" ? "completed" : `${countdownText} remaining`}
               </p>
-            )}
+              {target.preparedness_score && (
+                <p className="text-[11px] text-muted-foreground">
+                  confidence before: {target.preparedness_score}/10
+                </p>
+              )}
+            </div>
+            <button
+              onClick={() => setShowNewForm(true)}
+              title="New exam plan"
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
           </div>
         </div>
 
