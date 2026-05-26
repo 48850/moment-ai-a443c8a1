@@ -204,6 +204,7 @@ export function CoachPanel({ surface = "coach", compact = false }: Props) {
               changes.available_study_windows = intake.available_study_windows;
             }
             dispatch({ type: "exam/update", payload: { id: existing.id, changes } });
+            examEmergency = { ...existing, ...changes } as ExamEmergency;
           } else {
             const now = new Date().toISOString();
             const partial = examEmergencySchema.parse({
@@ -234,6 +235,7 @@ export function CoachPanel({ surface = "coach", compact = false }: Props) {
               updated_at: now,
             });
             dispatch({ type: "exam/create", payload: partial });
+            examEmergency = partial;
           }
         }
       } else if (parsed.exam_plan) {
@@ -244,11 +246,13 @@ export function CoachPanel({ surface = "coach", compact = false }: Props) {
         }
       } else {
         const intent = detectExamIntent(trimmed);
-        if (intent.detected && intent.subject && intent.urgencyLevel !== "low") {
+        if (intent.detected && intent.urgencyLevel !== "low") {
           const existing = (state.exam_emergencies as ExamEmergency[] | undefined)?.find(
             (e) => e.status === "intake" || e.status === "active",
           );
-          if (!existing) {
+          if (existing) {
+            examEmergency = existing;
+          } else if (intent.subject) {
             examEmergency = buildExamEmergencyFromIntake({
               action: "start",
               subject: intent.subject,
