@@ -787,6 +787,17 @@ const Forge = () => {
 
   const gap = vm.system_gap;
 
+  // Context-aware suggestions — powered by the shared ContextSnapshot
+  const contextSnap = useMemo(() => buildContextSnapshot(state, ""), [state]);
+  const existingActiveTypes = useMemo(
+    () => new Set(activeGuidebooks.map((g) => g.feature_type as string)),
+    [activeGuidebooks],
+  );
+  const contextualSuggestions = useMemo(
+    () => buildContextualForgeSuggestions(contextSnap, existingActiveTypes),
+    [contextSnap, existingActiveTypes],
+  );
+
   const handleBuildAroundGap = (type: ForgeFeatureType) => {
     setPreselectedType(type);
     setSystemQuestion(gap.suggested_question);
