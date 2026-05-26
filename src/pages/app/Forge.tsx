@@ -1,8 +1,10 @@
 import { Mote } from "@/components/app/Mote";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { buildContextPacket } from "@/lib/ai/context-packet";
+import { buildContextualForgeSuggestions, HeartbeatBanner } from "@/components/app/HeartbeatBanner";
+import { buildContextSnapshot } from "@/lib/coach/context-snapshot";
 import {
   Hammer, Sparkles, Loader2, Plus, Archive, Pencil, Play,
   X, ChevronRight, Zap, Target, Clock, BarChart2, Activity,
