@@ -64,3 +64,10 @@ export interface TriageScore {
   priority: ExamTopicPriority;
   rationale: string;
 }
+
+export interface ExamIntentSignal {
+  detected: boolean;
+  subject?: string;
+  timeframe?: string;
+  urgencyLevel: "low" | "medium" | "high" | "critical";
+}
