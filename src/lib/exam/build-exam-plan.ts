@@ -127,7 +127,7 @@ export function adaptPlanAfterFeedback(
   blockId: string,
   result: ExamBlockFeedbackResult,
 ): ExamCurrentPlan {
-  const plan = emergency.current_plan;
+  const plan = emergency.current_plan as ExamCurrentPlan;
   if (result !== "confused" && result !== "too_long" && result !== "avoided") return plan;
 
   function insertMicroReview(blocks: StudyBlock[]): StudyBlock[] {
