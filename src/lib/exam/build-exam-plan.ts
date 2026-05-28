@@ -1,5 +1,5 @@
-import type { ExamTopic, StudyBlock, StudyWindow } from "@/lib/types";
-import type { TriageScore, StudyMethod } from "@/lib/types/exam-emergency";
+import type { ExamEmergency, ExamTopic, StudyBlock, StudyWindow } from "@/lib/types";
+import type { ExamBlockFeedbackResult, TriageScore, StudyMethod } from "@/lib/types/exam-emergency";
 import { scoreTopics, sortByPriority } from "./exam-triage";
 
 export interface BuildPlanInput {
@@ -120,4 +120,76 @@ export function buildExamPlan(input: BuildPlanInput): ExamCurrentPlan {
   }
 
   return { survival_plan: survivalPlan, recovery_plan: recoveryPlan, stretch_plan: stretchPlan };
+}
+
+export function adaptPlanAfterFeedback(
+  emergency: ExamEmergency,
+  blockId: string,
+  result: ExamBlockFeedbackResult,
+): ExamCurrentPlan {
+  const plan = emergency.current_plan;
+  if (result !== "confused" && result !== "too_long" && result !== "avoided") return plan;
+
+  function insertMicroReview(blocks: StudyBlock[]): StudyBlock[] {
+    const idx = blocks.findIndex((b) => b.id === blockId);
+    if (idx === -1 || blocks[idx].duration_minutes <= 15) return blocks;
+    const orig = blocks[idx];
+    const micro: StudyBlock = {
+      id: `${blockId}-micro-${Date.now()}`,
+      title: `Quick review: ${orig.title.split(" (")[0]}`,
+      topic_ids: orig.topic_ids,
+      duration_minutes: 15,
+      method: "active_recall",
+      goal: `Solidify the core ideas — just key facts.`,
+      success_criteria: "Can write 3 facts without notes.",
+      fallback_if_stuck: "Write a memory dump — everything you know, no stopping.",
+    };
+    return [...blocks.slice(0, idx + 1), micro, ...blocks.slice(idx + 1)];
+  }
+
+  function insertStarterBlock(blocks: StudyBlock[]): StudyBlock[] {
+    const idx = blocks.findIndex((b) => b.id === blockId);
+    if (idx === -1) return blocks;
+    const orig = blocks[idx];
+    const starter: StudyBlock = {
+      id: `${blockId}-starter-${Date.now()}`,
+      title: `Starter: ${orig.title.split(" (")[0]}`,
+      topic_ids: orig.topic_ids,
+      duration_minutes: 10,
+      method: "summary",
+      goal: `Open your notes on ${orig.title.split(" (")[0]}. Write everything you already know — no stopping.`,
+      success_criteria: "Page has at least 5 things written down.",
+      fallback_if_stuck: "Copy one sentence from your notes to get moving.",
+    };
+    return [...blocks.slice(0, idx + 1), starter, ...blocks.slice(idx + 1)];
+  }
+
+  function shrinkAfter(blocks: StudyBlock[]): StudyBlock[] {
+    const idx = blocks.findIndex((b) => b.id === blockId);
+    if (idx === -1) return blocks;
+    return blocks.map((b, i) =>
+      i > idx ? { ...b, duration_minutes: Math.max(15, Math.round(b.duration_minutes * 0.8)) } : b,
+    );
+  }
+
+  if (result === "confused") {
+    return {
+      survival_plan: insertMicroReview(plan.survival_plan),
+      recovery_plan: insertMicroReview(plan.recovery_plan),
+      stretch_plan: insertMicroReview(plan.stretch_plan),
+    };
+  }
+  if (result === "avoided") {
+    return {
+      survival_plan: insertStarterBlock(plan.survival_plan),
+      recovery_plan: insertStarterBlock(plan.recovery_plan),
+      stretch_plan: insertStarterBlock(plan.stretch_plan),
+    };
+  }
+  // too_long
+  return {
+    survival_plan: shrinkAfter(plan.survival_plan),
+    recovery_plan: shrinkAfter(plan.recovery_plan),
+    stretch_plan: shrinkAfter(plan.stretch_plan),
+  };
 }

@@ -135,6 +135,25 @@ export function buildEvidenceVault(state: MomentState | null): EvidenceVault {
   }));
   entries.push(...artifacts);
 
+  // ---------- exam completions ----------
+  for (const exam of ((state as any).exam_emergencies ?? []) as any[]) {
+    if (exam.status !== "completed") continue;
+    const completedBlocks = (exam.feedback ?? []).filter((f: any) => f.result === "completed").length;
+    const totalBlocks = (exam.current_plan?.survival_plan ?? []).length;
+    entries.push({
+      id: `exam_proof_${exam.id}`,
+      type: "task_proof",
+      created_at: exam.updated_at || exam.created_at,
+      completed_at: exam.updated_at || exam.created_at,
+      title: `${exam.subject} exam — ${completedBlocks}/${totalBlocks} survival blocks`,
+      task_id: exam.id,
+      proof_of_completion: exam.reflection?.result
+        ? `Felt ${exam.reflection.result.replace(/_/g, " ")} — ${exam.reflection.surprise ?? "pushed through under pressure"}.`
+        : `Completed ${completedBlocks} study blocks before the ${exam.subject} exam.`,
+      feedback: exam.reflection?.result,
+    } as TaskProofEntry);
+  }
+
   // ---------- capabilities ----------
   const capabilities: CapabilityEntry[] = (state.pursuit_model?.capability_clusters ?? [])
     .filter((c) => c.status !== "not_started")
