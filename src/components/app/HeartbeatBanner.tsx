@@ -100,7 +100,7 @@ function CompactHeartbeat({ snap }: { snap: Snap }) {
                 ? "< 1h"
                 : `${Math.round(snap.active_exam_emergency.hoursUntilExam)}h`}
             </span>
-            <Link to="/app/plan" className="ml-1 underline">Study plan →</Link>
+            <Link to="/app/exam" className="ml-1 underline">Study plan →</Link>
           </div>
         )}
 

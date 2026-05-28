@@ -6,7 +6,8 @@ import { describe, it, expect } from "vitest";
 import { detectExamIntent } from "@/lib/exam/detect-exam-intent";
 import { getIntakeStatus, getMissingField } from "@/lib/exam/exam-intake-state";
 import { scoreTopics, sortByPriority } from "@/lib/exam/exam-triage";
-import { buildExamPlan, buildFirst20MinutesBlock } from "@/lib/exam/build-exam-plan";
+import { buildExamPlan, buildFirst20MinutesBlock, adaptPlanAfterFeedback } from "@/lib/exam/build-exam-plan";
+import { buildEvidenceVault } from "@/lib/portfolio/build-evidence-vault";
 import { buildExamEmergencyFromIntake } from "@/lib/exam/build-exam-emergency";
 import { parseCoachResponse } from "@/lib/coach/coach-response-schema";
 import { examEmergencySchema } from "@/lib/state/schema";
@@ -349,5 +350,146 @@ describe("reliability", () => {
     expect(() =>
       examEmergencySchema.parse({ subject: "Maths" }),
     ).toThrow();
+  });
+});
+
+// ── adaptPlanAfterFeedback ────────────────────────────────────────────────────
+
+function makeTestEmergency(durationMinutes = 30) {
+  const intake: ExamIntakePayload = {
+    action: "ready_to_build",
+    subject: "Maths",
+    exam_date_time: new Date(Date.now() + 16 * 3_600_000).toISOString(),
+    topics: [
+      { name: "Algebra", confidence: 2, mark_value: 5, likelihood: 4 },
+      { name: "Geometry", confidence: 3, mark_value: 4, likelihood: 3 },
+    ],
+    available_study_windows: [{ start_time: "18:00", end_time: "22:00", day_label: "Today", available_minutes: 240 }],
+  };
+  const emergency = buildExamEmergencyFromIntake(intake);
+  // Override first survival block duration for tests that need a specific value
+  if (durationMinutes !== 20) {
+    const first = emergency.current_plan.survival_plan[0];
+    emergency.current_plan.survival_plan[0] = { ...first, duration_minutes: durationMinutes };
+  }
+  return emergency;
+}
+
+describe("adaptPlanAfterFeedback", () => {
+  it("confused — inserts a 15-min micro-review block after the block", () => {
+    const emergency = makeTestEmergency(30);
+    const blockId = emergency.current_plan.survival_plan[0].id;
+    const before = emergency.current_plan.survival_plan.length;
+    const adapted = adaptPlanAfterFeedback(emergency, blockId, "confused");
+    expect(adapted.survival_plan.length).toBe(before + 1);
+    const microIdx = adapted.survival_plan.findIndex((b) => b.id.includes("-micro-"));
+    expect(microIdx).toBe(1);
+    expect(adapted.survival_plan[microIdx].duration_minutes).toBe(15);
+  });
+
+  it("confused — does not insert micro-review if block is already ≤15 min", () => {
+    const emergency = makeTestEmergency(15);
+    const blockId = emergency.current_plan.survival_plan[0].id;
+    const before = emergency.current_plan.survival_plan.length;
+    const adapted = adaptPlanAfterFeedback(emergency, blockId, "confused");
+    expect(adapted.survival_plan.length).toBe(before);
+  });
+
+  it("too_long — shrinks subsequent blocks by 20%, minimum 15 min", () => {
+    const emergency = makeTestEmergency();
+    const survivalBlocks = emergency.current_plan.survival_plan;
+    const blockId = survivalBlocks[0].id;
+    const originalNext = survivalBlocks[1]?.duration_minutes;
+    if (!originalNext) return; // skip if only 1 block
+    const adapted = adaptPlanAfterFeedback(emergency, blockId, "too_long");
+    const shrunk = adapted.survival_plan[1].duration_minutes;
+    expect(shrunk).toBe(Math.max(15, Math.round(originalNext * 0.8)));
+  });
+
+  it("avoided — inserts a 10-min starter block after the block", () => {
+    const emergency = makeTestEmergency(30);
+    const blockId = emergency.current_plan.survival_plan[0].id;
+    const before = emergency.current_plan.survival_plan.length;
+    const adapted = adaptPlanAfterFeedback(emergency, blockId, "avoided");
+    expect(adapted.survival_plan.length).toBe(before + 1);
+    const starterIdx = adapted.survival_plan.findIndex((b) => b.id.includes("-starter-"));
+    expect(starterIdx).toBe(1);
+    expect(adapted.survival_plan[starterIdx].duration_minutes).toBe(10);
+  });
+
+  it("easy / hard / completed — plan unchanged", () => {
+    const emergency = makeTestEmergency(30);
+    const blockId = emergency.current_plan.survival_plan[0].id;
+    const originalLen = emergency.current_plan.survival_plan.length;
+    for (const result of ["easy", "hard", "completed"] as const) {
+      const adapted = adaptPlanAfterFeedback(emergency, blockId, result);
+      expect(adapted.survival_plan.length).toBe(originalLen);
+      expect(adapted).toEqual(emergency.current_plan);
+    }
+  });
+});
+
+// ── buildEvidenceVault — exam proof ──────────────────────────────────────────
+
+function makeMinimalState(overrides: Record<string, unknown> = {}) {
+  return {
+    tasks: [],
+    reflections: [],
+    rescue_signals: [],
+    forge_state: { forge_signals: [] },
+    pursuit_model: null,
+    execution_feedback: [],
+    ...overrides,
+  } as any;
+}
+
+describe("buildEvidenceVault — exam proof", () => {
+  it("creates a proof entry for a completed exam", () => {
+    const intake: ExamIntakePayload = {
+      action: "ready_to_build",
+      subject: "Physics",
+      exam_date_time: new Date(Date.now() - 3_600_000).toISOString(),
+      topics: [{ name: "Forces" }],
+      available_study_windows: [{ start_time: "18:00", end_time: "20:00", day_label: "Today", available_minutes: 120 }],
+    };
+    const emergency = { ...buildExamEmergencyFromIntake(intake), status: "completed" as const };
+    const state = makeMinimalState({ exam_emergencies: [emergency] });
+    const vault = buildEvidenceVault(state);
+    const examEntry = vault.entries.find((e) => e.id.startsWith("exam_proof_"));
+    expect(examEntry).toBeDefined();
+    expect((examEntry as any).title).toContain("Physics");
+  });
+
+  it("does not create proof for active or intake exams", () => {
+    const intake: ExamIntakePayload = {
+      action: "ready_to_build",
+      subject: "Chemistry",
+      exam_date_time: new Date(Date.now() + 16 * 3_600_000).toISOString(),
+      available_study_windows: [{ start_time: "18:00", end_time: "20:00", day_label: "Today", available_minutes: 120 }],
+    };
+    const active = buildExamEmergencyFromIntake(intake);
+    const state = makeMinimalState({ exam_emergencies: [active] });
+    const vault = buildEvidenceVault(state);
+    const examEntry = vault.entries.find((e) => e.id.startsWith("exam_proof_"));
+    expect(examEntry).toBeUndefined();
+  });
+
+  it("includes reflection text in proof_of_completion when present", () => {
+    const intake: ExamIntakePayload = {
+      action: "ready_to_build",
+      subject: "Biology",
+      exam_date_time: new Date(Date.now() - 3_600_000).toISOString(),
+      available_study_windows: [{ start_time: "18:00", end_time: "20:00", day_label: "Today", available_minutes: 120 }],
+    };
+    const emergency = {
+      ...buildExamEmergencyFromIntake(intake),
+      status: "completed" as const,
+      reflection: { result: "hard" as const, surprise: "ran out of time", created_at: new Date().toISOString() },
+    };
+    const state = makeMinimalState({ exam_emergencies: [emergency] });
+    const vault = buildEvidenceVault(state);
+    const examEntry = vault.entries.find((e) => e.id.startsWith("exam_proof_"));
+    expect((examEntry as any).proof_of_completion).toContain("hard");
+    expect((examEntry as any).proof_of_completion).toContain("ran out of time");
   });
 });

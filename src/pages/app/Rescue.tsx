@@ -1,6 +1,7 @@
 import { Mote } from "@/components/app/Mote";
 import { useEffect, useState } from "react";
-import { LifeBuoy, Wind, Coffee, Heart, Sparkles, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { LifeBuoy, Wind, Coffee, Heart, Sparkles, Loader2, AlertTriangle } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { selectNextBestTask } from "@/lib/engine/next-best-task";
 import { useAI } from "@/lib/ai/useAI";
@@ -56,6 +57,7 @@ const protocols: Record<string, { title: string; steps: string[]; icon: typeof W
 const Rescue = () => {
   const state = useStateStore((s) => s.state);
   const dispatch = useStateStore((s) => s.dispatch);
+  const navigate = useNavigate();
   const [picked, setPicked] = useState<keyof typeof protocols | null>(null);
   const ai = useAI<{ title: string; steps: string[]; soft_note?: string }>("rescue_protocol");
 
@@ -142,6 +144,14 @@ const Rescue = () => {
           </button>
         ))}
       </section>
+
+      <button
+        onClick={() => navigate("/app/exam")}
+        className="w-full flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-400 hover:border-amber-500/50 hover:bg-amber-500/10 transition-colors"
+      >
+        <span className="font-medium">I have an exam coming up</span>
+        <AlertTriangle className="h-4 w-4" />
+      </button>
 
       {proto && (
         <section className="rounded-2xl border border-primary/40 bg-gradient-to-b from-primary/10 to-transparent p-5">

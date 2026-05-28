@@ -1,7 +1,9 @@
 import { Mote } from "@/components/app/Mote";
 import { useEffect, useMemo, useState } from "react";
-import { Check, Clock, ExternalLink, NotebookPen, Plus, Sparkles, X } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Check, Clock, ExternalLink, NotebookPen, Plus, Sparkles, X, AlertTriangle } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
+import type { ExamEmergency } from "@/lib/types";
 import { selectHomeViewModel } from "@/lib/selectors/home";
 import { JourneyConstellation } from "@/components/app/JourneyConstellation";
 import { FeedbackChips } from "@/components/app/FeedbackChips";
@@ -182,6 +184,31 @@ const Dashboard = () => {
           </div>
         </section>
       )}
+
+      {/* Exam quick action */}
+      {(() => {
+        const activeExam = (state.exam_emergencies as ExamEmergency[] | undefined)
+          ?.find((e) => e.status === "active" || e.status === "intake");
+        return activeExam ? (
+          <Link
+            to="/app/exam"
+            className="flex items-center justify-between rounded-xl border border-amber-500/25 bg-amber-500/5 px-4 py-2.5 text-sm"
+          >
+            <span className="flex items-center gap-2 text-amber-400">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              {activeExam.subject} exam plan active
+            </span>
+            <span className="text-xs text-muted-foreground">View →</span>
+          </Link>
+        ) : (
+          <Link
+            to="/app/exam"
+            className="flex items-center gap-2 rounded-xl border border-border bg-card/50 px-4 py-2.5 text-sm text-muted-foreground hover:border-amber-500/30 hover:text-amber-400 transition-colors"
+          >
+            <AlertTriangle className="h-3.5 w-3.5" /> Exam coming up?
+          </Link>
+        );
+      })()}
 
       {/* Why this mattered */}
       {vm.whyThisMattered.populated && (

@@ -16,6 +16,7 @@ import { seedWeekPlan, reformWeekPlan, sortBlocks as weekSort } from "@/lib/engi
 import { scheduleTaskInWeek, dayIndexFromDueDate } from "@/lib/engine/auto-schedule";
 import { evaluateGoalFeasibility } from "@/lib/engine/goal-feasibility";
 import { filterStageAppropriateTasks } from "@/lib/engine/task-stage-filter";
+import { adaptPlanAfterFeedback } from "@/lib/exam/build-exam-plan";
 
 interface StateStore {
   state: MomentState | null;
@@ -1112,13 +1113,14 @@ export const useStateStore = create<StateStore>((set, get) => ({
       }
 
       case "exam/add_feedback": {
+        const { emergencyId, feedback } = action.payload;
         next = {
           ...s,
-          exam_emergencies: ((s as any).exam_emergencies ?? []).map((e: any) =>
-            e.id === action.payload.emergencyId
-              ? { ...e, feedback: [...(e.feedback ?? []), action.payload.feedback], updated_at: now() }
-              : e,
-          ),
+          exam_emergencies: ((s as any).exam_emergencies ?? []).map((e: any) => {
+            if (e.id !== emergencyId) return e;
+            const withFeedback = { ...e, feedback: [...(e.feedback ?? []), feedback], updated_at: now() };
+            return { ...withFeedback, current_plan: adaptPlanAfterFeedback(withFeedback, feedback.block_id, feedback.result) };
+          }),
         };
         break;
       }
