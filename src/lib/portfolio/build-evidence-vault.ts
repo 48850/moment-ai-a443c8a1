@@ -135,8 +135,31 @@ export function buildEvidenceVault(state: MomentState | null): EvidenceVault {
   }));
   entries.push(...artifacts);
 
-  // ---------- exam completions ----------
+  // ---------- exam completions + per-block proof ----------
   for (const exam of ((state as any).exam_emergencies ?? []) as any[]) {
+    const blocks = [
+      ...(exam.current_plan?.survival_plan ?? []),
+      ...(exam.current_plan?.recovery_plan ?? []),
+      ...(exam.current_plan?.stretch_plan ?? []),
+    ];
+    const blockById = new Map<string, any>(blocks.map((b: any) => [b.id, b]));
+    for (const f of (exam.feedback ?? []) as any[]) {
+      if (f.result !== "completed") continue;
+      const block = blockById.get(f.block_id);
+      if (!block) continue;
+      entries.push({
+        id: `exam_block_proof_${exam.id}_${f.block_id}`,
+        type: "task_proof",
+        created_at: f.created_at,
+        completed_at: f.created_at,
+        title: `${exam.subject}: ${block.title}`,
+        task_id: f.block_id,
+        proof_of_completion: block.success_criteria
+          ? `Completed ${block.duration_minutes}m study block — ${block.success_criteria}`
+          : `Completed ${block.duration_minutes}m study block on ${block.title}.`,
+      } as TaskProofEntry);
+    }
+
     if (exam.status !== "completed") continue;
     const completedBlocks = (exam.feedback ?? []).filter((f: any) => f.result === "completed").length;
     const totalBlocks = (exam.current_plan?.survival_plan ?? []).length;

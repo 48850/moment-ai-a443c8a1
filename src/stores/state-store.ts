@@ -1159,6 +1159,64 @@ export const useStateStore = create<StateStore>((set, get) => ({
         break;
       }
 
+      case "exam/set_task_profile": {
+        const { emergencyId, profile } = action.payload;
+        next = {
+          ...s,
+          exam_emergencies: ((s as any).exam_emergencies ?? []).map((e: any) =>
+            e.id === emergencyId
+              ? { ...e, task_profile: { ...profile, updated_at: now() }, updated_at: now() }
+              : e,
+          ),
+        };
+        break;
+      }
+
+      case "exam/add_resource": {
+        const { emergencyId, resource } = action.payload;
+        next = {
+          ...s,
+          exam_emergencies: ((s as any).exam_emergencies ?? []).map((e: any) =>
+            e.id === emergencyId
+              ? { ...e, resources: [...(e.resources ?? []), resource], updated_at: now() }
+              : e,
+          ),
+        };
+        break;
+      }
+
+      case "exam/update_resource": {
+        const { emergencyId, resourceId, changes } = action.payload;
+        next = {
+          ...s,
+          exam_emergencies: ((s as any).exam_emergencies ?? []).map((e: any) =>
+            e.id === emergencyId
+              ? {
+                  ...e,
+                  resources: (e.resources ?? []).map((r: any) =>
+                    r.id === resourceId ? { ...r, ...changes } : r,
+                  ),
+                  updated_at: now(),
+                }
+              : e,
+          ),
+        };
+        break;
+      }
+
+      case "exam/remove_resource": {
+        const { emergencyId, resourceId } = action.payload;
+        next = {
+          ...s,
+          exam_emergencies: ((s as any).exam_emergencies ?? []).map((e: any) =>
+            e.id === emergencyId
+              ? { ...e, resources: (e.resources ?? []).filter((r: any) => r.id !== resourceId), updated_at: now() }
+              : e,
+          ),
+        };
+        break;
+      }
+
       case "chat/append": {
         const msgs = [...(s.chat_messages ?? []), action.payload].slice(-100);
         next = { ...s, chat_messages: msgs };

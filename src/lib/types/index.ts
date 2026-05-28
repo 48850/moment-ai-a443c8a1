@@ -28,6 +28,8 @@ import {
   studyBlockSchema,
   studyWindowSchema,
   examBlockFeedbackSchema,
+  examTaskProfileSchema,
+  examResourceSchema,
 } from "@/lib/state/schema";
 
 export type MomentState = z.infer<typeof momentStateSchema>;
@@ -58,6 +60,8 @@ export type ExamTopic = z.infer<typeof examTopicSchema>;
 export type StudyBlock = z.infer<typeof studyBlockSchema>;
 export type StudyWindow = z.infer<typeof studyWindowSchema>;
 export type ExamBlockFeedback = z.infer<typeof examBlockFeedbackSchema>;
+export type ExamTaskProfile = z.infer<typeof examTaskProfileSchema>;
+export type ExamResource = z.infer<typeof examResourceSchema>;
 export type ChatPreferences = z.infer<typeof chatPreferencesSchema>;
 export type { PursuitFamily } from "@/lib/pursuit/families";
 

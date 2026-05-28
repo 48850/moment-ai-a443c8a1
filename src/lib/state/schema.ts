@@ -368,6 +368,37 @@ export const examCurrentPlanSchema = z.object({
   stretch_plan: z.array(studyBlockSchema).default([]),
 });
 
+// ── Exam Copilot — task profile + resource map ──────────────────────────────
+export const examTaskProfileSchema = z.object({
+  format: z
+    .enum(["multiple_choice", "short_answer", "essay", "prac", "oral", "mixed", "unknown"])
+    .default("unknown"),
+  sections: z.array(z.string()).default([]),
+  highest_mark_section: z.string().optional(),
+  has_rubric: z.boolean().default(false),
+  rubric_text: z.string().optional(),
+  has_topic_list: z.boolean().default(false),
+  has_past_papers: z.boolean().default(false),
+  teacher_emphasis: z.string().optional(),
+  target_mark: z.string().optional(),
+  updated_at: z.string().default(() => new Date().toISOString()),
+});
+
+export const examResourceKindSchema = z.enum([
+  "notes", "textbook", "slides", "past_paper", "rubric",
+  "study_guide", "teacher_feedback", "practice_q", "other",
+]);
+
+export const examResourceSchema = z.object({
+  id: z.string(),
+  kind: examResourceKindSchema,
+  label: z.string(),
+  helps_with: z.array(z.string()).default([]),
+  priority: z.enum(["high", "medium", "low"]).default("medium"),
+  how_to_use: z.string().default(""),
+  created_at: z.string().default(() => new Date().toISOString()),
+});
+
 export const examEmergencySchema = z.object({
   id: z.string(),
   subject: z.string(),
@@ -384,6 +415,8 @@ export const examEmergencySchema = z.object({
     "needs_subject", "needs_exam_time", "needs_topics",
     "needs_available_time", "ready_to_build", "active",
   ]).default("needs_subject"),
+  task_profile: examTaskProfileSchema.optional(),
+  resources: z.array(examResourceSchema).default([]),
   reflection: z.object({
     result: z.enum(["easy", "okay", "hard", "very_hard"]).optional(),
     surprise: z.string().optional(),

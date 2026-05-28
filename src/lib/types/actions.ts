@@ -128,4 +128,8 @@ export type MomentAction =
   | { type: "exam/add_feedback"; payload: { emergencyId: string; feedback: import("@/lib/types").ExamBlockFeedback } }
   | { type: "exam/set_active_block"; payload: { emergencyId: string; blockId: string | undefined } }
   | { type: "exam/complete"; payload: { id: string } }
-  | { type: "exam/delete"; payload: { id: string } };
+  | { type: "exam/delete"; payload: { id: string } }
+  | { type: "exam/set_task_profile"; payload: { emergencyId: string; profile: import("@/lib/types").ExamTaskProfile } }
+  | { type: "exam/add_resource"; payload: { emergencyId: string; resource: import("@/lib/types").ExamResource } }
+  | { type: "exam/update_resource"; payload: { emergencyId: string; resourceId: string; changes: Partial<import("@/lib/types").ExamResource> } }
+  | { type: "exam/remove_resource"; payload: { emergencyId: string; resourceId: string } };

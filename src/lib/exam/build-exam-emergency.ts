@@ -49,6 +49,31 @@ export function buildExamEmergencyFromIntake(input: ExamIntakePayload): ExamEmer
 
   const firstBlockId = currentPlan.survival_plan[0]?.id;
 
+  const resources = (input.resources ?? []).map((r) => ({
+    id: crypto.randomUUID(),
+    kind: r.kind,
+    label: r.label,
+    helps_with: r.helps_with ?? [],
+    priority: r.priority ?? ("medium" as const),
+    how_to_use: r.how_to_use ?? "",
+    created_at: now,
+  }));
+
+  const taskProfile = input.task_profile
+    ? {
+        format: input.task_profile.format ?? "unknown",
+        sections: input.task_profile.sections ?? [],
+        highest_mark_section: input.task_profile.highest_mark_section,
+        has_rubric: input.task_profile.has_rubric ?? false,
+        rubric_text: input.task_profile.rubric_text,
+        has_topic_list: input.task_profile.has_topic_list ?? false,
+        has_past_papers: input.task_profile.has_past_papers ?? false,
+        teacher_emphasis: input.task_profile.teacher_emphasis,
+        target_mark: input.task_profile.target_mark,
+        updated_at: now,
+      }
+    : undefined;
+
   const draft = {
     id: crypto.randomUUID(),
     subject,
@@ -62,6 +87,8 @@ export function buildExamEmergencyFromIntake(input: ExamIntakePayload): ExamEmer
     active_block_id: firstBlockId,
     feedback: [],
     intake_status: "active" as const,
+    task_profile: taskProfile,
+    resources,
     created_at: now,
     updated_at: now,
   };
