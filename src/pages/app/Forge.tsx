@@ -776,27 +776,27 @@ const Forge = () => {
     }
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!state) return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
+  const vm = state ? getForgeViewModel(state) : null;
 
-  const vm = getForgeViewModel(state)!;
+  const activeGuidebooks = vm ? vm.guidebooks.filter((g) => g.status === "active") : [];
+  const pausedGuidebooks = vm ? vm.guidebooks.filter((g) => g.status === "paused") : [];
+  const archivedGuidebooks = vm ? vm.guidebooks.filter((g) => g.status === "archived") : [];
+  const activeModules = vm ? vm.modules.filter((m) => m.status === "active") : [];
 
-  const activeGuidebooks = vm.guidebooks.filter((g) => g.status === "active");
-  const pausedGuidebooks = vm.guidebooks.filter((g) => g.status === "paused");
-  const archivedGuidebooks = vm.guidebooks.filter((g) => g.status === "archived");
-  const activeModules = vm.modules.filter((m) => m.status === "active");
-
-  const gap = vm.system_gap;
+  const gap = vm?.system_gap;
 
   // Context-aware suggestions — powered by the shared ContextSnapshot
-  const contextSnap = useMemo(() => buildContextSnapshot(state, ""), [state]);
+  const contextSnap = useMemo(() => (state ? buildContextSnapshot(state, "") : null), [state]);
   const existingActiveTypes = useMemo(
     () => new Set(activeGuidebooks.map((g) => g.feature_type as string)),
     [activeGuidebooks],
   );
   const contextualSuggestions = useMemo(
-    () => buildContextualForgeSuggestions(contextSnap, existingActiveTypes),
+    () => (contextSnap ? buildContextualForgeSuggestions(contextSnap, existingActiveTypes) : []),
     [contextSnap, existingActiveTypes],
   );
+
+  if (!state || !vm) return <div className="mx-auto max-w-2xl py-12 text-sm text-muted-foreground">Loading…</div>;
 
   const handleBuildAroundGap = (type: ForgeFeatureType) => {
     setPreselectedType(type);
