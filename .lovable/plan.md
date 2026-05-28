@@ -1,64 +1,58 @@
-# Coach Centralization — Relational Intelligence Upgrade
+## Exam Copilot — build plan
 
-Transform Chat from a tab-bound bot into **Moment Coach**: the warm, situationally-aware voice of the intelligence machine, accessible from every surface with real actions.
+You laid out a 6-step path. I'll respect that sequence rather than cram it all into one drop. Each step ships standalone, is tested, and unlocks the next.
 
-## What we're building
+### Scope decision needed
 
-### 1. Coach Kernel (`src/lib/coach/`)
-New files — pure, deterministic where possible:
+You said *"Step 1: Finish V2.1 gap close"* first — but I don't have an explicit V2.1 checklist in the repo. The closest live gaps I can see:
 
-- **`build-coach-context.ts`** — unified `CoachContext` packet (goal, today, plan, portfolio, feedback, emotional state, chat history, permissions). Wraps `buildContextPacket` + adds emotional inference + permissions.
-- **`infer-execution-state.ts`** — derives practical state (`steady | stuck | overloaded | drifting | recovering | confused | low_confidence | avoidant | proud | frustrated`) from signals (missed tasks, rejections, feedback labels, rescue use, chat language, plan pressure). Returns `{state, confidence, evidence[]}`.
-- **`select-coach-tone.ts`** — maps inferred state → tone rules (overloaded→simplify, stuck→shrink, drifting→reconnect, etc.).
-- **`select-coach-actions.ts`** — picks max 3 contextual actions based on surface + state + task/plan signals. Returns typed `CoachAction[]`.
-- **`coach-action-types.ts`** — discriminated union of executable actions: `task.create | task.update | task.split | task.mark_done | plan.repair_today | plan.reschedule_task | review.create_memory | forge.create_artifact | rescue.trigger`.
-- **`coach-response-schema.ts`** — Zod schema for structured `CoachResponse` (mode, reply, inferred_state, evidence_used, next_move, suggested_actions, memory_to_save, follow_up_question).
-- **`coach-system-prompt.ts`** — the relational doctrine: warmth + memory + logic + action, tone-by-state rules, friend-like behavior, ethical boundaries (no dependency-creating language, encourage real-world support when distressed), forbidden phrases, response shape (mirror → evidence → interpretation → next move → action).
+- HeartbeatBanner doesn't link to Exam Mode when an `ExamEmergency` is active
+- Dashboard/Rescue have no explicit "I have an exam" entry point
+- `adaptPlanAfterFeedback` exists but isn't wired to the `exam/add_feedback` dispatch in `state-store`
+- `ExamEmergency` doesn't emit Portfolio proof on block completion
 
-### 2. Edge function upgrade (`supabase/functions/chat-coach/index.ts`)
-- Accept full `CoachContext` from client.
-- Use structured output (Lovable AI Gateway, `google/gemini-3-flash-preview`) with `CoachResponse` schema.
-- System prompt = `coach-system-prompt.ts` + context-rendered packet (goal, state inference, evidence, recent chat).
-- Guardrail: filter out repeated-onboarding questions if answer exists in context.
+**Question for you before I start:** do you want me to (a) treat those four bullets as V2.1 and close them in Step 1, or (b) skip ahead and start with Step 2 (Task Profile + Resources) since that's where the new product promise lives?
 
-### 3. Coach action executor (`src/lib/coach/execute-coach-action.ts`)
-- Client-side dispatcher. Maps `CoachAction` → state-store mutations (split task, shrink, mark done, repair plan, save review memory, etc.).
-- Confirmation prompt for destructive actions.
+### Phased path (assuming you confirm)
 
-### 4. Universal Coach surface
-- **`src/components/app/coach/CoachLauncher.tsx`** — floating button/sheet, mountable from any page. Opens a compact Coach panel.
-- **`src/components/app/coach/CoachPanel.tsx`** — context-header card (goal · next move · pattern · pressure) + chat thread + max-3 contextual action chips + composer.
-- **`src/components/app/coach/CoachMessage.tsx`** — renders `CoachResponse` with action buttons inline.
-- **`src/components/app/coach/CoachActionChip.tsx`** — pressable action that calls `executeCoachAction`.
-- Mount `CoachLauncher` in `AppShell` so it appears on Today / Plan / Portfolio / Path / Forge.
+```text
+Step 1  V2.1 gap close          → Heartbeat link, Dashboard entry, feedback adaptation wired, Portfolio proof on block done
+Step 2  Task Profile + Resources → ExamTaskProfile + ExamResource state, intake questions, resource map UI
+Step 3  Questioner mode          → question generation tool in app-intelligence, /app/exam Copilot panel
+Step 4  Work Rating mode         → rate-answer tool, structured score schema, save to state
+Step 5  Adaptive plan from scores → weak-topic feedback loop influences next block + next question
+Step 6  Portfolio proof from attempts → answer + rating attempts become evidence vault entries
+```
 
-### 5. Existing Chat page upgrade (`src/pages/app/Chat.tsx`)
-Refactor to use `CoachPanel` as its body. The Chat tab becomes the full-screen Coach view; the floating launcher gives quick access elsewhere.
+### Step 2 (first real shipment) — what changes
 
-### 6. Surface-specific quick actions
-Today / Plan / Portfolio / Path / Forge each pass a `surface` hint to Coach so action chips are contextual:
-- Today: Help me start · Make smaller · Why this matters · Rescue
-- Plan: Repair today · Make lighter · Move one task
-- Portfolio: Save what I learned · Make a quiz · What to review
-- Path: Why does this matter · Next proof · What stage
-- Forge: Make this useful · Revision card · Exam scaffold
+**State additions** (in `state-store.ts` reducer + `schema.ts`):
+- `ExamTaskProfile`: `{ format, sections[], rubric_text?, has_topic_list, has_past_papers, teacher_emphasis?, target_mark? }`
+- `ExamResource[]`: `{ id, kind: 'notes'|'textbook'|'slides'|'past_paper'|'rubric'|'study_guide'|'teacher_feedback'|'practice_q', label, helps_with[], priority, how_to_use }`
+- Both attached to `ExamEmergency` (non-breaking, optional)
 
-## What we are NOT doing this pass
-- New database tables (Coach memory uses existing state)
-- Voice / multimodal
-- Real-time streaming refactor (keep current invoke pattern)
-- Replacing existing chat history persistence
+**New actions:** `exam/set_task_profile`, `exam/add_resource`, `exam/remove_resource`, `exam/update_resource`
 
-## Acceptance
-- Coach references real state (goal, task titles, completion patterns)
-- Coach never re-asks onboarding-known info
-- Coach infers state and adapts tone
-- Coach offers ≤3 real actions that mutate state when clicked
-- Coach launcher accessible from every app surface
-- No "As an AI" / generic motivation leaks
-- Build passes
+**Intake (chat-coach):** extend the existing `exam_intake` payload with two new optional sub-flows the coach can return — `task_profile_update` and `resource_update`. The router asks the right next question based on what's missing.
 
-## File summary
-**Create (10):** `src/lib/coach/{build-coach-context,infer-execution-state,select-coach-tone,select-coach-actions,coach-action-types,coach-response-schema,coach-system-prompt,execute-coach-action}.ts`, `src/components/app/coach/{CoachLauncher,CoachPanel,CoachMessage,CoachActionChip}.tsx`
+**UI (`/app/exam`):** add an "Exam Copilot" panel under the existing plan:
+- Task profile card (with "Edit" → opens chat or inline editor)
+- Resource map (chips grouped by priority, "Add resource" button)
+- Empty state with one-tap buttons that dispatch coach prompts: "Tell Moment about your exam structure" / "Add your resources"
 
-**Edit (3):** `supabase/functions/chat-coach/index.ts`, `src/pages/app/Chat.tsx`, `src/components/app/AppShell.tsx`
+**Tests:** task profile saves, resources add/remove, intake routes to next missing field, existing exam-emergency tests still pass.
+
+### Why phased
+
+Steps 3–5 (Questioner/Rating/Adaptive) all depend on Step 2 data — the questioner needs `topics + task_profile + resources` to generate non-generic questions, and rating needs `target_mark` from the profile. Building them on top of an empty profile would just produce generic output, which is exactly what you're trying to escape.
+
+### Naming
+
+Confirm: **"Exam Copilot"** as the user-facing surface label, **"Exam Emergency"** kept only as the panic entry-point copy on Dashboard/Rescue. I'll rename `/app/exam` page header to "Exam Copilot" and keep the route URL unchanged.
+
+---
+
+**Reply with:**
+1. Skip Step 1 or do it first? (the four V2.1 bullets above)
+2. Go ahead with Step 2 as scoped?
+3. Anything to add/remove from the Step 2 surface area?
