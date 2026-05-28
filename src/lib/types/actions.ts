@@ -128,4 +128,13 @@ export type MomentAction =
   | { type: "exam/add_feedback"; payload: { emergencyId: string; feedback: import("@/lib/types").ExamBlockFeedback } }
   | { type: "exam/set_active_block"; payload: { emergencyId: string; blockId: string | undefined } }
   | { type: "exam/complete"; payload: { id: string } }
-  | { type: "exam/delete"; payload: { id: string } };
+  | { type: "exam/delete"; payload: { id: string } }
+  // ─── Exam Copilot ─────────────────────────────────────────────────────────
+  | { type: "exam/set_task_profile"; payload: { emergencyId: string; profile: import("@/lib/types").ExamTaskProfile } }
+  | { type: "exam/add_resource"; payload: { emergencyId: string; resource: import("@/lib/types").ExamResource } }
+  | { type: "exam/update_resource"; payload: { emergencyId: string; resourceId: string; changes: Partial<import("@/lib/types").ExamResource> } }
+  | { type: "exam/create_question"; payload: { emergencyId: string; question: import("@/lib/types").ExamQuestion } }
+  | { type: "exam/add_answer_attempt"; payload: { emergencyId: string; attempt: import("@/lib/types").ExamAnswerAttempt } }
+  | { type: "exam/add_work_rating"; payload: { emergencyId: string; rating: import("@/lib/types").ExamWorkRating } }
+  | { type: "exam/set_copilot_mode"; payload: { emergencyId: string; mode: import("@/lib/types/exam-emergency").CopilotMode } }
+  | { type: "exam/advance_copilot_session"; payload: { emergencyId: string } };

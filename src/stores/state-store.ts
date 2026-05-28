@@ -1159,6 +1159,125 @@ export const useStateStore = create<StateStore>((set, get) => ({
         break;
       }
 
+      case "exam/set_task_profile": {
+        const { emergencyId: etpId, profile } = action.payload;
+        next = {
+          ...s,
+          exam_emergencies: ((s as any).exam_emergencies ?? []).map((e: any) =>
+            e.id === etpId ? { ...e, task_profile: profile, updated_at: now() } : e,
+          ),
+        };
+        break;
+      }
+
+      case "exam/add_resource": {
+        const { emergencyId: erId, resource } = action.payload;
+        next = {
+          ...s,
+          exam_emergencies: ((s as any).exam_emergencies ?? []).map((e: any) =>
+            e.id === erId
+              ? { ...e, resources: [...(e.resources ?? []), resource], updated_at: now() }
+              : e,
+          ),
+        };
+        break;
+      }
+
+      case "exam/update_resource": {
+        const { emergencyId: eurId, resourceId, changes: rChanges } = action.payload;
+        next = {
+          ...s,
+          exam_emergencies: ((s as any).exam_emergencies ?? []).map((e: any) =>
+            e.id === eurId
+              ? {
+                  ...e,
+                  resources: (e.resources ?? []).map((r: any) =>
+                    r.id === resourceId ? { ...r, ...rChanges } : r,
+                  ),
+                  updated_at: now(),
+                }
+              : e,
+          ),
+        };
+        break;
+      }
+
+      case "exam/create_question": {
+        const { emergencyId: eqId, question } = action.payload;
+        next = {
+          ...s,
+          exam_emergencies: ((s as any).exam_emergencies ?? []).map((e: any) =>
+            e.id === eqId
+              ? { ...e, questions: [...(e.questions ?? []), question], updated_at: now() }
+              : e,
+          ),
+        };
+        break;
+      }
+
+      case "exam/add_answer_attempt": {
+        const { emergencyId: eaaId, attempt } = action.payload;
+        next = {
+          ...s,
+          exam_emergencies: ((s as any).exam_emergencies ?? []).map((e: any) =>
+            e.id === eaaId
+              ? { ...e, answer_attempts: [...(e.answer_attempts ?? []), attempt], updated_at: now() }
+              : e,
+          ),
+        };
+        break;
+      }
+
+      case "exam/add_work_rating": {
+        const { emergencyId: ewrId, rating } = action.payload;
+        next = {
+          ...s,
+          exam_emergencies: ((s as any).exam_emergencies ?? []).map((e: any) => {
+            if (e.id !== ewrId) return e;
+            const updatedAttempts = (e.answer_attempts ?? []).map((a: any) =>
+              a.question_id === rating.question_id && !a.rating_id
+                ? { ...a, rating_id: rating.id }
+                : a,
+            );
+            const ratingWithAttemptId = {
+              ...rating,
+              answer_attempt_id: updatedAttempts.find((a: any) => a.rating_id === rating.id)?.id ?? "",
+            };
+            return {
+              ...e,
+              work_ratings: [...(e.work_ratings ?? []), ratingWithAttemptId],
+              answer_attempts: updatedAttempts,
+              updated_at: now(),
+            };
+          }),
+        };
+        break;
+      }
+
+      case "exam/set_copilot_mode": {
+        const { emergencyId: ecmId, mode } = action.payload;
+        next = {
+          ...s,
+          exam_emergencies: ((s as any).exam_emergencies ?? []).map((e: any) =>
+            e.id === ecmId ? { ...e, copilot_mode: mode, updated_at: now() } : e,
+          ),
+        };
+        break;
+      }
+
+      case "exam/advance_copilot_session": {
+        const { emergencyId: ecsId } = action.payload;
+        next = {
+          ...s,
+          exam_emergencies: ((s as any).exam_emergencies ?? []).map((e: any) =>
+            e.id === ecsId
+              ? { ...e, copilot_session_count: (e.copilot_session_count ?? 0) + 1, updated_at: now() }
+              : e,
+          ),
+        };
+        break;
+      }
+
       case "chat/append": {
         const msgs = [...(s.chat_messages ?? []), action.payload].slice(-100);
         next = { ...s, chat_messages: msgs };

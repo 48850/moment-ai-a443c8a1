@@ -64,3 +64,29 @@ export interface TriageScore {
   priority: ExamTopicPriority;
   rationale: string;
 }
+
+export type CopilotMode =
+  | "intake"
+  | "task_profile"
+  | "resource_intake"
+  | "questioner"
+  | "work_rater";
+
+export type QuestionType =
+  | "quick_quiz"
+  | "explain_back"
+  | "past_paper_style"
+  | "essay_plan"
+  | "definition"
+  | "formula"
+  | "weak_topic";
+
+export type WorkRatingLevel = "needs_work" | "developing" | "solid" | "strong";
+
+export interface ExamCopilotSession {
+  id: string;
+  mode: CopilotMode;
+  started_at: string;
+  question_ids: string[];
+  current_question_id?: string;
+}

@@ -7,9 +7,12 @@ import { buildCoachContext, type CoachSurface } from "@/lib/coach/build-coach-co
 import { selectSeedActions } from "@/lib/coach/select-coach-actions";
 import { parseCoachResponse } from "@/lib/coach/coach-response-schema";
 import type { CoachAction, CoachResponse, CoachRescuePlan } from "@/lib/coach/coach-action-types";
-import type { ChatMessage, ExamEmergency } from "@/lib/types";
+import type { ChatMessage, ExamEmergency, ExamQuestion, ExamWorkRating } from "@/lib/types";
+import type { QuestionType } from "@/lib/types/exam-emergency";
 import { buildExamEmergencyFromIntake } from "@/lib/exam/build-exam-emergency";
 import { detectExamIntent } from "@/lib/exam/detect-exam-intent";
+import { generateWeakTopicQuestion, generateLocalRating } from "@/lib/exam/exam-question-generator";
+import { selectActiveExamEmergency, selectNextExamQuestion } from "@/lib/selectors/exam-selectors";
 import { examEmergencySchema } from "@/lib/state/schema";
 import { Link } from "react-router-dom";
 import { CoachMessage } from "./CoachMessage";
@@ -244,7 +247,58 @@ export function CoachPanel({ surface = "coach", compact = false }: Props) {
           examEmergency = result.data;
           dispatch({ type: "exam/create", payload: examEmergency });
         }
+      }
+
+      if (parsed.exam_copilot) {
+        const cp = parsed.exam_copilot;
+        const activeExam = selectActiveExamEmergency(state);
+        const targetId = cp.emergency_id || activeExam?.id;
+        if (targetId) {
+          if (cp.action === "generate_question" && cp.question_text) {
+            const q: ExamQuestion = {
+              id: crypto.randomUUID(),
+              type: (cp.question_type as QuestionType) ?? "quick_quiz",
+              topic_name: cp.topic_name,
+              question_text: cp.question_text,
+              model_answer: cp.model_answer,
+              hints: cp.hints ?? [],
+              source: "ai",
+              created_at: new Date().toISOString(),
+            };
+            dispatch({ type: "exam/create_question", payload: { emergencyId: targetId, question: q } });
+          } else if (cp.action === "rate_answer" && cp.question_id && cp.upgrade_suggestion) {
+            const rating: ExamWorkRating = {
+              id: crypto.randomUUID(),
+              question_id: cp.question_id,
+              answer_attempt_id: "",
+              score_out_of: cp.score_out_of,
+              max_marks: cp.max_marks,
+              level: cp.level ?? "developing",
+              missing_points: cp.missing_points ?? [],
+              upgrade_suggestion: cp.upgrade_suggestion,
+              source: "ai",
+              created_at: new Date().toISOString(),
+            };
+            dispatch({ type: "exam/add_work_rating", payload: { emergencyId: targetId, rating } });
+          } else if (cp.action === "set_task_profile" && cp.task_profile) {
+            dispatch({ type: "exam/set_task_profile", payload: { emergencyId: targetId, profile: cp.task_profile } });
+          }
+        }
       } else {
+        // Local fallback: if active exam is in questioner mode and has no pending questions, generate one
+        const activeExam = selectActiveExamEmergency(state);
+        if (
+          activeExam &&
+          activeExam.copilot_mode === "questioner" &&
+          !selectNextExamQuestion(activeExam) &&
+          activeExam.topics.length > 0
+        ) {
+          const q = generateWeakTopicQuestion(activeExam);
+          dispatch({ type: "exam/create_question", payload: { emergencyId: activeExam.id, question: q } });
+        }
+      }
+
+      if (!parsed.exam_intake && !parsed.exam_plan && !parsed.exam_copilot) {
         const intent = detectExamIntent(trimmed);
         if (intent.detected && intent.urgencyLevel !== "low") {
           const existing = (state.exam_emergencies as ExamEmergency[] | undefined)?.find(

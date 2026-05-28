@@ -317,6 +317,64 @@ const EXAM_EMERGENCY_TOOL = {
   },
 };
 
+const EXAM_COPILOT_TOOL = {
+  type: "function",
+  function: {
+    name: "exam_copilot",
+    description:
+      "Generate a study question, rate a student's answer, or extract task profile details for an active exam emergency. Use when the student wants to be tested, submits an answer for feedback, or pastes exam rubric/format information.",
+    parameters: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["generate_question", "rate_answer", "set_task_profile"],
+          description: "generate_question: create a practice question. rate_answer: score student's answer. set_task_profile: extract exam format from pasted text.",
+        },
+        emergency_id: { type: "string", description: "ID of the active exam emergency" },
+        question_type: {
+          type: "string",
+          enum: ["quick_quiz", "explain_back", "past_paper_style", "essay_plan", "definition", "formula", "weak_topic"],
+        },
+        topic_name: { type: "string" },
+        question_text: { type: "string", description: "Complete standalone question the student can answer without more context" },
+        model_answer: { type: "string", description: "What a good answer should contain" },
+        hints: { type: "array", items: { type: "string" }, description: "Up to 2 hints" },
+        answer_text: { type: "string", description: "Student's submitted answer (for rate_answer)" },
+        question_id: { type: "string", description: "ID of the question being rated (for rate_answer)" },
+        score_out_of: { type: "number", description: "Practice score estimate" },
+        max_marks: { type: "number" },
+        level: { type: "string", enum: ["needs_work", "developing", "solid", "strong"] },
+        missing_points: { type: "array", items: { type: "string" }, description: "Up to 3 missing points" },
+        upgrade_suggestion: { type: "string", description: "One concrete next action to improve the answer" },
+        task_profile: {
+          type: "object",
+          description: "Extracted exam format info (for set_task_profile)",
+          properties: {
+            exam_format: { type: "string" },
+            rubric_notes: { type: "string" },
+            mark_allocation: { type: "string" },
+            common_mistakes: { type: "string" },
+            section_breakdown: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  marks: { type: "number" },
+                  description: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+      },
+      required: ["action", "emergency_id"],
+      additionalProperties: false,
+    },
+  },
+};
+
 const RESCUE_TOOL = {
   type: "function",
   function: {
@@ -1046,6 +1104,14 @@ EXAM EMERGENCY DETECTION — separate from rescue:
 - Do NOT call exam_intake if an active exam emergency already exists for the same subject
 - Tone: "We are not trying to learn everything tonight. We are trying to protect marks."
 
+EXAM COPILOT MODE (when student is in active exam prep):
+- Use exam_copilot when: student asks to be tested, submits an answer for feedback, or pastes rubric/format text
+- generate_question: pick the weakest topic (lowest confidence or most previous "needs_work" ratings). Generate a complete, standalone question with model_answer and 2 hints. question_text must be answerable without any extra context.
+- rate_answer: score the student's answer (score_out_of + level). List up to 3 missing_points. Give exactly one upgrade_suggestion — a single concrete next action. NEVER say "you got X/Y marks" — frame as "practice estimate".
+- set_task_profile: when student pastes rubric or describes exam format — extract exam_format, section_breakdown, rubric_notes, mark_allocation.
+- NEVER rate without giving upgrade_suggestion.
+- NEVER generate a question without model_answer.
+
 OUTPUT FORMAT — STRUCTURED JSON ONLY. Return exactly this shape, no prose outside the JSON object:
 {
   "mode": "next_move|plan_repair|emotional_support|review_memory|path_explanation|task_breakdown|forge_artifact|rescue|clarifying_question|celebrate",
@@ -1076,6 +1142,22 @@ OUTPUT FORMAT — STRUCTURED JSON ONLY. Return exactly this shape, no prose outs
     "topics": [{ "name": "string", "confidence": 1-5, "mark_value": 1-5, "likelihood": 1-5, "time_cost": 1-5, "quick_win_potential": 1-5 }],
     "available_study_windows": [{ "start_time": "HH:MM", "end_time": "HH:MM", "day_label": "Today/Tomorrow", "available_minutes": number }],
     "missing_fields": ["field names still needed"]
+  } | null,
+  "exam_copilot": {
+    "action": "generate_question|rate_answer|set_task_profile",
+    "emergency_id": "string",
+    "question_type": "quick_quiz|explain_back|past_paper_style|essay_plan|definition|formula|weak_topic or omit",
+    "topic_name": "string or omit",
+    "question_text": "complete standalone question or omit",
+    "model_answer": "what a good answer contains or omit",
+    "hints": ["hint 1", "hint 2"] or omit,
+    "question_id": "string — required for rate_answer",
+    "score_out_of": number or omit,
+    "max_marks": number or omit,
+    "level": "needs_work|developing|solid|strong or omit",
+    "missing_points": ["up to 3 missing points"] or omit,
+    "upgrade_suggestion": "one concrete next action or omit",
+    "task_profile": { "exam_format": "string", "rubric_notes": "string", ... } or omit
   } | null
 }
 Max 3 suggested_actions. Action labels read like buttons. rescue_plan is null unless mode is rescue.`;
@@ -1157,7 +1239,7 @@ Max 3 suggested_actions. Action labels read like buttons. rescue_plan is null un
         { role: "system", content: extraSystem ? systemContent + "\n\n" + extraSystem : systemContent },
         ...messages.slice(-20),
       ],
-      ...(textOnly ? {} : { tools: isSpecialisation ? [...SPECIALISATION_TOOLS, ...TOOLS] : [...TOOLS, RESCUE_TOOL, EXAM_EMERGENCY_TOOL] }),
+      ...(textOnly ? {} : { tools: isSpecialisation ? [...SPECIALISATION_TOOLS, ...TOOLS] : [...TOOLS, RESCUE_TOOL, EXAM_EMERGENCY_TOOL, EXAM_COPILOT_TOOL] }),
     });
 
     let resp = await callGateway(buildBody(), LOVABLE_API_KEY);

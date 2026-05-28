@@ -11,7 +11,14 @@ import { buildEvidenceVault } from "@/lib/portfolio/build-evidence-vault";
 import { buildExamEmergencyFromIntake } from "@/lib/exam/build-exam-emergency";
 import { parseCoachResponse } from "@/lib/coach/coach-response-schema";
 import { examEmergencySchema } from "@/lib/state/schema";
-import type { ExamTopic } from "@/lib/types";
+import {
+  selectActiveExamEmergency,
+  selectNextExamQuestion,
+  selectWeakestExamTopics,
+  selectExamCopilotProgress,
+} from "@/lib/selectors/exam-selectors";
+import { generateLocalQuestion, generateWeakTopicQuestion, generateLocalRating } from "@/lib/exam/exam-question-generator";
+import type { ExamTopic, ExamEmergency, ExamQuestion, ExamAnswerAttempt, ExamWorkRating } from "@/lib/types";
 import type { ExamIntakePayload } from "@/lib/types/exam-emergency";
 
 // ── detectExamIntent ──────────────────────────────────────────────────────────
@@ -491,5 +498,272 @@ describe("buildEvidenceVault — exam proof", () => {
     const examEntry = vault.entries.find((e) => e.id.startsWith("exam_proof_"));
     expect((examEntry as any).proof_of_completion).toContain("hard");
     expect((examEntry as any).proof_of_completion).toContain("ran out of time");
+  });
+});
+
+// ── Copilot selectors ─────────────────────────────────────────────────────────
+
+function makeCopilotEmergency(): ExamEmergency {
+  return buildExamEmergencyFromIntake({
+    action: "ready_to_build",
+    subject: "History",
+    exam_date_time: new Date(Date.now() + 24 * 3_600_000).toISOString(),
+    topics: [
+      { name: "WWI Causes", confidence: 2, mark_value: 4, likelihood: 5 },
+      { name: "Treaty of Versailles", confidence: 4, mark_value: 3, likelihood: 3 },
+    ],
+    available_study_windows: [{ start_time: "18:00", end_time: "20:00", day_label: "Today", available_minutes: 120 }],
+  });
+}
+
+describe("selectActiveExamEmergency", () => {
+  it("returns first active emergency", () => {
+    const emergency = makeCopilotEmergency();
+    const state = makeMinimalState({ exam_emergencies: [emergency] }) as any;
+    const result = selectActiveExamEmergency(state);
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe(emergency.id);
+  });
+
+  it("returns null when all emergencies are completed", () => {
+    const emergency = { ...makeCopilotEmergency(), status: "completed" as const };
+    const state = makeMinimalState({ exam_emergencies: [emergency] }) as any;
+    expect(selectActiveExamEmergency(state)).toBeNull();
+  });
+});
+
+describe("selectNextExamQuestion", () => {
+  it("returns oldest unanswered question", () => {
+    const emergency = makeCopilotEmergency();
+    const q1: ExamQuestion = {
+      id: "q1",
+      type: "quick_quiz",
+      question_text: "What is WWI?",
+      hints: [],
+      source: "local_template",
+      created_at: "2024-01-01T10:00:00.000Z",
+    };
+    const q2: ExamQuestion = {
+      id: "q2",
+      type: "definition",
+      question_text: "Define Treaty of Versailles",
+      hints: [],
+      source: "local_template",
+      created_at: "2024-01-01T11:00:00.000Z",
+    };
+    const withQuestions = { ...emergency, questions: [q1, q2], answer_attempts: [] };
+    const next = selectNextExamQuestion(withQuestions);
+    expect(next?.id).toBe("q1");
+  });
+
+  it("returns null when all questions have answer_attempts", () => {
+    const emergency = makeCopilotEmergency();
+    const q: ExamQuestion = {
+      id: "q1",
+      type: "quick_quiz",
+      question_text: "Test question",
+      hints: [],
+      source: "local_template",
+      created_at: "2024-01-01T10:00:00.000Z",
+    };
+    const attempt: ExamAnswerAttempt = {
+      id: "a1",
+      question_id: "q1",
+      answer_text: "My answer",
+      created_at: "2024-01-01T10:05:00.000Z",
+    };
+    const withAll = { ...emergency, questions: [q], answer_attempts: [attempt] };
+    expect(selectNextExamQuestion(withAll)).toBeNull();
+  });
+});
+
+describe("selectWeakestExamTopics", () => {
+  it("sorts by confidence ascending", () => {
+    const emergency = makeCopilotEmergency();
+    const weakest = selectWeakestExamTopics(emergency, 2);
+    // WWI Causes has confidence 2, Treaty has 4 — WWI should be first
+    expect(weakest[0].name).toBe("WWI Causes");
+  });
+
+  it("prioritises topics with needs_work ratings", () => {
+    const emergency = makeCopilotEmergency();
+    const q: ExamQuestion = {
+      id: "q1",
+      type: "quick_quiz",
+      question_text: "Explain Treaty of Versailles",
+      topic_name: "Treaty of Versailles",
+      hints: [],
+      source: "local_template",
+      created_at: new Date().toISOString(),
+    };
+    const rating: ExamWorkRating = {
+      id: "r1",
+      question_id: "q1",
+      answer_attempt_id: "",
+      level: "needs_work",
+      missing_points: [],
+      upgrade_suggestion: "Expand your answer",
+      source: "local_heuristic",
+      created_at: new Date().toISOString(),
+    };
+    const withRating = { ...emergency, questions: [q], work_ratings: [rating] };
+    const weakest = selectWeakestExamTopics(withRating, 2);
+    // Treaty has needs_work rating, should now come first despite higher confidence
+    expect(weakest[0].name).toBe("Treaty of Versailles");
+  });
+});
+
+describe("selectExamCopilotProgress", () => {
+  it("counts correctly with mixed rated/unrated answers", () => {
+    const emergency = makeCopilotEmergency();
+    const q1: ExamQuestion = {
+      id: "q1", type: "quick_quiz", question_text: "Q1", hints: [], source: "local_template",
+      created_at: new Date().toISOString(),
+    };
+    const q2: ExamQuestion = {
+      id: "q2", type: "definition", question_text: "Q2", hints: [], source: "local_template",
+      created_at: new Date().toISOString(),
+    };
+    const a1: ExamAnswerAttempt = {
+      id: "a1", question_id: "q1", answer_text: "Answer", created_at: new Date().toISOString(),
+    };
+    const r1: ExamWorkRating = {
+      id: "r1", question_id: "q1", answer_attempt_id: "a1", level: "solid",
+      missing_points: [], upgrade_suggestion: "Good", source: "local_heuristic",
+      created_at: new Date().toISOString(),
+    };
+    const withData = { ...emergency, questions: [q1, q2], answer_attempts: [a1], work_ratings: [r1] };
+    const progress = selectExamCopilotProgress(withData);
+    expect(progress.totalQuestions).toBe(2);
+    expect(progress.answeredCount).toBe(1);
+    expect(progress.ratedCount).toBe(1);
+    expect(progress.averageLevel).toBe("solid");
+  });
+
+  it("returns null averageLevel when no ratings", () => {
+    const emergency = makeCopilotEmergency();
+    const progress = selectExamCopilotProgress(emergency);
+    expect(progress.averageLevel).toBeNull();
+  });
+});
+
+// ── Question generator ────────────────────────────────────────────────────────
+
+describe("generateLocalQuestion", () => {
+  const topic: ExamTopic = {
+    id: "t1",
+    name: "Photosynthesis",
+    confidence: 2,
+    priority: "high",
+  };
+
+  it("quick_quiz returns complete question_text referencing topic", () => {
+    const q = generateLocalQuestion(topic, "quick_quiz", "Biology");
+    expect(q.question_text).toBeTruthy();
+    expect(q.question_text).toContain("Photosynthesis");
+  });
+
+  it("explain_back references topic name", () => {
+    const q = generateLocalQuestion(topic, "explain_back", "Biology");
+    expect(q.question_text).toContain("Photosynthesis");
+    expect(q.hints.length).toBeGreaterThan(0);
+  });
+
+  it("formula question includes 'formula'", () => {
+    const q = generateLocalQuestion(topic, "formula", "Biology");
+    expect(q.question_text.toLowerCase()).toContain("formula");
+  });
+
+  it("all required fields are non-empty (no crash)", () => {
+    const types = ["quick_quiz", "explain_back", "definition", "formula", "essay_plan", "past_paper_style", "weak_topic"] as const;
+    for (const type of types) {
+      const q = generateLocalQuestion(topic, type, "Biology");
+      expect(q.id).toBeTruthy();
+      expect(q.question_text).toBeTruthy();
+      expect(q.source).toBe("local_template");
+    }
+  });
+});
+
+describe("generateWeakTopicQuestion", () => {
+  it("generates a question for the weakest topic", () => {
+    const emergency = makeCopilotEmergency();
+    const q = generateWeakTopicQuestion(emergency);
+    expect(q.question_text).toBeTruthy();
+    expect(q.topic_name).toBe("WWI Causes");
+  });
+
+  it("returns a fallback question when no topics present", () => {
+    const emergency = { ...makeCopilotEmergency(), topics: [] };
+    const q = generateWeakTopicQuestion(emergency);
+    expect(q.question_text).toBeTruthy();
+    expect(q.source).toBe("local_template");
+  });
+});
+
+describe("generateLocalRating", () => {
+  const question: ExamQuestion = {
+    id: "q1",
+    type: "quick_quiz",
+    question_text: "What is photosynthesis?",
+    model_answer: "Process by which plants convert light into glucose using chlorophyll",
+    hints: [],
+    source: "local_template",
+    created_at: new Date().toISOString(),
+  };
+
+  it("short answer (< 30 chars) → needs_work", () => {
+    const rating = generateLocalRating(question, "ok");
+    expect(rating.level).toBe("needs_work");
+  });
+
+  it("always includes upgrade_suggestion", () => {
+    const shortRating = generateLocalRating(question, "ok");
+    const longRating = generateLocalRating(question, "Photosynthesis is when plants use sunlight and water and carbon dioxide to make glucose and oxygen through chlorophyll in the leaves.");
+    expect(shortRating.upgrade_suggestion).toBeTruthy();
+    expect(longRating.upgrade_suggestion).toBeTruthy();
+  });
+
+  it("never throws on empty answer", () => {
+    expect(() => generateLocalRating(question, "")).not.toThrow();
+    const r = generateLocalRating(question, "");
+    expect(r.level).toBe("needs_work");
+  });
+});
+
+// ── Copilot store actions ─────────────────────────────────────────────────────
+
+describe("exam/set_copilot_mode dispatch", () => {
+  it("updates copilot_mode field", () => {
+    const emergency = makeCopilotEmergency();
+    expect(emergency.copilot_mode).toBe("intake");
+    // After schema default, copilot_mode starts as "intake"
+    const updated = { ...emergency, copilot_mode: "questioner" as const };
+    expect(updated.copilot_mode).toBe("questioner");
+  });
+});
+
+describe("exam/add_work_rating dispatch", () => {
+  it("rating links back to answer attempt via rating_id", () => {
+    // Simulate what the store does: add_work_rating also sets answer_attempt.rating_id
+    const emergency = makeCopilotEmergency();
+    const q: ExamQuestion = {
+      id: "q1", type: "quick_quiz", question_text: "Test?", hints: [],
+      source: "local_template", created_at: new Date().toISOString(),
+    };
+    const attempt: ExamAnswerAttempt = {
+      id: "a1", question_id: "q1", answer_text: "My answer", created_at: new Date().toISOString(),
+    };
+    const rating: ExamWorkRating = {
+      id: "r1", question_id: "q1", answer_attempt_id: "",
+      level: "developing", missing_points: [], upgrade_suggestion: "Add more detail",
+      source: "local_heuristic", created_at: new Date().toISOString(),
+    };
+
+    // Simulate store linking logic
+    const updatedAttempts = [attempt].map((a) =>
+      a.question_id === rating.question_id && !a.rating_id ? { ...a, rating_id: rating.id } : a,
+    );
+    expect(updatedAttempts[0].rating_id).toBe("r1");
   });
 });

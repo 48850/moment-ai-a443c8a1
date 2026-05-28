@@ -95,4 +95,20 @@ export interface CoachResponse {
   rescue_plan?: CoachRescuePlan | null;
   exam_intake?: import("@/lib/types/exam-emergency").ExamIntakePayload | null;
   exam_plan?: import("@/lib/types/exam-emergency").ExamPlanFromCoach | null;
+  exam_copilot?: {
+    action: "generate_question" | "rate_answer" | "set_task_profile";
+    emergency_id: string;
+    question_type?: string;
+    question_text?: string;
+    model_answer?: string;
+    hints?: string[];
+    topic_name?: string;
+    question_id?: string;
+    score_out_of?: number;
+    max_marks?: number;
+    level?: import("@/lib/types/exam-emergency").WorkRatingLevel;
+    missing_points?: string[];
+    upgrade_suggestion?: string;
+    task_profile?: import("@/lib/types").ExamTaskProfile;
+  } | null;
 }

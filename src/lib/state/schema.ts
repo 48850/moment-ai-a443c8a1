@@ -368,6 +368,66 @@ export const examCurrentPlanSchema = z.object({
   stretch_plan: z.array(studyBlockSchema).default([]),
 });
 
+export const examTaskProfileSchema = z.object({
+  exam_format: z.string().optional(),
+  section_breakdown: z.array(z.object({
+    name: z.string(),
+    marks: z.number().optional(),
+    description: z.string().optional(),
+  })).default([]),
+  rubric_notes: z.string().optional(),
+  mark_allocation: z.string().optional(),
+  common_mistakes: z.string().optional(),
+  set_by: z.string().optional(),
+  past_paper_url: z.string().optional(),
+  updated_at: z.string().optional(),
+});
+
+export const examResourceSchema = z.object({
+  id: z.string(),
+  type: z.enum(["notes", "textbook", "past_paper", "rubric", "formula_sheet", "other"]),
+  label: z.string(),
+  content_text: z.string().optional(),
+  url: z.string().optional(),
+  topic_ids: z.array(z.string()).default([]),
+  added_at: z.string(),
+});
+
+export const examQuestionSchema = z.object({
+  id: z.string(),
+  type: z.enum(["quick_quiz", "explain_back", "past_paper_style", "essay_plan", "definition", "formula", "weak_topic"]),
+  topic_id: z.string().optional(),
+  topic_name: z.string().optional(),
+  question_text: z.string(),
+  marks: z.number().optional(),
+  model_answer: z.string().optional(),
+  hints: z.array(z.string()).default([]),
+  source: z.enum(["ai", "local_template"]).default("local_template"),
+  created_at: z.string(),
+});
+
+export const examAnswerAttemptSchema = z.object({
+  id: z.string(),
+  question_id: z.string(),
+  answer_text: z.string(),
+  created_at: z.string(),
+  rating_id: z.string().optional(),
+});
+
+export const examWorkRatingSchema = z.object({
+  id: z.string(),
+  question_id: z.string(),
+  answer_attempt_id: z.string(),
+  score_out_of: z.number().optional(),
+  max_marks: z.number().optional(),
+  level: z.enum(["needs_work", "developing", "solid", "strong"]),
+  missing_points: z.array(z.string()).default([]),
+  upgrade_suggestion: z.string(),
+  model_comparison: z.string().optional(),
+  source: z.enum(["ai", "local_heuristic"]).default("local_heuristic"),
+  created_at: z.string(),
+});
+
 export const examEmergencySchema = z.object({
   id: z.string(),
   subject: z.string(),
@@ -390,6 +450,13 @@ export const examEmergencySchema = z.object({
     next_time: z.string().optional(),
     created_at: z.string().optional(),
   }).optional(),
+  task_profile: examTaskProfileSchema.optional(),
+  resources: z.array(examResourceSchema).default([]),
+  questions: z.array(examQuestionSchema).default([]),
+  answer_attempts: z.array(examAnswerAttemptSchema).default([]),
+  work_ratings: z.array(examWorkRatingSchema).default([]),
+  copilot_mode: z.enum(["intake", "task_profile", "resource_intake", "questioner", "work_rater"]).default("intake"),
+  copilot_session_count: z.number().default(0),
   created_at: z.string(),
   updated_at: z.string(),
 });

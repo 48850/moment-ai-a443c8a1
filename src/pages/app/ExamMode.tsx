@@ -2,14 +2,22 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   AlertTriangle, BookOpen, CheckCircle2, ChevronDown, ChevronUp,
-  Clock, MessageSquare, Zap, ArrowRight, Plus,
+  Clock, MessageSquare, Zap, ArrowRight, Plus, FileText, Database,
+  HelpCircle, Star,
 } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { Mote } from "@/components/app/Mote";
 import { buildExamEmergencyFromIntake } from "@/lib/exam/build-exam-emergency";
-import type { ExamEmergency, StudyBlock } from "@/lib/types";
-import type { ExamBlockFeedbackResult, TargetOutcome } from "@/lib/types/exam-emergency";
+import type { ExamEmergency, StudyBlock, ExamQuestion, ExamAnswerAttempt, ExamResource } from "@/lib/types";
+import type { ExamBlockFeedbackResult, TargetOutcome, CopilotMode, WorkRatingLevel } from "@/lib/types/exam-emergency";
 import type { ForgeFeatureType } from "@/lib/types";
+import {
+  selectNextExamQuestion,
+  selectRecentExamRatings,
+  selectWeakestExamTopics,
+  selectExamCopilotProgress,
+} from "@/lib/selectors/exam-selectors";
+import { generateWeakTopicQuestion, generateLocalRating } from "@/lib/exam/exam-question-generator";
 
 // ── Study block row ───────────────────────────────────────────────────────────
 
@@ -247,6 +255,442 @@ function ReflectionForm({ emergency, dispatch }: { emergency: ExamEmergency; dis
         placeholder="What will you do differently next time? (optional)"
         className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none"
       />
+    </div>
+  );
+}
+
+// ── Copilot mode bar ──────────────────────────────────────────────────────────
+
+const COPILOT_MODES: Array<{ mode: CopilotMode; label: string; icon: typeof HelpCircle }> = [
+  { mode: "task_profile", label: "Task", icon: FileText },
+  { mode: "resource_intake", label: "Resources", icon: Database },
+  { mode: "questioner", label: "Test Me", icon: HelpCircle },
+  { mode: "work_rater", label: "Rate", icon: Star },
+];
+
+const RATING_COLOR: Record<WorkRatingLevel, string> = {
+  needs_work: "text-red-400 bg-red-500/10 border-red-500/30",
+  developing: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+  solid: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+  strong: "text-sky-400 bg-sky-500/10 border-sky-500/30",
+};
+
+function CopilotPanel({ emergency }: { emergency: ExamEmergency }) {
+  const dispatch = useStateStore((s) => s.dispatch);
+  const mode = (emergency.copilot_mode as CopilotMode) ?? "questioner";
+
+  const setMode = (m: CopilotMode) =>
+    dispatch({ type: "exam/set_copilot_mode", payload: { emergencyId: emergency.id, mode: m } } as any);
+
+  return (
+    <section className="space-y-3">
+      {/* Mode bar */}
+      <div className="flex gap-1 overflow-x-auto">
+        {COPILOT_MODES.map(({ mode: m, label, icon: Icon }) => (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            className={`flex items-center gap-1.5 shrink-0 text-[11px] px-2.5 py-1.5 rounded-full border transition-colors ${
+              mode === m
+                ? "border-primary/50 bg-primary/15 text-primary"
+                : "border-border text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Icon className="h-3 w-3" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {mode === "task_profile" && <TaskProfilePanel emergency={emergency} />}
+      {mode === "resource_intake" && <ResourceIntakePanel emergency={emergency} />}
+      {mode === "questioner" && <QuestionerPanel emergency={emergency} />}
+      {mode === "work_rater" && <WorkRaterPanel emergency={emergency} />}
+    </section>
+  );
+}
+
+function TaskProfilePanel({ emergency }: { emergency: ExamEmergency }) {
+  const dispatch = useStateStore((s) => s.dispatch);
+  const [text, setText] = useState("");
+
+  const handleSubmit = () => {
+    if (!text.trim()) return;
+    dispatch({
+      type: "exam/set_task_profile",
+      payload: {
+        emergencyId: emergency.id,
+        profile: {
+          rubric_notes: text,
+          section_breakdown: [],
+          updated_at: new Date().toISOString(),
+        },
+      },
+    } as any);
+    setText("");
+  };
+
+  const profile = emergency.task_profile;
+
+  return (
+    <div className="space-y-3">
+      {profile ? (
+        <div className="rounded-xl border border-border bg-card/50 p-3 space-y-2">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-primary font-medium">Exam format saved</p>
+          {profile.exam_format && <p className="text-xs text-foreground">{profile.exam_format}</p>}
+          {profile.mark_allocation && <p className="text-xs text-muted-foreground">Marks: {profile.mark_allocation}</p>}
+          {profile.rubric_notes && (
+            <p className="text-xs text-muted-foreground line-clamp-4">{profile.rubric_notes}</p>
+          )}
+          {profile.section_breakdown.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {profile.section_breakdown.map((s, i) => (
+                <span key={i} className="text-[10px] px-1.5 py-0.5 rounded-full border border-border text-muted-foreground">
+                  {s.name}{s.marks ? ` (${s.marks}m)` : ""}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : null}
+      <div className="space-y-2">
+        <p className="text-xs text-muted-foreground">
+          Paste the exam rubric, question format, or tell Moment how the exam is structured.
+        </p>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={4}
+          placeholder="e.g. 2-hour paper, 3 sections: 40% essays, 60% calculations. Section A is compulsory..."
+          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none resize-none"
+        />
+        <button
+          onClick={handleSubmit}
+          disabled={!text.trim()}
+          className="rounded-xl bg-primary px-4 py-2 text-xs font-medium text-primary-foreground disabled:opacity-40 hover:bg-primary/90"
+        >
+          Save exam format
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ResourceIntakePanel({ emergency }: { emergency: ExamEmergency }) {
+  const dispatch = useStateStore((s) => s.dispatch);
+  const [label, setLabel] = useState("");
+  const [type, setType] = useState<ExamResource["type"]>("notes");
+  const [content, setContent] = useState("");
+  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
+
+  const handleAdd = () => {
+    if (!label.trim()) return;
+    const resource: ExamResource = {
+      id: crypto.randomUUID(),
+      type,
+      label,
+      content_text: content || undefined,
+      topic_ids: selectedTopics,
+      added_at: new Date().toISOString(),
+    };
+    dispatch({ type: "exam/add_resource", payload: { emergencyId: emergency.id, resource } } as any);
+    setLabel("");
+    setContent("");
+    setSelectedTopics([]);
+  };
+
+  const toggleTopic = (id: string) =>
+    setSelectedTopics((prev) => prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]);
+
+  const resources = emergency.resources ?? [];
+
+  return (
+    <div className="space-y-3">
+      {resources.length > 0 && (
+        <div className="space-y-1.5">
+          {resources.map((r) => (
+            <div key={r.id} className="flex items-start gap-2 rounded-lg border border-border bg-card/50 px-3 py-2">
+              <Database className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+              <div>
+                <p className="text-xs font-medium text-foreground">{r.label}</p>
+                <p className="text-[10px] text-muted-foreground">{r.type.replace(/_/g, " ")}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="space-y-2 rounded-xl border border-border bg-card/30 p-3">
+        <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">Add resource</p>
+        <input
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder="e.g. Chapter 3 notes, OCR past paper 2023"
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+        />
+        <select
+          value={type}
+          onChange={(e) => setType(e.target.value as ExamResource["type"])}
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs focus:border-primary focus:outline-none"
+        >
+          {(["notes", "textbook", "past_paper", "rubric", "formula_sheet", "other"] as const).map((t) => (
+            <option key={t} value={t}>{t.replace(/_/g, " ")}</option>
+          ))}
+        </select>
+        <textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          rows={3}
+          placeholder="Paste content (optional)"
+          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none resize-none"
+        />
+        {emergency.topics.length > 0 && (
+          <div>
+            <p className="text-[10px] text-muted-foreground mb-1">Covers topics:</p>
+            <div className="flex flex-wrap gap-1">
+              {emergency.topics.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => toggleTopic(t.id)}
+                  className={`text-[10px] px-1.5 py-0.5 rounded-full border transition-colors ${
+                    selectedTopics.includes(t.id)
+                      ? "border-primary/50 bg-primary/15 text-primary"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <button
+          onClick={handleAdd}
+          disabled={!label.trim()}
+          className="rounded-xl bg-primary px-4 py-2 text-xs font-medium text-primary-foreground disabled:opacity-40 hover:bg-primary/90"
+        >
+          Add resource
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function QuestionerPanel({ emergency }: { emergency: ExamEmergency }) {
+  const dispatch = useStateStore((s) => s.dispatch);
+  const [answer, setAnswer] = useState("");
+  const [pendingQuestion, setPendingQuestion] = useState<ExamQuestion | null>(null);
+  const [showHints, setShowHints] = useState(false);
+
+  const nextQuestion = selectNextExamQuestion(emergency);
+  const question = pendingQuestion ?? nextQuestion;
+  const progress = selectExamCopilotProgress(emergency);
+  const recentRatings = selectRecentExamRatings(emergency, 3);
+
+  const handleAskQuestion = () => {
+    const q = generateWeakTopicQuestion(emergency);
+    dispatch({ type: "exam/create_question", payload: { emergencyId: emergency.id, question: q } } as any);
+    setPendingQuestion(q);
+    setAnswer("");
+    setShowHints(false);
+  };
+
+  const handleSubmitAnswer = () => {
+    if (!question || !answer.trim()) return;
+
+    const attempt: ExamAnswerAttempt = {
+      id: crypto.randomUUID(),
+      question_id: question.id,
+      answer_text: answer,
+      created_at: new Date().toISOString(),
+    };
+    dispatch({ type: "exam/add_answer_attempt", payload: { emergencyId: emergency.id, attempt } } as any);
+
+    // Local rating fallback
+    const rating = generateLocalRating(question, answer);
+    const ratingWithQuestion = { ...rating, question_id: question.id };
+    dispatch({ type: "exam/add_work_rating", payload: { emergencyId: emergency.id, rating: ratingWithQuestion } } as any);
+
+    setAnswer("");
+    setPendingQuestion(null);
+    setShowHints(false);
+    dispatch({ type: "exam/advance_copilot_session", payload: { emergencyId: emergency.id } } as any);
+  };
+
+  return (
+    <div className="space-y-3">
+      {progress.totalQuestions > 0 && (
+        <div className="text-[11px] text-muted-foreground">
+          {progress.answeredCount}/{progress.totalQuestions} answered
+          {progress.averageLevel && (
+            <> · avg: <span className={`font-medium ${
+              progress.averageLevel === "strong" ? "text-sky-400"
+              : progress.averageLevel === "solid" ? "text-emerald-400"
+              : progress.averageLevel === "developing" ? "text-amber-400"
+              : "text-red-400"
+            }`}>{progress.averageLevel.replace(/_/g, " ")}</span></>
+          )}
+        </div>
+      )}
+
+      {question ? (
+        <div className="space-y-3">
+          <div className="rounded-xl border border-border bg-card/50 p-3 space-y-2">
+            {question.topic_name && (
+              <p className="text-[10px] uppercase tracking-[0.2em] text-primary font-medium">{question.topic_name}</p>
+            )}
+            <p className="text-sm text-foreground font-medium">{question.question_text}</p>
+            {question.marks && (
+              <p className="text-[10px] text-muted-foreground">[{question.marks} marks]</p>
+            )}
+            {question.hints.length > 0 && (
+              <button
+                onClick={() => setShowHints((v) => !v)}
+                className="text-[10px] text-primary hover:underline"
+              >
+                {showHints ? "Hide hints" : "Show hints"}
+              </button>
+            )}
+            {showHints && (
+              <ul className="space-y-1">
+                {question.hints.map((h, i) => (
+                  <li key={i} className="text-xs text-muted-foreground">· {h}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <textarea
+            value={answer}
+            onChange={(e) => setAnswer(e.target.value)}
+            rows={4}
+            placeholder="Write your answer here..."
+            className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none resize-none"
+          />
+          <button
+            onClick={handleSubmitAnswer}
+            disabled={!answer.trim()}
+            className="w-full rounded-xl bg-primary px-4 py-2.5 text-xs font-medium text-primary-foreground disabled:opacity-40 hover:bg-primary/90"
+          >
+            Submit answer
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={handleAskQuestion}
+          className="w-full rounded-xl border border-primary/40 bg-primary/5 px-4 py-3 text-sm font-medium text-primary hover:bg-primary/10 transition-colors"
+        >
+          Ask me a question
+        </button>
+      )}
+
+      {recentRatings.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">Recent feedback</p>
+          {recentRatings.map((r) => (
+            <div key={r.id} className={`rounded-xl border px-3 py-2.5 ${RATING_COLOR[r.level as WorkRatingLevel]}`}>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-medium uppercase tracking-wide">{r.level.replace(/_/g, " ")}</span>
+                {r.score_out_of !== undefined && r.max_marks && (
+                  <span className="text-[10px]">practice: {r.score_out_of}/{r.max_marks}</span>
+                )}
+              </div>
+              <p className="mt-1 text-xs">{r.upgrade_suggestion}</p>
+              {r.missing_points.length > 0 && (
+                <ul className="mt-1 space-y-0.5">
+                  {r.missing_points.map((p, i) => (
+                    <li key={i} className="text-[10px] opacity-80">· {p}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WorkRaterPanel({ emergency }: { emergency: ExamEmergency }) {
+  const dispatch = useStateStore((s) => s.dispatch);
+  const [selectedTopicId, setSelectedTopicId] = useState("");
+  const [answerText, setAnswerText] = useState("");
+  const recentRatings = selectRecentExamRatings(emergency, 5);
+
+  const handleRate = () => {
+    if (!answerText.trim()) return;
+
+    const topic = emergency.topics.find((t) => t.id === selectedTopicId);
+    const fakeQuestion: ExamQuestion = {
+      id: `manual_${Date.now()}`,
+      type: "explain_back",
+      topic_id: selectedTopicId || undefined,
+      topic_name: topic?.name,
+      question_text: topic ? `Explain ${topic.name}` : "Open answer",
+      source: "local_template",
+      created_at: new Date().toISOString(),
+      hints: [],
+    };
+
+    dispatch({ type: "exam/create_question", payload: { emergencyId: emergency.id, question: fakeQuestion } } as any);
+
+    const attempt: ExamAnswerAttempt = {
+      id: crypto.randomUUID(),
+      question_id: fakeQuestion.id,
+      answer_text: answerText,
+      created_at: new Date().toISOString(),
+    };
+    dispatch({ type: "exam/add_answer_attempt", payload: { emergencyId: emergency.id, attempt } } as any);
+
+    const rating = generateLocalRating(fakeQuestion, answerText);
+    dispatch({ type: "exam/add_work_rating", payload: { emergencyId: emergency.id, rating: { ...rating, question_id: fakeQuestion.id } } } as any);
+
+    setAnswerText("");
+    setSelectedTopicId("");
+  };
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">Paste any written answer and get instant feedback.</p>
+      {emergency.topics.length > 0 && (
+        <select
+          value={selectedTopicId}
+          onChange={(e) => setSelectedTopicId(e.target.value)}
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs focus:border-primary focus:outline-none"
+        >
+          <option value="">Select topic (optional)</option>
+          {emergency.topics.map((t) => (
+            <option key={t.id} value={t.id}>{t.name}</option>
+          ))}
+        </select>
+      )}
+      <textarea
+        value={answerText}
+        onChange={(e) => setAnswerText(e.target.value)}
+        rows={5}
+        placeholder="Paste your written answer here..."
+        className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none resize-none"
+      />
+      <button
+        onClick={handleRate}
+        disabled={!answerText.trim()}
+        className="w-full rounded-xl bg-primary px-4 py-2.5 text-xs font-medium text-primary-foreground disabled:opacity-40 hover:bg-primary/90"
+      >
+        Get feedback
+      </button>
+
+      {recentRatings.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">Rating history</p>
+          {recentRatings.map((r) => (
+            <div key={r.id} className={`rounded-xl border px-3 py-2.5 ${RATING_COLOR[r.level as WorkRatingLevel]}`}>
+              <span className="text-[10px] font-medium uppercase tracking-wide">{r.level.replace(/_/g, " ")}</span>
+              <p className="mt-1 text-xs">{r.upgrade_suggestion}</p>
+              {r.score_out_of !== undefined && r.max_marks && (
+                <p className="mt-0.5 text-[10px] opacity-80">Practice estimate: {r.score_out_of}/{r.max_marks}</p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -601,6 +1045,11 @@ export default function ExamMode() {
           </>
         )}
       </section>
+
+      {/* Copilot panel */}
+      {target.status !== "completed" && (
+        <CopilotPanel emergency={target} />
+      )}
 
       {/* Study plan */}
       {survivalBlocks.length > 0 && (

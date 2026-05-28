@@ -3,8 +3,11 @@
  * The edge function returns raw JSON; this guards against bad shapes.
  */
 import type { CoachAction, CoachResponse, CoachRescuePlan, ExecutionState, CoachMode } from "./coach-action-types";
-import type { ExamIntakePayload, ExamPlanFromCoach } from "@/lib/types/exam-emergency";
+import type { ExamIntakePayload, ExamPlanFromCoach, WorkRatingLevel } from "@/lib/types/exam-emergency";
 import { examEmergencySchema } from "@/lib/state/schema";
+
+const VALID_RATING_LEVELS = new Set<WorkRatingLevel>(["needs_work", "developing", "solid", "strong"]);
+const VALID_COPILOT_ACTIONS = new Set(["generate_question", "rate_answer", "set_task_profile"]);
 
 const VALID_MODES: CoachMode[] = [
   "next_move",
@@ -49,6 +52,9 @@ const VALID_ACTION_TYPES = new Set([
   "exam.start_intake",
   "exam.mark_block_done",
   "exam.add_feedback",
+  "exam.generate_question",
+  "exam.rate_answer",
+  "exam.set_task_profile",
 ]);
 
 function asString(v: unknown, fallback = ""): string {
@@ -174,6 +180,46 @@ export function parseCoachResponse(raw: unknown, fallbackReply = ""): CoachRespo
     }
   }
 
+  // Parse exam_copilot (question generation and answer rating)
+  const rawCopilot = obj.exam_copilot as Record<string, unknown> | null | undefined;
+  let exam_copilot: CoachResponse["exam_copilot"] = null;
+  if (rawCopilot && typeof rawCopilot === "object" && VALID_COPILOT_ACTIONS.has(String(rawCopilot.action))) {
+    try {
+      const action = rawCopilot.action as "generate_question" | "rate_answer" | "set_task_profile";
+      const emergency_id = asString(rawCopilot.emergency_id);
+      if (emergency_id) {
+        exam_copilot = {
+          action,
+          emergency_id,
+          question_type: typeof rawCopilot.question_type === "string" ? rawCopilot.question_type : undefined,
+          question_text: typeof rawCopilot.question_text === "string" ? rawCopilot.question_text : undefined,
+          model_answer: typeof rawCopilot.model_answer === "string" ? rawCopilot.model_answer : undefined,
+          hints: Array.isArray(rawCopilot.hints)
+            ? rawCopilot.hints.filter((h): h is string => typeof h === "string").slice(0, 3)
+            : undefined,
+          topic_name: typeof rawCopilot.topic_name === "string" ? rawCopilot.topic_name : undefined,
+          question_id: typeof rawCopilot.question_id === "string" ? rawCopilot.question_id : undefined,
+          score_out_of: typeof rawCopilot.score_out_of === "number" ? rawCopilot.score_out_of : undefined,
+          max_marks: typeof rawCopilot.max_marks === "number" ? rawCopilot.max_marks : undefined,
+          level: VALID_RATING_LEVELS.has(rawCopilot.level as WorkRatingLevel)
+            ? (rawCopilot.level as WorkRatingLevel)
+            : undefined,
+          missing_points: Array.isArray(rawCopilot.missing_points)
+            ? rawCopilot.missing_points.filter((p): p is string => typeof p === "string").slice(0, 3)
+            : undefined,
+          upgrade_suggestion: typeof rawCopilot.upgrade_suggestion === "string"
+            ? rawCopilot.upgrade_suggestion
+            : undefined,
+          task_profile: typeof rawCopilot.task_profile === "object" && rawCopilot.task_profile
+            ? (rawCopilot.task_profile as any)
+            : undefined,
+        };
+      }
+    } catch {
+      exam_copilot = null;
+    }
+  }
+
   return {
     mode,
     reply: asString(obj.reply, fallbackReply),
@@ -192,5 +238,6 @@ export function parseCoachResponse(raw: unknown, fallbackReply = ""): CoachRespo
     rescue_plan,
     exam_intake,
     exam_plan,
+    exam_copilot,
   };
 }
