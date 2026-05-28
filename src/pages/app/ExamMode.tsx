@@ -7,6 +7,7 @@ import {
 import { useStateStore } from "@/stores/state-store";
 import { Mote } from "@/components/app/Mote";
 import { buildExamEmergencyFromIntake } from "@/lib/exam/build-exam-emergency";
+import { ExamCopilotPanel } from "@/components/exam/ExamCopilotPanel";
 import type { ExamEmergency, StudyBlock } from "@/lib/types";
 import type { ExamBlockFeedbackResult, TargetOutcome } from "@/lib/types/exam-emergency";
 import type { ForgeFeatureType } from "@/lib/types";
@@ -601,6 +602,9 @@ export default function ExamMode() {
           </>
         )}
       </section>
+
+      {/* Exam Copilot — task profile + resource map */}
+      <ExamCopilotPanel emergency={target} />
 
       {/* Study plan */}
       {survivalBlocks.length > 0 && (
