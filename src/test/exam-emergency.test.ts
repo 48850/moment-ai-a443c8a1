@@ -493,3 +493,84 @@ describe("buildEvidenceVault — exam proof", () => {
     expect((examEntry as any).proof_of_completion).toContain("ran out of time");
   });
 });
+
+// ── Exam Copilot — task profile + resources (Step 2) ─────────────────────────
+
+describe("ExamCopilot task profile + resources", () => {
+  it("buildExamEmergencyFromIntake accepts task_profile and resources", () => {
+    const intake: ExamIntakePayload = {
+      action: "ready_to_build",
+      subject: "Physics",
+      exam_date_time: new Date(Date.now() + 86_400_000).toISOString(),
+      topics: [{ name: "Mechanics", confidence: 3 }],
+      available_study_windows: [
+        { start_time: "18:00", end_time: "20:00", day_label: "Tonight", available_minutes: 120 },
+      ],
+      task_profile: {
+        format: "mixed",
+        sections: ["Multi choice", "Short answer", "Extended response"],
+        highest_mark_section: "Extended response",
+        target_mark: "70%",
+        has_past_papers: true,
+        has_rubric: true,
+      },
+      resources: [
+        { kind: "past_paper", label: "2023 VCE Physics paper" },
+        { kind: "rubric", label: "Marking key" },
+      ],
+    };
+    const emergency = buildExamEmergencyFromIntake(intake);
+    expect(emergency.task_profile?.format).toBe("mixed");
+    expect(emergency.task_profile?.target_mark).toBe("70%");
+    expect(emergency.task_profile?.sections.length).toBe(3);
+    expect(emergency.resources.length).toBe(2);
+    expect(emergency.resources[0].priority).toBe("high");
+    expect(emergency.resources[0].how_to_use).toContain("exam timing");
+  });
+
+  it("emergency without task_profile/resources still parses", () => {
+    const intake: ExamIntakePayload = {
+      action: "ready_to_build",
+      subject: "Chem",
+      exam_date_time: new Date(Date.now() + 86_400_000).toISOString(),
+      topics: [{ name: "Reactions", confidence: 4 }],
+      available_study_windows: [
+        { start_time: "18:00", end_time: "20:00", day_label: "Today", available_minutes: 120 },
+      ],
+    };
+    const emergency = buildExamEmergencyFromIntake(intake);
+    expect(emergency.task_profile).toBeUndefined();
+    expect(emergency.resources).toEqual([]);
+  });
+
+  it("emits per-block portfolio proof for each completed block", () => {
+    const intake: ExamIntakePayload = {
+      action: "ready_to_build",
+      subject: "History",
+      exam_date_time: new Date(Date.now() + 86_400_000).toISOString(),
+      topics: [
+        { name: "Cold War", confidence: 2 },
+        { name: "WWII", confidence: 3 },
+      ],
+      available_study_windows: [
+        { start_time: "18:00", end_time: "22:00", day_label: "Today", available_minutes: 240 },
+      ],
+    };
+    const emergency = buildExamEmergencyFromIntake(intake);
+    const firstTwoBlocks = emergency.current_plan.survival_plan.slice(0, 2);
+    expect(firstTwoBlocks.length).toBe(2);
+    const withFeedback = {
+      ...emergency,
+      feedback: firstTwoBlocks.map((b) => ({
+        block_id: b.id,
+        result: "completed" as const,
+        created_at: new Date().toISOString(),
+      })),
+    };
+    const state = makeMinimalState({ exam_emergencies: [withFeedback] });
+    const vault = buildEvidenceVault(state);
+    const blockProofs = vault.entries.filter((e) => e.id.startsWith("exam_block_proof_"));
+    expect(blockProofs.length).toBe(2);
+    expect((blockProofs[0] as any).title).toContain("History");
+  });
+});
