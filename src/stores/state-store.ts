@@ -270,6 +270,7 @@ export const useStateStore = create<StateStore>((set, get) => ({
         pursuit_model: "pursuit_model" in saved ? saved.pursuit_model : null,
         rescue_signals: (saved as any).rescue_signals ?? [],
         exam_emergencies: (saved as any).exam_emergencies ?? [],
+        goals: (saved as any).goals ?? [],
         moment_trials: (saved as any).moment_trials ?? [],
         mistake_cards: (saved as any).mistake_cards ?? [],
         chat_preferences: (saved as any).chat_preferences ?? { tone: "default" },
@@ -620,6 +621,42 @@ export const useStateStore = create<StateStore>((set, get) => ({
             ? compilePursuitModel(mergedWithFeasibility, s.pursuit_model)
             : null,
         };
+        break;
+      }
+
+      // ─── Multi-goal system ────────────────────────────────────────────────────
+      // Horizon ≠ priority. Primary is chosen by importance, not urgency.
+
+      case "goal/add": {
+        const existing = (s as any).goals ?? [];
+        next = { ...s, goals: [...existing, action.payload] } as any;
+        break;
+      }
+
+      case "goal/set_role": {
+        const goals = ((s as any).goals ?? []).map((g: any) =>
+          g.id === action.payload.id ? { ...g, role: action.payload.role } : g,
+        );
+        next = { ...s, goals } as any;
+        break;
+      }
+
+      case "goal/set_primary": {
+        // Only one goal can be primary — demote others to background unless they are pressure
+        const goals = ((s as any).goals ?? []).map((g: any) => {
+          if (g.id === action.payload.id) return { ...g, role: "primary" };
+          if (g.role === "primary") return { ...g, role: "background" };
+          return g;
+        });
+        next = { ...s, goals } as any;
+        break;
+      }
+
+      case "goal/update": {
+        const goals = ((s as any).goals ?? []).map((g: any) =>
+          g.id === action.payload.id ? { ...g, ...action.payload.changes } : g,
+        );
+        next = { ...s, goals } as any;
         break;
       }
 

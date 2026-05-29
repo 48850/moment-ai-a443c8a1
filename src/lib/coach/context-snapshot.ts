@@ -16,6 +16,7 @@ import type { MomentState, StudyBlock } from "@/lib/types";
 import type { ExecutionState } from "./coach-action-types";
 import type { ExamEmergencyStatus } from "@/lib/types/exam-emergency";
 import { buildEmotionalSnapshot, type EmotionalSnapshot } from "@/lib/selectors/feedback-intelligence";
+import { selectGoalSynthesis, type GoalSynthesis } from "@/lib/selectors/goal-intelligence";
 
 export type { EmotionalSnapshot };
 
@@ -81,6 +82,12 @@ export interface ContextSnapshot {
 
   /** Signal-based emotional interpretation (never diagnostic, always grounded in ≥2 signals) */
   emotional_snapshot: EmotionalSnapshot;
+
+  /**
+   * Cross-goal synthesis. Primary arc + current pressure + shared skills.
+   * Horizon ≠ priority — a long-term goal can be primary while an exam is pressure.
+   */
+  goal_synthesis: GoalSynthesis;
 
   /** Exam Emergency: active emergency context */
   active_exam_emergency: {
@@ -336,6 +343,7 @@ export function buildContextSnapshot(
     plan_needs_repair: planPressure !== "low" || overdue.length > 0,
 
     emotional_snapshot: buildEmotionalSnapshot(feedback),
+    goal_synthesis: selectGoalSynthesis(state),
 
     is_rescue_situation: isRescue,
     deadline_urgency: isRescue
@@ -437,6 +445,15 @@ function emptySnapshot(): ContextSnapshot {
     memory_candidates: [],
     plan_needs_repair: false,
     emotional_snapshot: buildEmotionalSnapshot([]),
+    goal_synthesis: {
+      primary_arc: "",
+      current_pressure: null,
+      support_goals: [],
+      shared_skills: [],
+      synthesis_sentence: "",
+      today_main_move: null,
+      optional_primary_nourishment_move: null,
+    },
     is_rescue_situation: false,
     active_exam_emergency: null,
   };

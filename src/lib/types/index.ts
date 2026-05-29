@@ -36,6 +36,9 @@ import {
   momentTrialSchema,
   learningToolResultSchema,
   mistakeCardSchema,
+  userGoalSchema,
+  GOAL_HORIZONS,
+  GOAL_ROLES,
 } from "@/lib/state/schema";
 
 export type MomentState = z.infer<typeof momentStateSchema>;
@@ -74,6 +77,9 @@ export type ExamQuestion = z.infer<typeof examQuestionSchema>;
 export type MomentTrial = z.infer<typeof momentTrialSchema>;
 export type LearningToolResult = z.infer<typeof learningToolResultSchema>;
 export type MistakeCard = z.infer<typeof mistakeCardSchema>;
+export type UserGoal = z.infer<typeof userGoalSchema>;
+export type GoalHorizon = (typeof GOAL_HORIZONS)[number];
+export type GoalRole = (typeof GOAL_ROLES)[number];
 export type ChatPreferences = z.infer<typeof chatPreferencesSchema>;
 export type { PursuitFamily } from "@/lib/pursuit/families";
 

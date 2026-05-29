@@ -25,6 +25,46 @@ export const goalFeasibilityReportSchema = z.object({
   next_clarifying_question: z.string().optional(),
 });
 
+export const GOAL_HORIZONS = [
+  "urgent",        // days — pressure event
+  "short_term",    // weeks
+  "medium_term",   // months
+  "long_term",     // years
+  "identity",      // decade-level aspiration
+] as const;
+
+export const GOAL_ROLES = [
+  "primary",    // what the user most cares about becoming
+  "pressure",   // what urgently needs attention right now
+  "support",    // nourishes or connects to the primary goal
+  "background", // real but not active this week
+  "dormant",    // paused; may return
+] as const;
+
+/**
+ * Rich multi-goal model. Additive alongside active_goal — never replaces it.
+ * Horizon is NOT priority. A medium/long-term goal can be primary.
+ * Pressure goal is chosen by urgency, not importance.
+ */
+export const userGoalSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  statement: z.string().default(""),
+  why_it_matters: z.string().default(""),
+  domain: z.string().default(""),
+  role: z.enum(GOAL_ROLES).default("background"),
+  horizon: z.enum(GOAL_HORIZONS).default("medium_term"),
+  urgency_score: z.number().min(0).max(100).default(0),
+  importance_score: z.number().min(0).max(100).default(50),
+  emotional_weight: z.number().min(0).max(100).default(50),
+  attention_weight: z.number().min(0).max(100).default(50),
+  protected: z.boolean().default(false),
+  last_touched_at: z.string().optional(),
+  shared_skill_tags: z.array(z.string()).default([]),
+  linked_goal_ids: z.array(z.string()).default([]),
+  created_at: z.string(),
+});
+
 export const activeGoalSchema = z.object({
   id: z.string().default(""),
   statement: z.string(),
@@ -746,6 +786,7 @@ export const momentStateSchema = z.object({
   pursuit_model: compiledPursuitModelSchema.nullable(),
   rescue_signals: z.array(rescueSignalSchema).default([]),
   exam_emergencies: z.array(examEmergencySchema).optional().default([]),
+  goals: z.array(userGoalSchema).default([]),
   moment_trials: z.array(momentTrialSchema).default([]),
   mistake_cards: z.array(mistakeCardSchema).default([]),
   chat_messages: z.array(chatMessageSchema).default([]),

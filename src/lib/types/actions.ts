@@ -13,6 +13,8 @@ import type {
   PursuitRisk,
   AppMode,
   RescueSignal,
+  UserGoal,
+  GoalRole,
   ChatPreferences,
   ChatMessage,
   ForgeGuidebook,
@@ -48,6 +50,10 @@ export type MomentAction =
   | { type: "chat/setPreferences"; payload: Partial<ChatPreferences> }
   | { type: "goal/set"; payload: MomentState["active_goal"] }
   | { type: "goal/patch"; payload: Partial<MomentState["active_goal"]> }
+  | { type: "goal/add"; payload: UserGoal }
+  | { type: "goal/set_role"; payload: { id: string; role: GoalRole } }
+  | { type: "goal/set_primary"; payload: { id: string } }
+  | { type: "goal/update"; payload: { id: string; changes: Partial<UserGoal> } }
   | { type: "pursuit/set_model"; payload: CompiledPursuitModel }
   | { type: "pursuit/clear_model" }
   | { type: "pursuit/set_active_mode"; payload: { operatingModeId: string } }

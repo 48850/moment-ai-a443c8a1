@@ -109,6 +109,7 @@ export function createEmptyUserState(userId: string, displayName: string, timezo
     pursuit_model: null,
     rescue_signals: [],
     exam_emergencies: [],
+    goals: [],
     moment_trials: [],
     mistake_cards: [],
     chat_messages: [],
