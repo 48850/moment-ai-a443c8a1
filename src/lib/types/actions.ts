@@ -132,4 +132,17 @@ export type MomentAction =
   | { type: "exam/set_task_profile"; payload: { emergencyId: string; profile: import("@/lib/types").ExamTaskProfile } }
   | { type: "exam/add_resource"; payload: { emergencyId: string; resource: import("@/lib/types").ExamResource } }
   | { type: "exam/update_resource"; payload: { emergencyId: string; resourceId: string; changes: Partial<import("@/lib/types").ExamResource> } }
-  | { type: "exam/remove_resource"; payload: { emergencyId: string; resourceId: string } };
+  | { type: "exam/remove_resource"; payload: { emergencyId: string; resourceId: string } }
+  // ─── Exam questions / answer hiding ──────────────────────────────────────
+  | { type: "exam/add_question"; payload: { emergencyId: string; question: import("@/lib/types").ExamQuestion } }
+  | { type: "exam/submit_answer"; payload: { emergencyId: string; questionId: string; attempt: import("@/lib/types").ExamQuestionAttempt } }
+  | { type: "exam/reveal_answer"; payload: { emergencyId: string; questionId: string } }
+  | { type: "exam/save_question_rating"; payload: { emergencyId: string; questionId: string; rating: import("@/lib/types").QuestionRating } }
+  | { type: "exam/set_copilot_mode"; payload: { emergencyId: string; mode: string } }
+  // ─── Trials ──────────────────────────────────────────────────────────────
+  | { type: "trial/create"; payload: import("@/lib/types").MomentTrial }
+  | { type: "trial/save_result"; payload: { id: string; result: import("@/lib/types").LearningToolResult } }
+  // ─── Mistake Vault ────────────────────────────────────────────────────────
+  | { type: "mistake/add"; payload: import("@/lib/types").MistakeCard }
+  | { type: "mistake/mark_reviewed"; payload: { id: string } }
+  | { type: "mistake/repair"; payload: { id: string } };

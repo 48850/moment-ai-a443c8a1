@@ -11,7 +11,8 @@ import { selectReviewSuggestions } from "@/lib/decisions/select-review-suggestio
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, BookOpenText, AlertCircle, Sparkles, Hammer, Heart, TrendingUp, Lightbulb } from "lucide-react";
+import { CheckCircle2, BookOpenText, AlertCircle, Sparkles, Hammer, Heart, TrendingUp, Lightbulb, Star, ArrowRight } from "lucide-react";
+import type { MistakeCard } from "@/lib/types";
 
 function fmtAgo(iso: string): string {
   const d = new Date(iso);
@@ -30,6 +31,18 @@ export default function Portfolio() {
   const memory = buildMomentMemory(state);
   const reviewSuggestions = selectReviewSuggestions(state);
 
+  const forgeTrialsCompleted = ((state as any)?.moment_trials ?? []).filter(
+    (t: any) => t.status === "proof_saved"
+  ).length;
+
+  const repairedCards: MistakeCard[] = ((state as any)?.mistake_cards ?? []).filter(
+    (c: MistakeCard) => c.status === "repaired"
+  );
+
+  const bestProof = vault.entries
+    .filter((e) => e.type === "task_proof")
+    .slice(0, 3);
+
   return (
     <div className="mx-auto max-w-4xl space-y-8 pb-12">
       {/* Hero */}
@@ -43,9 +56,24 @@ export default function Portfolio() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard icon={<CheckCircle2 className="h-4 w-4" />} label="Proof this week" value={vault.summary.proof_this_week} />
         <StatCard icon={<BookOpenText className="h-4 w-4" />} label="Memories saved" value={vault.summary.memories_saved} />
-        <StatCard icon={<Hammer className="h-4 w-4" />} label="Artifacts" value={vault.summary.artifacts_created} />
+        <StatCard icon={<Hammer className="h-4 w-4" />} label="Forge Trials" value={forgeTrialsCompleted} />
         <StatCard icon={<Heart className="h-4 w-4" />} label="Recoveries" value={vault.summary.recoveries} />
       </div>
+
+      {/* Best Proof */}
+      <Section title="Best proof" icon={<Star className="h-4 w-4" />} empty={bestProof.length === 0} emptyHint="No proof yet. Complete one move and Moment will start building your receipts.">
+        <ul className="space-y-2">
+          {bestProof.map((p) => (
+            <li key={p.id} className="rounded-lg border border-border/60 bg-card/40 px-3 py-2">
+              <div className="truncate text-sm font-medium">{p.title}</div>
+              {"proof_of_completion" in p && p.proof_of_completion && (
+                <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{p.proof_of_completion}</p>
+              )}
+              <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">{fmtAgo(p.created_at)}</div>
+            </li>
+          ))}
+        </ul>
+      </Section>
 
       {/* This week's proof */}
       <Section title="This week's proof" icon={<CheckCircle2 className="h-4 w-4" />} empty={vault.this_week_proof.length === 0} emptyHint="Finish one thing and it lands here.">
@@ -77,6 +105,26 @@ export default function Portfolio() {
           ))}
         </ul>
       </Section>
+
+      {/* Before / After — repaired weak points */}
+      {repairedCards.length > 0 && (
+        <Section title="Weak points repaired" icon={<ArrowRight className="h-4 w-4" />} empty={false} emptyHint="">
+          <ul className="space-y-3">
+            {repairedCards.slice(0, 5).map((c) => (
+              <li key={c.id} className="rounded-lg border border-border/60 bg-card/40 px-3 py-3 space-y-2">
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Before</p>
+                  <p className="text-sm text-muted-foreground">{c.mistake}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-emerald-500 dark:text-emerald-400 mb-0.5">After</p>
+                  <p className="text-sm">{c.correction}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
 
       {/* Review soon */}
       <Section title="Review soon" icon={<Sparkles className="h-4 w-4" />} empty={reviewSuggestions.length === 0} emptyHint="When you save lessons, they show up here for spaced review.">
@@ -127,7 +175,7 @@ export default function Portfolio() {
       </Section>
 
       {/* Artifacts */}
-      <Section title="Artifacts created" icon={<Hammer className="h-4 w-4" />} empty={vault.artifacts.length === 0} emptyHint="Build one in Forge to turn portfolio gaps into practice.">
+      <Section title="Forge Trials" icon={<Hammer className="h-4 w-4" />} empty={vault.artifacts.length === 0} emptyHint="No proof yet. Complete one move and Moment will start building your receipts.">
         <ul className="space-y-2">
           {vault.artifacts.slice(0, 5).map((a) => (
             <li key={a.id} className="flex items-center justify-between rounded-lg border border-border/60 bg-card/40 px-3 py-2 text-sm">

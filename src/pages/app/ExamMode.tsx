@@ -1,16 +1,22 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   AlertTriangle, BookOpen, CheckCircle2, ChevronDown, ChevronUp,
-  Clock, MessageSquare, Zap, ArrowRight, Plus,
+  Clock, MessageSquare, Zap, ArrowRight, Plus, Brain, FileText,
 } from "lucide-react";
 import { useStateStore } from "@/stores/state-store";
 import { Mote } from "@/components/app/Mote";
 import { buildExamEmergencyFromIntake } from "@/lib/exam/build-exam-emergency";
 import { ExamCopilotPanel } from "@/components/exam/ExamCopilotPanel";
-import type { ExamEmergency, StudyBlock } from "@/lib/types";
+import { DrillQuestion } from "@/components/exam/DrillQuestion";
+import { nextUnansweredQuestion, drillSummary } from "@/lib/exam/question-helpers";
+import { buildLocalFallbackRating } from "@/lib/trial/trial-helpers";
+import { supabase } from "@/lib/supabase";
+import type { ExamEmergency, StudyBlock, ExamQuestion, QuestionRating } from "@/lib/types";
 import type { ExamBlockFeedbackResult, TargetOutcome } from "@/lib/types/exam-emergency";
 import type { ForgeFeatureType } from "@/lib/types";
+
+type CopilotMode = "plan" | "test_me" | "rate";
 
 // ── Study block row ───────────────────────────────────────────────────────────
 
@@ -436,6 +442,13 @@ export default function ExamMode() {
   const dispatch = useStateStore((s) => s.dispatch);
   const [activeTab, setActiveTab] = useState<"survival" | "recovery" | "stretch">("survival");
   const [showNewForm, setShowNewForm] = useState(false);
+  const [copilotMode, setCopilotMode] = useState<CopilotMode>("plan");
+  const [rateAnswer, setRateAnswer] = useState("");
+  const [rateTopicId, setRateTopicId] = useState("");
+  const [rateResult, setRateResult] = useState<QuestionRating | null>(null);
+  const [rateLoading, setRateLoading] = useState(false);
+  const [genLoading, setGenLoading] = useState(false);
+  const [currentQIndex, setCurrentQIndex] = useState(0);
 
   const emergency = (state?.exam_emergencies as ExamEmergency[] | undefined)?.find(
     (e) => e.status === "active" || e.status === "intake" || e.status === "recovering",
@@ -522,6 +535,110 @@ export default function ExamMode() {
     ? "border-red-500/30"
     : "border-amber-500/20";
 
+  const questions = (target as any).questions as ExamQuestion[] ?? [];
+  const currentQuestion = questions[currentQIndex] ?? nextUnansweredQuestion(questions);
+  const summary = drillSummary(questions);
+
+  async function handleGenerateQuestions() {
+    if (genLoading || questions.length > 0) return;
+    setGenLoading(true);
+    try {
+      const topicNames = target.topics
+        .filter((t) => t.priority !== "ignore_for_now")
+        .slice(0, 5)
+        .map((t) => t.name);
+      const { data } = await supabase.functions.invoke("app-intelligence", {
+        body: {
+          intent: "exam_generate_questions",
+          payload: {
+            subject: target.subject,
+            topics: topicNames,
+            task_profile: target.task_profile,
+            question_count: 5,
+          },
+        },
+      });
+      const rawQuestions = Array.isArray(data?.questions) ? data.questions : [];
+      for (const q of rawQuestions.slice(0, 8)) {
+        if (!q?.question_text) continue;
+        dispatch({
+          type: "exam/add_question",
+          payload: {
+            emergencyId: target.id,
+            question: {
+              id: `q_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+              question_text: String(q.question_text),
+              question_type: q.question_type ?? "short_answer",
+              options: Array.isArray(q.options) ? q.options : undefined,
+              correct_answer: q.correct_answer ? String(q.correct_answer) : undefined,
+              model_answer: q.model_answer ? String(q.model_answer) : undefined,
+              expected_points: Array.isArray(q.expected_points) ? q.expected_points : [],
+              hint: q.hint ? String(q.hint) : undefined,
+              topic_id: q.topic_id ?? undefined,
+              revealed_without_attempt: false,
+              created_at: new Date().toISOString(),
+            },
+          },
+        } as any);
+      }
+      // Fallback: if AI returned nothing, create local questions from topics
+      if (rawQuestions.length === 0) {
+        for (const topic of topicNames.slice(0, 3)) {
+          dispatch({
+            type: "exam/add_question",
+            payload: {
+              emergencyId: target.id,
+              question: {
+                id: `q_local_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+                question_text: `Explain the key points of: ${topic}`,
+                question_type: "short_answer" as const,
+                expected_points: [],
+                revealed_without_attempt: false,
+                created_at: new Date().toISOString(),
+              },
+            },
+          } as any);
+        }
+      }
+    } catch {
+      // Fallback silently
+    }
+    setGenLoading(false);
+  }
+
+  async function handleRateAnswer() {
+    if (!rateAnswer.trim() || rateLoading) return;
+    setRateLoading(true);
+    try {
+      const { data } = await supabase.functions.invoke("app-intelligence", {
+        body: {
+          intent: "exam_rate_answer",
+          payload: {
+            subject: target.subject,
+            topic: rateTopicId || undefined,
+            answer_text: rateAnswer,
+            task_profile: target.task_profile,
+          },
+        },
+      });
+      if (data?.rating?.level) {
+        setRateResult({
+          level: data.rating.level,
+          practice_estimate_label: data.rating.practice_estimate_label ?? data.rating.level,
+          strengths: Array.isArray(data.rating.strengths) ? data.rating.strengths : [],
+          missing_points: Array.isArray(data.rating.missing_points) ? data.rating.missing_points : [],
+          misconception: data.rating.misconception ?? undefined,
+          next_fix: data.rating.next_fix ?? "Review and try again.",
+        });
+      } else {
+        setRateResult(buildLocalFallbackRating(rateAnswer));
+      }
+    } catch {
+      setRateResult(buildLocalFallbackRating(rateAnswer));
+    }
+    setRateLoading(false);
+  }
+
   return (
     <div className="mx-auto max-w-xl space-y-6 py-2">
       {/* Header */}
@@ -606,8 +723,205 @@ export default function ExamMode() {
       {/* Exam Copilot — task profile + resource map */}
       <ExamCopilotPanel emergency={target} />
 
-      {/* Study plan */}
-      {survivalBlocks.length > 0 && (
+      {/* Copilot mode switcher */}
+      <div className="flex gap-1">
+        {([
+          { id: "plan", label: "Study Plan", icon: BookOpen },
+          { id: "test_me", label: "Test Me", icon: Brain },
+          { id: "rate", label: "Rate Answer", icon: FileText },
+        ] as const).map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setCopilotMode(id)}
+            className={`flex items-center gap-1.5 flex-1 justify-center rounded-xl border py-2 text-xs font-medium transition-colors ${
+              copilotMode === id
+                ? "border-indigo-500/50 bg-indigo-500/15 text-indigo-300"
+                : "border-border text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Icon className="h-3 w-3" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Test Me mode */}
+      {copilotMode === "test_me" && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+            <Brain className="h-3 w-3" /> test me
+          </div>
+
+          {questions.length === 0 && (
+            <div className="rounded-xl border border-border bg-card/50 p-5 space-y-3 text-center">
+              <p className="text-sm text-muted-foreground">
+                Moment will generate 5 practice questions based on your topics.
+              </p>
+              <button
+                onClick={handleGenerateQuestions}
+                disabled={genLoading}
+                className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl px-6 py-2.5 text-sm font-medium transition-colors"
+              >
+                {genLoading ? "Generating…" : "Generate questions"}
+              </button>
+            </div>
+          )}
+
+          {questions.length > 0 && currentQuestion && (
+            <DrillQuestion
+              question={currentQuestion}
+              emergencyId={target.id}
+              questionNumber={currentQIndex + 1}
+              totalQuestions={questions.length}
+              onNext={() => setCurrentQIndex((i) => Math.min(i + 1, questions.length - 1))}
+            />
+          )}
+
+          {questions.length > 0 && !currentQuestion && (
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5 space-y-3">
+              <p className="text-sm font-medium text-white/80">All questions answered</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-emerald-400">{summary.strongCount}</p>
+                  <p className="text-xs text-muted-foreground">Solid or strong</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-amber-400">{summary.needsWorkCount}</p>
+                  <p className="text-xs text-muted-foreground">Need work</p>
+                </div>
+              </div>
+              {summary.topicWeaknesses.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Weak topics: {summary.topicWeaknesses.slice(0, 3).join(", ")}
+                </p>
+              )}
+            </div>
+          )}
+
+          {questions.length > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              {questions.map((q, i) => (
+                <button
+                  key={q.id}
+                  onClick={() => setCurrentQIndex(i)}
+                  className={`w-7 h-7 rounded-lg text-xs font-medium border transition-colors ${
+                    i === currentQIndex
+                      ? "border-indigo-500 bg-indigo-500/20 text-indigo-300"
+                      : q.attempt?.rating?.level === "strong" || q.attempt?.rating?.level === "solid"
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                      : q.attempt
+                      ? "border-amber-500/30 bg-amber-500/10 text-amber-400"
+                      : q.revealed_without_attempt
+                      ? "border-white/20 text-white/30"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Rate Answer mode */}
+      {copilotMode === "rate" && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+            <FileText className="h-3 w-3" /> rate an answer
+          </div>
+
+          {!rateResult ? (
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Paste a written answer and Moment will give a practice estimate — not an official mark.
+              </p>
+
+              {target.topics.length > 0 && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Topic (optional)</label>
+                  <select
+                    value={rateTopicId}
+                    onChange={(e) => setRateTopicId(e.target.value)}
+                    className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground"
+                  >
+                    <option value="">— select topic —</option>
+                    {target.topics.filter((t) => t.priority !== "ignore_for_now").map((t) => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <textarea
+                className="w-full bg-card border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:border-indigo-500/50 min-h-[140px]"
+                placeholder="Paste your answer here…"
+                value={rateAnswer}
+                onChange={(e) => setRateAnswer(e.target.value)}
+              />
+
+              <button
+                onClick={handleRateAnswer}
+                disabled={!rateAnswer.trim() || rateLoading}
+                className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white rounded-xl py-2.5 text-sm font-medium transition-colors"
+              >
+                {rateLoading ? "Rating…" : "Get practice estimate"}
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-white/40 uppercase tracking-wider">Practice estimate</p>
+                  <span className={`text-sm font-semibold ${
+                    rateResult.level === "strong" ? "text-emerald-400"
+                    : rateResult.level === "solid" ? "text-green-400"
+                    : rateResult.level === "developing" ? "text-amber-400"
+                    : "text-red-400"
+                  }`}>
+                    {rateResult.practice_estimate_label}
+                  </span>
+                </div>
+
+                {rateResult.strengths.length > 0 && (
+                  <div>
+                    <p className="text-xs text-white/40 mb-1">What worked</p>
+                    {rateResult.strengths.map((s, i) => (
+                      <p key={i} className="text-sm text-white/70">✓ {s}</p>
+                    ))}
+                  </div>
+                )}
+
+                {rateResult.missing_points.length > 0 && (
+                  <div>
+                    <p className="text-xs text-white/40 mb-1">Missing</p>
+                    {rateResult.missing_points.map((p, i) => (
+                      <p key={i} className="text-sm text-white/60">· {p}</p>
+                    ))}
+                  </div>
+                )}
+
+                {rateResult.next_fix && (
+                  <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-2.5">
+                    <p className="text-xs text-amber-400/70 mb-1">Next fix</p>
+                    <p className="text-sm text-amber-100/80">{rateResult.next_fix}</p>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={() => { setRateResult(null); setRateAnswer(""); }}
+                className="w-full border border-border rounded-xl py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Rate another answer
+              </button>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Study plan — only shown in plan mode */}
+      {copilotMode === "plan" && survivalBlocks.length > 0 && (
         <section className="space-y-3">
           <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
             <BookOpen className="h-3 w-3" /> study plan

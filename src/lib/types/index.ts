@@ -30,6 +30,12 @@ import {
   examBlockFeedbackSchema,
   examTaskProfileSchema,
   examResourceSchema,
+  questionRatingSchema,
+  examQuestionAttemptSchema,
+  examQuestionSchema,
+  momentTrialSchema,
+  learningToolResultSchema,
+  mistakeCardSchema,
 } from "@/lib/state/schema";
 
 export type MomentState = z.infer<typeof momentStateSchema>;
@@ -62,6 +68,12 @@ export type StudyWindow = z.infer<typeof studyWindowSchema>;
 export type ExamBlockFeedback = z.infer<typeof examBlockFeedbackSchema>;
 export type ExamTaskProfile = z.infer<typeof examTaskProfileSchema>;
 export type ExamResource = z.infer<typeof examResourceSchema>;
+export type QuestionRating = z.infer<typeof questionRatingSchema>;
+export type ExamQuestionAttempt = z.infer<typeof examQuestionAttemptSchema>;
+export type ExamQuestion = z.infer<typeof examQuestionSchema>;
+export type MomentTrial = z.infer<typeof momentTrialSchema>;
+export type LearningToolResult = z.infer<typeof learningToolResultSchema>;
+export type MistakeCard = z.infer<typeof mistakeCardSchema>;
 export type ChatPreferences = z.infer<typeof chatPreferencesSchema>;
 export type { PursuitFamily } from "@/lib/pursuit/families";
 

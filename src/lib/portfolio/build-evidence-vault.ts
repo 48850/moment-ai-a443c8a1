@@ -177,6 +177,36 @@ export function buildEvidenceVault(state: MomentState | null): EvidenceVault {
     } as TaskProofEntry);
   }
 
+  // ---------- completed Trial proofs ----------
+  for (const trial of ((state as any).moment_trials ?? []) as any[]) {
+    if (trial.status !== "proof_saved") continue;
+    const result = trial.result;
+    if (!result?.proof_event?.proof_text) continue;
+    entries.push({
+      id: `trial_proof_${trial.id}`,
+      type: "task_proof",
+      created_at: trial.completed_at || trial.created_at,
+      completed_at: trial.completed_at || trial.created_at,
+      title: result.proof_event.title || trial.proof_target,
+      task_id: trial.id,
+      proof_of_completion: result.proof_event.proof_text,
+    } as TaskProofEntry);
+  }
+
+  // ---------- repaired MistakeCards ----------
+  for (const card of ((state as any).mistake_cards ?? []) as any[]) {
+    if (card.status !== "repaired") continue;
+    entries.push({
+      id: `mistake_repair_${card.id}`,
+      type: "task_proof",
+      created_at: card.created_at,
+      completed_at: card.created_at,
+      title: "Weak point repaired",
+      task_id: card.id,
+      proof_of_completion: card.correction,
+    } as TaskProofEntry);
+  }
+
   // ---------- capabilities ----------
   const capabilities: CapabilityEntry[] = (state.pursuit_model?.capability_clusters ?? [])
     .filter((c) => c.status !== "not_started")

@@ -15,6 +15,9 @@
 import type { MomentState, StudyBlock } from "@/lib/types";
 import type { ExecutionState } from "./coach-action-types";
 import type { ExamEmergencyStatus } from "@/lib/types/exam-emergency";
+import { buildEmotionalSnapshot, type EmotionalSnapshot } from "@/lib/selectors/feedback-intelligence";
+
+export type { EmotionalSnapshot };
 
 export type UserSituation =
   | "aligned"     // on track, making progress
@@ -75,6 +78,9 @@ export interface ContextSnapshot {
   /** Rescue: is this an urgent deadline situation? */
   is_rescue_situation: boolean;
   deadline_urgency?: string;
+
+  /** Signal-based emotional interpretation (never diagnostic, always grounded in ≥2 signals) */
+  emotional_snapshot: EmotionalSnapshot;
 
   /** Exam Emergency: active emergency context */
   active_exam_emergency: {
@@ -329,6 +335,8 @@ export function buildContextSnapshot(
     memory_candidates: memoryCandidates,
     plan_needs_repair: planPressure !== "low" || overdue.length > 0,
 
+    emotional_snapshot: buildEmotionalSnapshot(feedback),
+
     is_rescue_situation: isRescue,
     deadline_urgency: isRescue
       ? (deadlineMatch?.[1]?.trim() ?? latestUserText.slice(0, 100))
@@ -428,6 +436,7 @@ function emptySnapshot(): ContextSnapshot {
     decisive_move: "",
     memory_candidates: [],
     plan_needs_repair: false,
+    emotional_snapshot: buildEmotionalSnapshot([]),
     is_rescue_situation: false,
     active_exam_emergency: null,
   };

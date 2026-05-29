@@ -270,6 +270,14 @@ export const FEEDBACK_OPTIONS = [
   "make_more_ambitious",
   "be_more_direct",
   "be_gentler",
+  // exam / learning / trial signals
+  "confusing",
+  "felt_good",
+  "proud",
+  "too_much",
+  "too_generic",
+  "guessed",
+  "too_slow",
 ] as const;
 
 export const FEEDBACK_SOURCES = [
@@ -283,6 +291,10 @@ export const FEEDBACK_SOURCES = [
   "reflection",
   "nudge",
   "rescue",
+  "exam_block",
+  "exam_question",
+  "forge_trial",
+  "portfolio_proof",
 ] as const;
 
 export const executionFeedbackItemSchema = z.object({
@@ -317,6 +329,39 @@ export const rescueSignalSchema = z.object({
   shrunk_to_minutes: z.number().default(0),
   switched_to_plan_b: z.boolean().default(false),
   note: z.string().default(""),
+});
+
+// ─── Exam question / answer hiding schemas ────────────────────────────────────
+// Defined before examEmergencySchema because examEmergencySchema.questions references these.
+
+export const questionRatingSchema = z.object({
+  level: z.enum(["needs_work", "developing", "solid", "strong"]),
+  practice_estimate_label: z.string(),
+  strengths: z.array(z.string()).default([]),
+  missing_points: z.array(z.string()).default([]),
+  misconception: z.string().optional(),
+  next_fix: z.string(),
+});
+
+export const examQuestionAttemptSchema = z.object({
+  submitted_at: z.string(),
+  answer_text: z.string(),
+  rating: questionRatingSchema.optional(),
+});
+
+export const examQuestionSchema = z.object({
+  id: z.string(),
+  topic_id: z.string().optional(),
+  question_text: z.string(),
+  question_type: z.enum(["short_answer", "essay", "multiple_choice", "explain", "evaluate"]),
+  options: z.array(z.string()).optional(),
+  correct_answer: z.string().optional(),
+  model_answer: z.string().optional(),
+  expected_points: z.array(z.string()).default([]),
+  hint: z.string().optional(),
+  attempt: examQuestionAttemptSchema.optional(),
+  revealed_without_attempt: z.boolean().default(false),
+  created_at: z.string(),
 });
 
 // ─── Exam Emergency schemas ───────────────────────────────────────────────────
@@ -423,6 +468,8 @@ export const examEmergencySchema = z.object({
     next_time: z.string().optional(),
     created_at: z.string().optional(),
   }).optional(),
+  questions: z.array(examQuestionSchema).default([]),
+  copilot_mode: z.enum(["intake", "task", "resources", "test_me", "rate"]).optional(),
   created_at: z.string(),
   updated_at: z.string(),
 });
@@ -588,6 +635,69 @@ export const chatMessageSchema = z.object({
   mode: z.enum(["chat", "goal_specialisation"]).optional(),
 });
 
+// ─── Trial + Mistake Vault schemas ───────────────────────────────────────────
+
+export const learningToolResultSchema = z.object({
+  id: z.string(),
+  trial_id: z.string(),
+  tool_type: z.enum([
+    "proof_drill", "pressure_test", "answer_upgrade", "mistake_repair",
+    "resource_forge", "oral_trial", "skill_simulation", "lock_in_review",
+  ]),
+  attempt_summary: z.string().min(1),
+  rating: questionRatingSchema,
+  adaptation: z.object({
+    update_plan: z.boolean().default(false),
+    add_review: z.boolean().default(false),
+    create_mistake_card: z.boolean().default(false),
+    next_recommended_tool: z.string().optional(),
+  }).default({}),
+  proof_event: z.object({
+    title: z.string(),
+    source: z.enum(["exam", "forge", "coach", "plan", "today"]),
+    proof_text: z.string(),
+    skill_tags: z.array(z.string()).default([]),
+  }),
+  created_at: z.string(),
+});
+
+export const momentTrialSchema = z.object({
+  id: z.string(),
+  source: z.enum(["exam", "forge", "path", "plan", "coach"]),
+  goal_id: z.string().optional(),
+  proof_target: z.string(),
+  skill_target: z.string(),
+  weakness_hypothesis: z.string().default(""),
+  pressure_type: z.enum([
+    "exam", "performance", "skill", "memory", "communication", "creation",
+  ]),
+  resource_ids: z.array(z.string()).default([]),
+  mode: z.enum([
+    "proof_drill", "pressure_test", "answer_upgrade", "oral_trial",
+    "resource_forge", "mistake_repair", "skill_simulation", "lock_in_review",
+  ]),
+  status: z.enum(["ready", "in_progress", "rated", "proof_saved"]).default("ready"),
+  result: learningToolResultSchema.optional(),
+  created_at: z.string(),
+  completed_at: z.string().optional(),
+});
+
+export const mistakeCardSchema = z.object({
+  id: z.string(),
+  source_trial_id: z.string().optional(),
+  source: z.enum(["exam", "forge", "coach", "plan", "today"]),
+  topic_id: z.string().optional(),
+  mistake_type: z.enum([
+    "forgot_fact", "confused_terms", "weak_explanation", "missed_evidence",
+    "poor_structure", "too_vague", "avoided", "too_slow",
+  ]),
+  mistake: z.string(),
+  correction: z.string(),
+  review_due_at: z.string(),
+  status: z.enum(["open", "reviewed", "repaired"]).default("open"),
+  created_at: z.string(),
+});
+
 // --- Full state schema ---
 export const momentStateSchema = z.object({
   user_id: z.string(),
@@ -636,6 +746,8 @@ export const momentStateSchema = z.object({
   pursuit_model: compiledPursuitModelSchema.nullable(),
   rescue_signals: z.array(rescueSignalSchema).default([]),
   exam_emergencies: z.array(examEmergencySchema).optional().default([]),
+  moment_trials: z.array(momentTrialSchema).default([]),
+  mistake_cards: z.array(mistakeCardSchema).default([]),
   chat_messages: z.array(chatMessageSchema).default([]),
   chat_preferences: chatPreferencesSchema.default({ tone: "default" }),
   chat_state: chatStateSchema.default({

@@ -1,4 +1,6 @@
 import { Mote } from "@/components/app/Mote";
+import { TrialBrief } from "@/components/forge/TrialBrief";
+import { createTrialFromForge } from "@/lib/trial/trial-helpers";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -300,7 +302,7 @@ function SystemGapCard({
 
 // ─── Forge builder flow ───────────────────────────────────────────────────────
 
-type BuildStep = "type_select" | "question" | "candidates_generating" | "pick_candidate" | "ai_generating" | "preview";
+type BuildStep = "type_select" | "question" | "candidates_generating" | "pick_candidate" | "ai_generating" | "preview" | "trial_brief";
 
 interface CandidateOption {
   title: string;
@@ -473,6 +475,11 @@ function ForgeBuilderFlow({
   };
 
   const handleActivate = () => {
+    if (!draft) return;
+    setStep("trial_brief");
+  };
+
+  const handleBeginTrial = () => {
     if (!draft || !state) return;
     setActivating(true);
     const guidebook: ForgeGuidebook = {
@@ -480,9 +487,11 @@ function ForgeBuilderFlow({
       status: "active",
       updated_at: new Date().toISOString(),
     };
+    const trial = createTrialFromForge(guidebook);
+    dispatch({ type: "trial/create", payload: trial });
     dispatch({ type: "forge/create_guidebook", payload: guidebook });
     setActivating(false);
-    onCancel(); // Return to main forge view
+    onCancel();
   };
 
   const handleDiscard = () => {
@@ -674,6 +683,15 @@ function ForgeBuilderFlow({
               loading={activating}
             />
           </div>
+        )}
+
+        {/* Step 5: Trial Brief — shown before launch */}
+        {step === "trial_brief" && draft && (
+          <TrialBrief
+            guidebook={draft as ForgeGuidebook}
+            onBeginTrial={handleBeginTrial}
+            onCancel={handleDiscard}
+          />
         )}
       </div>
     </div>

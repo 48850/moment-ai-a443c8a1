@@ -109,6 +109,8 @@ export function createEmptyUserState(userId: string, displayName: string, timezo
     pursuit_model: null,
     rescue_signals: [],
     exam_emergencies: [],
+    moment_trials: [],
+    mistake_cards: [],
     chat_messages: [],
     chat_preferences: { tone: "default" },
     chat_state: {
