@@ -270,6 +270,9 @@ export const useStateStore = create<StateStore>((set, get) => ({
         pursuit_model: "pursuit_model" in saved ? saved.pursuit_model : null,
         rescue_signals: (saved as any).rescue_signals ?? [],
         exam_emergencies: (saved as any).exam_emergencies ?? [],
+        goals: (saved as any).goals ?? [],
+        moment_trials: (saved as any).moment_trials ?? [],
+        mistake_cards: (saved as any).mistake_cards ?? [],
         chat_preferences: (saved as any).chat_preferences ?? { tone: "default" },
         chat_state: (saved as any).chat_state ?? {
           post_onboarding_specialisation_required: false,
@@ -618,6 +621,42 @@ export const useStateStore = create<StateStore>((set, get) => ({
             ? compilePursuitModel(mergedWithFeasibility, s.pursuit_model)
             : null,
         };
+        break;
+      }
+
+      // ─── Multi-goal system ────────────────────────────────────────────────────
+      // Horizon ≠ priority. Primary is chosen by importance, not urgency.
+
+      case "goal/add": {
+        const existing = (s as any).goals ?? [];
+        next = { ...s, goals: [...existing, action.payload] } as any;
+        break;
+      }
+
+      case "goal/set_role": {
+        const goals = ((s as any).goals ?? []).map((g: any) =>
+          g.id === action.payload.id ? { ...g, role: action.payload.role } : g,
+        );
+        next = { ...s, goals } as any;
+        break;
+      }
+
+      case "goal/set_primary": {
+        // Only one goal can be primary — demote others to background unless they are pressure
+        const goals = ((s as any).goals ?? []).map((g: any) => {
+          if (g.id === action.payload.id) return { ...g, role: "primary" };
+          if (g.role === "primary") return { ...g, role: "background" };
+          return g;
+        });
+        next = { ...s, goals } as any;
+        break;
+      }
+
+      case "goal/update": {
+        const goals = ((s as any).goals ?? []).map((g: any) =>
+          g.id === action.payload.id ? { ...g, ...action.payload.changes } : g,
+        );
+        next = { ...s, goals } as any;
         break;
       }
 
@@ -1288,6 +1327,173 @@ export const useStateStore = create<StateStore>((set, get) => ({
             ? compilePursuitModel(merged, s.pursuit_model)
             : null,
         });
+        break;
+      }
+
+      // ─── Exam questions / answer hiding ──────────────────────────────────
+
+      case "exam/add_question": {
+        const { emergencyId, question } = action.payload;
+        next = {
+          ...s,
+          exam_emergencies: ((s as any).exam_emergencies ?? []).map((e: any) =>
+            e.id === emergencyId
+              ? { ...e, questions: [...(e.questions ?? []), question], updated_at: now() }
+              : e,
+          ),
+        };
+        break;
+      }
+
+      case "exam/submit_answer": {
+        const { emergencyId, questionId, attempt } = action.payload;
+        next = {
+          ...s,
+          exam_emergencies: ((s as any).exam_emergencies ?? []).map((e: any) =>
+            e.id === emergencyId
+              ? {
+                  ...e,
+                  questions: (e.questions ?? []).map((q: any) =>
+                    q.id === questionId ? { ...q, attempt } : q,
+                  ),
+                  updated_at: now(),
+                }
+              : e,
+          ),
+        };
+        break;
+      }
+
+      case "exam/reveal_answer": {
+        const { emergencyId, questionId } = action.payload;
+        next = {
+          ...s,
+          exam_emergencies: ((s as any).exam_emergencies ?? []).map((e: any) =>
+            e.id === emergencyId
+              ? {
+                  ...e,
+                  questions: (e.questions ?? []).map((q: any) =>
+                    q.id === questionId ? { ...q, revealed_without_attempt: true } : q,
+                  ),
+                  updated_at: now(),
+                }
+              : e,
+          ),
+        };
+        break;
+      }
+
+      case "exam/save_question_rating": {
+        const { emergencyId, questionId, rating } = action.payload;
+        next = {
+          ...s,
+          exam_emergencies: ((s as any).exam_emergencies ?? []).map((e: any) =>
+            e.id === emergencyId
+              ? {
+                  ...e,
+                  questions: (e.questions ?? []).map((q: any) =>
+                    q.id === questionId && q.attempt
+                      ? { ...q, attempt: { ...q.attempt, rating } }
+                      : q,
+                  ),
+                  updated_at: now(),
+                }
+              : e,
+          ),
+        };
+        break;
+      }
+
+      case "exam/set_copilot_mode": {
+        const { emergencyId, mode } = action.payload;
+        next = {
+          ...s,
+          exam_emergencies: ((s as any).exam_emergencies ?? []).map((e: any) =>
+            e.id === emergencyId ? { ...e, copilot_mode: mode, updated_at: now() } : e,
+          ),
+        };
+        break;
+      }
+
+      // ─── Trials ──────────────────────────────────────────────────────────
+
+      case "trial/create": {
+        const trials = [...((s as any).moment_trials ?? []), action.payload];
+        next = { ...s, moment_trials: trials } as any;
+        break;
+      }
+
+      case "trial/save_result": {
+        const { id, result } = action.payload;
+        if (!result.attempt_summary?.trim()) break; // guard: never allow shell result
+
+        const existing = ((s as any).moment_trials ?? []) as any[];
+        const trial = existing.find((t: any) => t.id === id);
+        if (!trial) break;
+
+        const status = result.proof_event?.proof_text ? "proof_saved" : "rated";
+        const updatedTrials = existing.map((t: any) =>
+          t.id === id
+            ? { ...t, result, status, completed_at: t.completed_at ?? now() }
+            : t,
+        );
+
+        // Auto-create MistakeCard if rating is weak
+        const cards = [...((s as any).mistake_cards ?? [])] as any[];
+        const shouldCreateCard =
+          (result.rating.level === "needs_work" || result.rating.level === "developing") &&
+          result.rating.missing_points.length > 0;
+
+        if (shouldCreateCard) {
+          const missingPoint = result.rating.missing_points[0];
+          const alreadyExists = cards.some(
+            (c: any) => c.source_trial_id === id && c.mistake === missingPoint,
+          );
+          if (!alreadyExists) {
+            const tomorrow = new Date(Date.now() + 86_400_000).toISOString();
+            cards.push({
+              id: `mc_${id}_${Date.now()}`,
+              source_trial_id: id,
+              source: trial.source ?? "exam",
+              mistake_type: "weak_explanation",
+              mistake: missingPoint,
+              correction: result.rating.next_fix,
+              review_due_at: tomorrow,
+              status: "open",
+              created_at: now(),
+            });
+          }
+        }
+
+        next = { ...s, moment_trials: updatedTrials, mistake_cards: cards } as any;
+        break;
+      }
+
+      // ─── Mistake Vault ────────────────────────────────────────────────────
+
+      case "mistake/add": {
+        const cards = [...((s as any).mistake_cards ?? []), action.payload];
+        next = { ...s, mistake_cards: cards } as any;
+        break;
+      }
+
+      case "mistake/mark_reviewed": {
+        next = {
+          ...s,
+          mistake_cards: ((s as any).mistake_cards ?? []).map((c: any) =>
+            c.id === action.payload.id ? { ...c, status: "reviewed" } : c,
+          ),
+        } as any;
+        break;
+      }
+
+      case "mistake/repair": {
+        next = {
+          ...s,
+          mistake_cards: ((s as any).mistake_cards ?? []).map((c: any) =>
+            c.id === action.payload.id ? { ...c, status: "repaired" } : c,
+          ),
+        } as any;
         break;
       }
     }
