@@ -498,6 +498,59 @@ function tools(intent: string) {
         required: ["title", "purpose", "feature_type", "required_inputs", "ai_functions", "sections", "state_writes"],
         additionalProperties: false,
       },
+    exam_rate_answer: {
+      name: "answer",
+      description: "Grade a student's exam answer with specific, calibrated feedback.",
+      parameters: {
+        type: "object",
+        properties: {
+          rating: {
+            type: "object",
+            properties: {
+              level: { type: "string", enum: ["strong", "solid", "developing", "needs_work"] },
+              practice_estimate_label: { type: "string", description: "Short human label e.g. 'Strong', 'Needs work'." },
+              strengths: { type: "array", items: { type: "string" }, description: "Specific things the answer got right. Empty if none." },
+              missing_points: { type: "array", items: { type: "string" }, description: "Specific points the answer is missing." },
+              misconception: { type: "string", description: "Name the misconception in one sentence if present, else omit." },
+              next_fix: { type: "string", description: "One concrete next step to improve." },
+            },
+            required: ["level", "practice_estimate_label", "strengths", "missing_points", "next_fix"],
+            additionalProperties: false,
+          },
+        },
+        required: ["rating"],
+        additionalProperties: false,
+      },
+    },
+    exam_generate_questions: {
+      name: "answer",
+      description: "Generate exam-style practice questions calibrated to the user's topics and task profile.",
+      parameters: {
+        type: "object",
+        properties: {
+          questions: {
+            type: "array",
+            maxItems: 8,
+            items: {
+              type: "object",
+              properties: {
+                question_text: { type: "string" },
+                question_type: { type: "string", enum: ["short_answer", "long_answer", "multiple_choice", "definition", "calculation"] },
+                options: { type: "array", items: { type: "string" }, description: "Only for multiple_choice." },
+                correct_answer: { type: "string", description: "For MCQ or definition; exact correct answer." },
+                model_answer: { type: "string", description: "Ideal full answer for short/long answer questions." },
+                expected_points: { type: "array", items: { type: "string" }, description: "Key points a good answer must include." },
+                hint: { type: "string" },
+                topic_id: { type: "string" },
+              },
+              required: ["question_text", "question_type", "expected_points"],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ["questions"],
+        additionalProperties: false,
+      },
     },
   };
   return T[intent];
