@@ -8,10 +8,11 @@ import { useStateStore } from "@/stores/state-store";
 import { Mote } from "@/components/app/Mote";
 import { buildExamEmergencyFromIntake } from "@/lib/exam/build-exam-emergency";
 import { ExamCopilotPanel } from "@/components/exam/ExamCopilotPanel";
-import { DrillQuestion } from "@/components/exam/DrillQuestion";
+import { CueCard } from "@/components/exam/CueCard";
 import { nextUnansweredQuestion, drillSummary } from "@/lib/exam/question-helpers";
 import { buildLocalFallbackRating } from "@/lib/trial/trial-helpers";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
+import { buildContextPacket } from "@/lib/ai/context-packet";
 import type { ExamEmergency, StudyBlock, ExamQuestion, QuestionRating } from "@/lib/types";
 import type { ExamBlockFeedbackResult, TargetOutcome } from "@/lib/types/exam-emergency";
 import type { ForgeFeatureType } from "@/lib/types";
@@ -550,6 +551,7 @@ export default function ExamMode() {
       const { data } = await supabase.functions.invoke("app-intelligence", {
         body: {
           intent: "exam_generate_questions",
+          snapshot: buildContextPacket(useStateStore.getState().state),
           payload: {
             subject: target.subject,
             topics: topicNames,
@@ -558,7 +560,9 @@ export default function ExamMode() {
           },
         },
       });
-      const rawQuestions = Array.isArray(data?.questions) ? data.questions : [];
+      const rawQuestions = Array.isArray(data?.result?.questions)
+        ? data.result.questions
+        : Array.isArray(data?.questions) ? data.questions : [];
       for (const q of rawQuestions.slice(0, 8)) {
         if (!q?.question_text) continue;
         dispatch({
@@ -613,6 +617,7 @@ export default function ExamMode() {
       const { data } = await supabase.functions.invoke("app-intelligence", {
         body: {
           intent: "exam_rate_answer",
+          snapshot: buildContextPacket(useStateStore.getState().state),
           payload: {
             subject: target.subject,
             topic: rateTopicId || undefined,
@@ -621,14 +626,15 @@ export default function ExamMode() {
           },
         },
       });
-      if (data?.rating?.level) {
+      const rating = data?.result?.rating ?? data?.rating;
+      if (rating?.level) {
         setRateResult({
-          level: data.rating.level,
-          practice_estimate_label: data.rating.practice_estimate_label ?? data.rating.level,
-          strengths: Array.isArray(data.rating.strengths) ? data.rating.strengths : [],
-          missing_points: Array.isArray(data.rating.missing_points) ? data.rating.missing_points : [],
-          misconception: data.rating.misconception ?? undefined,
-          next_fix: data.rating.next_fix ?? "Review and try again.",
+          level: rating.level,
+          practice_estimate_label: rating.practice_estimate_label ?? rating.level,
+          strengths: Array.isArray(rating.strengths) ? rating.strengths : [],
+          missing_points: Array.isArray(rating.missing_points) ? rating.missing_points : [],
+          misconception: rating.misconception ?? undefined,
+          next_fix: rating.next_fix ?? "Review and try again.",
         });
       } else {
         setRateResult(buildLocalFallbackRating(rateAnswer));
@@ -768,9 +774,11 @@ export default function ExamMode() {
           )}
 
           {questions.length > 0 && currentQuestion && (
-            <DrillQuestion
+            <CueCard
               question={currentQuestion}
               emergencyId={target.id}
+              subject={target.subject}
+              taskProfile={target.task_profile}
               questionNumber={currentQIndex + 1}
               totalQuestions={questions.length}
               onNext={() => setCurrentQIndex((i) => Math.min(i + 1, questions.length - 1))}

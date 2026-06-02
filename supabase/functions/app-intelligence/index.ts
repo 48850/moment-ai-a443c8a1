@@ -498,6 +498,59 @@ function tools(intent: string) {
         required: ["title", "purpose", "feature_type", "required_inputs", "ai_functions", "sections", "state_writes"],
         additionalProperties: false,
       },
+    exam_rate_answer: {
+      name: "answer",
+      description: "Grade a student's exam answer with specific, calibrated feedback.",
+      parameters: {
+        type: "object",
+        properties: {
+          rating: {
+            type: "object",
+            properties: {
+              level: { type: "string", enum: ["strong", "solid", "developing", "needs_work"] },
+              practice_estimate_label: { type: "string", description: "Short human label e.g. 'Strong', 'Needs work'." },
+              strengths: { type: "array", items: { type: "string" }, description: "Specific things the answer got right. Empty if none." },
+              missing_points: { type: "array", items: { type: "string" }, description: "Specific points the answer is missing." },
+              misconception: { type: "string", description: "Name the misconception in one sentence if present, else omit." },
+              next_fix: { type: "string", description: "One concrete next step to improve." },
+            },
+            required: ["level", "practice_estimate_label", "strengths", "missing_points", "next_fix"],
+            additionalProperties: false,
+          },
+        },
+        required: ["rating"],
+        additionalProperties: false,
+      },
+    },
+    exam_generate_questions: {
+      name: "answer",
+      description: "Generate exam-style practice questions calibrated to the user's topics and task profile.",
+      parameters: {
+        type: "object",
+        properties: {
+          questions: {
+            type: "array",
+            maxItems: 8,
+            items: {
+              type: "object",
+              properties: {
+                question_text: { type: "string" },
+                question_type: { type: "string", enum: ["short_answer", "long_answer", "multiple_choice", "definition", "calculation"] },
+                options: { type: "array", items: { type: "string" }, description: "Only for multiple_choice." },
+                correct_answer: { type: "string", description: "For MCQ or definition; exact correct answer." },
+                model_answer: { type: "string", description: "Ideal full answer for short/long answer questions." },
+                expected_points: { type: "array", items: { type: "string" }, description: "Key points a good answer must include." },
+                hint: { type: "string" },
+                topic_id: { type: "string" },
+              },
+              required: ["question_text", "question_type", "expected_points"],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ["questions"],
+        additionalProperties: false,
+      },
     },
   };
   return T[intent];
@@ -939,6 +992,67 @@ Output contract (FOLLOW EXACTLY): ${payload?.prompt_contract ?? "Return JSON wit
 Inputs: ${JSON.stringify(payload?.inputs ?? {})}
 
 Return ONLY the JSON object the contract describes — no prose, no markdown, no commentary. Calibrate to the user's stage and onboarding context above.`;
+
+    case "exam_rate_answer": {
+      const subject = payload?.subject ?? "(unspecified subject)";
+      const question_text = payload?.question_text ?? payload?.topic ?? "(no question provided)";
+      const model_answer = payload?.model_answer ?? "(no model answer provided — judge based on subject knowledge)";
+      const expected_points = Array.isArray(payload?.expected_points) ? payload.expected_points : [];
+      const answer_text = payload?.answer_text ?? "";
+      const task_profile = payload?.task_profile ?? {};
+      return `${ctx}
+
+The user is practising for an exam in: ${subject}
+Task profile: ${JSON.stringify(task_profile)}
+
+QUESTION:
+${question_text}
+
+MODEL / IDEAL ANSWER (use as ground truth):
+${model_answer}
+
+KEY POINTS THE ANSWER SHOULD COVER:
+${expected_points.length ? expected_points.map((p: string) => `- ${p}`).join("\n") : "(none specified)"}
+
+THE USER'S ANSWER:
+"""
+${answer_text}
+"""
+
+Grade their answer like a tough but fair tutor:
+- level: strong (covers all key points, accurate, well-reasoned), solid (most points, minor gaps), developing (partial, some confusion), needs_work (mostly wrong, very thin, or off-topic).
+- strengths: specific things they got right. Empty array if none.
+- missing_points: specific concepts/points/details that should have appeared.
+- misconception: if they wrote something factually wrong, name it in one sentence. Omit if not applicable.
+- next_fix: one concrete thing to study or rewrite next — never generic.
+- practice_estimate_label: short human label matching the level.
+
+Be specific to ${subject}. Reference actual content from their answer. Do not be soft — if it's wrong, say so.`;
+    }
+
+    case "exam_generate_questions": {
+      const subject = payload?.subject ?? "(unspecified subject)";
+      const topics = Array.isArray(payload?.topics) ? payload.topics : [];
+      const task_profile = payload?.task_profile ?? {};
+      const count = Math.min(Math.max(Number(payload?.question_count ?? 5), 1), 8);
+      return `${ctx}
+
+Generate ${count} exam-style practice questions for the user.
+
+Subject: ${subject}
+Topics to cover (distribute across the questions): ${topics.length ? topics.join(", ") : "(use the subject broadly)"}
+Task profile (exam format / sections / target mark): ${JSON.stringify(task_profile)}
+
+Rules:
+- Match the difficulty and style implied by the task profile (short_answer / long_answer / multiple_choice / definition / calculation).
+- For each question include a model_answer (what a top answer would say) AND 2–5 expected_points (the key points a marker would look for).
+- For multiple_choice: include 4 options and the exact correct_answer string.
+- For definition: a one-line correct_answer.
+- topic_id: the topic name this question targets (must match one of the provided topic strings when possible).
+- Hints are optional and should be a gentle nudge, never the answer.
+
+Make the questions concrete and exam-realistic for ${subject}. Do not produce vague "discuss X" prompts unless the task profile is essay-based.`;
+    }
 
     default:
       return ctx;
