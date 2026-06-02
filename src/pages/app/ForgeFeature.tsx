@@ -20,6 +20,7 @@ import type {
   MomentState,
   ExecutionFeedbackItem,
 } from "@/lib/types";
+import { FlashcardDeck, extractFlashcardItems } from "@/components/forge/FlashcardDeck";
 
 // ─── Context awareness panel ──────────────────────────────────────────────────
 
