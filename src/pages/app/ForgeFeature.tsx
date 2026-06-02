@@ -283,6 +283,10 @@ function AIOutputDisplay({ output }: { output: Record<string, unknown> }) {
       if (val.length === 0) {
         return <p className="text-sm italic text-muted-foreground">(none)</p>;
       }
+      const flashcards = extractFlashcardItems(val);
+      if (flashcards) {
+        return <FlashcardDeck items={flashcards} />;
+      }
       return (
         <ul className="mt-1 space-y-1.5">
           {val.map((item, i) => (
