@@ -23,7 +23,7 @@ function makeState(overrides: Partial<MomentState & { goals?: UserGoal[] }> = {}
     profile: {
       display_name: "Alex",
       age: 16,
-      age_bracket: "16-17",
+      age_bracket: "teen_16_18",
       school_year: "Year 11",
       academic_context: "GCSE year",
       normal_weekday: "school",
@@ -53,7 +53,7 @@ function makeState(overrides: Partial<MomentState & { goals?: UserGoal[] }> = {}
       completed: true,
       current_stage: "done",
       answers: {},
-      understanding: { knowns: [], unknowns: [], assumptions: [], confidence: 0.8 },
+      understanding: { knowns: [], unknowns: [], assumptions: [], confidence: "high" },
     },
   };
   return { ...base, ...overrides } as unknown as MomentState;

@@ -29,7 +29,7 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
 
 export function TrialBrief({ guidebook, onBeginTrial, onCancel }: TrialBriefProps) {
   const toolName = TOOL_DISPLAY_NAMES[guidebook.feature_type] ?? "Proof Drill";
-  const resources = guidebook.required_inputs.map((i) => i.label ?? i.key).filter(Boolean);
+  const resources = guidebook.required_inputs.map((i) => i.label ?? i.id).filter(Boolean);
 
   return (
     <div className="rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-6 space-y-5">
