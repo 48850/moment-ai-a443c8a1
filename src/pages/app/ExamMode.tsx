@@ -769,9 +769,11 @@ export default function ExamMode() {
           )}
 
           {questions.length > 0 && currentQuestion && (
-            <DrillQuestion
+            <CueCard
               question={currentQuestion}
               emergencyId={target.id}
+              subject={target.subject}
+              taskProfile={target.task_profile}
               questionNumber={currentQIndex + 1}
               totalQuestions={questions.length}
               onNext={() => setCurrentQIndex((i) => Math.min(i + 1, questions.length - 1))}
