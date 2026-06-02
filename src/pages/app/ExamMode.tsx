@@ -617,6 +617,7 @@ export default function ExamMode() {
       const { data } = await supabase.functions.invoke("app-intelligence", {
         body: {
           intent: "exam_rate_answer",
+          snapshot: buildContextPacket(useStateStore.getState().state),
           payload: {
             subject: target.subject,
             topic: rateTopicId || undefined,
@@ -625,14 +626,15 @@ export default function ExamMode() {
           },
         },
       });
-      if (data?.rating?.level) {
+      const rating = data?.result?.rating ?? data?.rating;
+      if (rating?.level) {
         setRateResult({
-          level: data.rating.level,
-          practice_estimate_label: data.rating.practice_estimate_label ?? data.rating.level,
-          strengths: Array.isArray(data.rating.strengths) ? data.rating.strengths : [],
-          missing_points: Array.isArray(data.rating.missing_points) ? data.rating.missing_points : [],
-          misconception: data.rating.misconception ?? undefined,
-          next_fix: data.rating.next_fix ?? "Review and try again.",
+          level: rating.level,
+          practice_estimate_label: rating.practice_estimate_label ?? rating.level,
+          strengths: Array.isArray(rating.strengths) ? rating.strengths : [],
+          missing_points: Array.isArray(rating.missing_points) ? rating.missing_points : [],
+          misconception: rating.misconception ?? undefined,
+          next_fix: rating.next_fix ?? "Review and try again.",
         });
       } else {
         setRateResult(buildLocalFallbackRating(rateAnswer));
