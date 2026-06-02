@@ -551,6 +551,7 @@ export default function ExamMode() {
       const { data } = await supabase.functions.invoke("app-intelligence", {
         body: {
           intent: "exam_generate_questions",
+          snapshot: buildContextPacket(useStateStore.getState().state),
           payload: {
             subject: target.subject,
             topics: topicNames,
@@ -559,7 +560,9 @@ export default function ExamMode() {
           },
         },
       });
-      const rawQuestions = Array.isArray(data?.questions) ? data.questions : [];
+      const rawQuestions = Array.isArray(data?.result?.questions)
+        ? data.result.questions
+        : Array.isArray(data?.questions) ? data.questions : [];
       for (const q of rawQuestions.slice(0, 8)) {
         if (!q?.question_text) continue;
         dispatch({
