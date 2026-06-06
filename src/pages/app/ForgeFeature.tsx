@@ -21,6 +21,7 @@ import type {
   ExecutionFeedbackItem,
 } from "@/lib/types";
 import { FlashcardDeck, extractFlashcardItems } from "@/components/forge/FlashcardDeck";
+import { ConversationalInputPanel } from "@/components/forge/ConversationalInputPanel";
 
 // ─── Context awareness panel ──────────────────────────────────────────────────
 
