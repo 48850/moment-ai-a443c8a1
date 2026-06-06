@@ -21,6 +21,7 @@ import type {
   ExecutionFeedbackItem,
 } from "@/lib/types";
 import { FlashcardDeck, extractFlashcardItems } from "@/components/forge/FlashcardDeck";
+import { ConversationalInputPanel } from "@/components/forge/ConversationalInputPanel";
 
 // ─── Context awareness panel ──────────────────────────────────────────────────
 
@@ -655,17 +656,11 @@ function FeatureSection({
 
       <div className="p-4">
         {section.section_type === "input_panel" && (
-          <div className="space-y-4">
-            {guidebook.required_inputs.map((inp) => (
-              <div key={inp.id}>
-                <div className="mb-1.5 flex items-center gap-1 text-xs font-medium">
-                  {inp.label}
-                  {inp.required && <span className="text-destructive">*</span>}
-                </div>
-                <InputField input={inp} value={inputs[inp.id] ?? ""} onChange={(v) => onInputChange(inp.id, v)} />
-              </div>
-            ))}
-          </div>
+          <ConversationalInputPanel
+            inputs={guidebook.required_inputs}
+            values={inputs}
+            onChange={onInputChange}
+          />
         )}
 
         {section.section_type === "ai_output" && linkedFn && (
