@@ -1,5 +1,6 @@
 import { Mote } from "@/components/app/Mote";
 import { TrialBrief } from "@/components/forge/TrialBrief";
+import { ExamToolBuilder } from "@/components/forge/ExamToolBuilder";
 import { createTrialFromForge } from "@/lib/trial/trial-helpers";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
