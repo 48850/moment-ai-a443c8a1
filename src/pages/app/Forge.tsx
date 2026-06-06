@@ -850,6 +850,12 @@ const Forge = () => {
       {/* Heartbeat — shared context pulse */}
       <HeartbeatBanner />
 
+      {/* Exam emergency tools — shown when an exam is active */}
+      {!building && (
+        <ExamToolBuilder onBuildTool={handleBuildRecommendation} />
+      )}
+
+
       {/* Contextual suggestions — based on user's current situation */}
       {!building && contextualSuggestions.length > 0 && (
         <section>
